@@ -1,0 +1,20 @@
+from abc import ABC, abstractmethod
+from typing import Iterator, Optional
+from evadex.core.result import Variant, PayloadCategory
+
+
+class BaseVariantGenerator(ABC):
+    name: str = "base"
+    applicable_categories: Optional[set[PayloadCategory]] = None  # None = applies to all
+
+    @abstractmethod
+    def generate(self, value: str) -> Iterator[Variant]:
+        pass
+
+    def _make_variant(self, value: str, technique: str, transform_name: str) -> Variant:
+        return Variant(
+            value=value,
+            generator=self.name,
+            technique=technique,
+            transform_name=transform_name,
+        )
