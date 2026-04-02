@@ -24,8 +24,8 @@ htmlcov/
 
 # evadex output files (generated reports, not source)
 *.html
-full_text_results*.json
-visa_report*.json
+*.json
+!tests/fixtures/*.json
 
 # IDE
 .idea/
