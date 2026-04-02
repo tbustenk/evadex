@@ -85,15 +85,19 @@ class UnicodeEncodingGenerator(BaseVariantGenerator):
         yield self._make_variant(hexent, "html_entity_hex", "HTML hex entities for every character")
 
     def _url_encoding(self, value: str) -> Iterator[Variant]:
-        full = ''.join(f'%{ord(c):02X}' for c in value)
+        # Encode UTF-8 bytes so non-ASCII chars produce valid %XX%XX sequences
+        def pct(c: str) -> str:
+            return ''.join(f'%{b:02X}' for b in c.encode('utf-8'))
+
+        full = ''.join(pct(c) for c in value)
         yield self._make_variant(full, "url_percent_encoding_full", "All characters percent-encoded")
 
-        partial = ''.join(f'%{ord(c):02X}' if c.isdigit() else c for c in value)
+        partial = ''.join(pct(c) if c.isdigit() else c for c in value)
         if partial != value:
             yield self._make_variant(partial, "url_percent_encoding_digits", "Only digits percent-encoded")
 
         mixed = ''.join(
-            f'%{ord(c):02X}' if i % 2 == 0 and c.isalnum() else c
+            pct(c) if i % 2 == 0 and c.isalnum() else c
             for i, c in enumerate(value)
         )
         if mixed != value and mixed != partial:

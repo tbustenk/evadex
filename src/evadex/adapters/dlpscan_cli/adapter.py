@@ -18,7 +18,7 @@ class DlpscanCliAdapter(BaseAdapter):
 
     async def submit(self, payload: Payload, variant: Variant) -> ScanResult:
         strategy = variant.strategy
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         if strategy == "text":
             raw = await loop.run_in_executor(None, self._scan_text, variant.value)
@@ -51,6 +51,9 @@ class DlpscanCliAdapter(BaseAdapter):
             )
             if result.returncode != 0:
                 raise RuntimeError(f"dlpscan exited {result.returncode}: {result.stderr.strip()}")
-            return json.loads(result.stdout or "[]")
+            try:
+                return json.loads(result.stdout or "[]")
+            except json.JSONDecodeError as e:
+                raise RuntimeError(f"Invalid JSON from dlpscan: {e}") from e
         finally:
             os.unlink(path)

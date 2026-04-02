@@ -1,5 +1,6 @@
 from typing import Iterator
 from evadex.core.registry import register_generator
+from evadex.core.result import Variant
 from evadex.variants.base import BaseVariantGenerator
 
 

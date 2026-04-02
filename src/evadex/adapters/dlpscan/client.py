@@ -23,7 +23,7 @@ class DlpscanClient:
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None:
-            self._client = httpx.AsyncClient(timeout=self._timeout)
+            self._client = httpx.AsyncClient(headers=self._headers, timeout=self._timeout)
         return self._client
 
     async def post_text(self, text: str) -> dict:

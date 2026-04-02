@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.1] — 2026-04-01
+
+### Fixed
+- `structural` and `splitting` generators missing `Variant` import — caused `NameError` on Python 3.10–3.13
+- `DlpscanClient` lazy init dropped `Authorization` header when client was not pre-warmed
+- `dlpscan-cli` adapter used deprecated `asyncio.get_event_loop()` — replaced with `get_running_loop()`
+- `dlpscan-cli` adapter now raises `AdapterError` on malformed JSON from scanner instead of bare `JSONDecodeError`
+- URL encoding generator produced malformed `%1A7`-style sequences for non-ASCII characters — now encodes UTF-8 bytes correctly
+
 ## [0.1.0] — 2026-04-01
 
 Initial release.
