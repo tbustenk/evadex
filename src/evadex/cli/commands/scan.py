@@ -92,13 +92,15 @@ def scan(
     results = engine.run(payloads)
 
     # Summary
+    from evadex.core.result import SeverityLevel
     total  = len(results)
-    passes = sum(1 for r in results if r.detected)
-    fails  = total - passes
-    err_console.print(
-        f"[green]Done.[/green] {total} tests \u2014 "
-        f"[green]{passes} detected[/green], [red]{fails} evaded[/red]"
-    )
+    passes = sum(1 for r in results if r.severity == SeverityLevel.PASS)
+    fails  = sum(1 for r in results if r.severity == SeverityLevel.FAIL)
+    errors = sum(1 for r in results if r.severity == SeverityLevel.ERROR)
+    parts  = [f"[green]{passes} detected[/green]", f"[red]{fails} evaded[/red]"]
+    if errors:
+        parts.append(f"[yellow]{errors} errors[/yellow]")
+    err_console.print(f"[green]Done.[/green] {total} tests \u2014 " + ", ".join(parts))
 
     # Report
     reporter = HtmlReporter() if fmt == "html" else JsonReporter()

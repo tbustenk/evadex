@@ -1,0 +1,1117 @@
+{
+  "meta": {
+    "timestamp": "2026-04-02T01:56:06.784170+00:00",
+    "total": 61,
+    "pass": 0,
+    "fail": 0,
+    "error": 61,
+    "pass_rate": 0.0,
+    "summary_by_category": {
+      "credit_card": {
+        "pass": 0,
+        "fail": 0,
+        "error": 61
+      }
+    }
+  },
+  "results": [
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "%34%35%33%32%30%31%35%31%31%32%38%33%30%33%36%36",
+        "generator": "unicode_encoding",
+        "technique": "url_percent_encoding_digits",
+        "transform_name": "Only digits percent-encoded",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 547.12,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmp7bxd2p4h.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "2354151038216630",
+        "generator": "encoding",
+        "technique": "reversed_within_groups",
+        "transform_name": "Digits reversed within each 4-character group",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 537.37,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmp_rolo5n1.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "4 5 3 2 0 1 5 1 1 2 8 3 0 3 6 6",
+        "generator": "splitting",
+        "technique": "whitespace_padding",
+        "transform_name": "Space inserted between every character",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 512.67,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmp9gqmk5ex.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "4532/0151/1283/0366",
+        "generator": "delimiter",
+        "technique": "slash_delimiter",
+        "transform_name": "Groups separated by slashes",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 539.42,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpvz8b8w6z.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "๔๕๓๒๐๑๕๑๑๒๘๓๐๓๖๖",
+        "generator": "regional_digits",
+        "technique": "regional_thai",
+        "transform_name": "Digits replaced with Thai digits",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 541.5,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpe9xvq1v2.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "4<!---->5<!---->3<!---->2<!---->0<!---->1<!---->5<!---->1<!---->1<!---->2<!---->8<!---->3<!---->0<!---->3<!---->6<!---->6",
+        "generator": "splitting",
+        "technique": "html_comment_injection",
+        "transform_name": "HTML comment injected between every character",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 504.88,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmp_w386zmw.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "٤५٣२٠१٥१١२٨३٠३٦६",
+        "generator": "regional_digits",
+        "technique": "regional_mixed_alternating",
+        "transform_name": "Alternating Arabic-Indic and Devanagari digits",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 508.84,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmp0_fxlpo2.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "XXXXXXXXXX4532015112830366XXXXXXXXXX",
+        "generator": "structural",
+        "technique": "noise_embedded",
+        "transform_name": "Value surrounded by noise characters",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 513.28,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmp5h7w2cfh.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "4532015112830366",
+        "generator": "unicode_encoding",
+        "technique": "nfkc_normalization",
+        "transform_name": "Unicode normalization form NFKC",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 520.48,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmprvqjwhbs.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "NDUzMjAxNTExMjgzMDM2Ng==",
+        "generator": "encoding",
+        "technique": "base64_standard",
+        "transform_name": "Value base64-encoded (standard alphabet)",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 520.76,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpfes2hmt3.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "%345%332%301%351%312%383%303%366",
+        "generator": "unicode_encoding",
+        "technique": "url_percent_encoding_mixed",
+        "transform_name": "Alternating percent-encoding",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 581.52,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpye9f3eh5.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "0366128301514532",
+        "generator": "encoding",
+        "technique": "reversed_group_order",
+        "transform_name": "4-character groups reversed in order",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 578.69,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpmlyvxxwd.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "<data>4532015112830366</data>",
+        "generator": "splitting",
+        "technique": "xml_tag_injection",
+        "transform_name": "Value wrapped in XML data tag",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 578.21,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpmp2zpfq8.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "4532\t0151\t1283\t0366",
+        "generator": "delimiter",
+        "technique": "tab_delimiter",
+        "transform_name": "Groups separated by tabs",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 571.99,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpqqa1p0g5.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "၄၅၃၂၀၁၅၁၁၂၈၃၀၃၆၆",
+        "generator": "regional_digits",
+        "technique": "regional_myanmar",
+        "transform_name": "Digits replaced with Myanmar digits",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 566.86,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpnofu7fu1.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "4/**/5/**/3/**/2/**/0/**/1/**/5/**/1/**/1/**/2/**/8/**/3/**/0/**/3/**/6/**/6",
+        "generator": "splitting",
+        "technique": "css_comment_injection",
+        "transform_name": "CSS comment injected between every character",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 500.55,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmp2g0iyc8j.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "๔๕๓๒๐๑๕๑১২৮৩০৩৬৬",
+        "generator": "regional_digits",
+        "technique": "regional_mixed_partial",
+        "transform_name": "First half Thai digits, second half Bengali digits",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 501.63,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpn1hbk93e.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "4‍5‍3‍2‍0‍1‍5‍1‍1‍2‍8‍3‍0‍3‍6‍6",
+        "generator": "unicode_encoding",
+        "technique": "zero_width_injection",
+        "transform_name": "Zero-width ZWJ between every character",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 523.52,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmp9_9va8q0.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "test_value_4532015112830366",
+        "generator": "structural",
+        "technique": "overlapping_prefix",
+        "transform_name": "Noise prefix prepended",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 520.43,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpv3t2vat4.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "4532015112830366",
+        "generator": "unicode_encoding",
+        "technique": "nfkd_normalization",
+        "transform_name": "Unicode normalization form NFKD",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 526.85,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpjplbgba8.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "NDUzMjAxNTExMjgzMDM2Ng",
+        "generator": "encoding",
+        "technique": "base64_no_padding",
+        "transform_name": "Value base64-encoded, padding stripped",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 540.39,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmp_iteixa8.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "4532015112830366",
+        "generator": "delimiter",
+        "technique": "no_delimiter",
+        "transform_name": "All delimiters removed",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 539.42,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpbqrnquzm.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "%2534%2535%2533%2532%2530%2531%2535%2531%2531%2532%2538%2533%2530%2533%2536%2536",
+        "generator": "encoding",
+        "technique": "double_url_encoding",
+        "transform_name": "Double percent-encoding (%XX → %25XX)",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 528.91,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmprg49hakw.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "٤٥٣٢٠١٥١١٢٨٣٠٣٦٦",
+        "generator": "regional_digits",
+        "technique": "regional_arabic_indic",
+        "transform_name": "Digits replaced with Arabic-Indic digits",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 526.84,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpw785f7fw.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "4532\n0151\n1283\n0366",
+        "generator": "delimiter",
+        "technique": "newline_delimiter",
+        "transform_name": "Groups separated by newlines",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 533.35,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpkso4yc4v.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "៤៥៣២០១៥១១២៨៣០៣៦៦",
+        "generator": "regional_digits",
+        "technique": "regional_khmer",
+        "transform_name": "Digits replaced with Khmer digits",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 503.66,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpprvt7o95.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "Lorem ipsum dolor si 4532015112830366",
+        "generator": "splitting",
+        "technique": "prefix_noise",
+        "transform_name": "Noise text prepended",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 502.72,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpwawimqrk.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "          4532015112830366",
+        "generator": "structural",
+        "technique": "left_pad_spaces",
+        "transform_name": "10 spaces prepended",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 514.69,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpukv_d2zo.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "４５３２０１５１１２８３０３６６",
+        "generator": "unicode_encoding",
+        "technique": "fullwidth_digits",
+        "transform_name": "ASCII digits replaced with fullwidth equivalents (U+FF10–FF19)",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 517.3,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpghl6umfr.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "45320151",
+        "generator": "structural",
+        "technique": "partial_first_half",
+        "transform_name": "First half of value only (tests partial detection)",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 508.14,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpsaegjobk.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "&#52;&#53;&#51;&#50;&#48;&#49;&#53;&#49;&#49;&#50;&#56;&#51;&#48;&#51;&#54;&#54;",
+        "generator": "unicode_encoding",
+        "technique": "html_entity_decimal",
+        "transform_name": "HTML decimal entities for every character",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 510.85,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpyblm21wo.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "45320151MTI4MzAzNjY=",
+        "generator": "encoding",
+        "technique": "base64_partial",
+        "transform_name": "First half literal, second half base64-encoded",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 510.01,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpazx6klj3.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "4532 0151 1283 0366",
+        "generator": "delimiter",
+        "technique": "space_delimiter",
+        "transform_name": "Groups separated by spaces",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 523.05,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpugv5hak0.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "۴۵۳۲۰۱۵۱۱۲۸۳۰۳۶۶",
+        "generator": "regional_digits",
+        "technique": "regional_extended_arabic_indic",
+        "transform_name": "Digits replaced with Extended Arabic-Indic digits (Urdu/Persian)",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 519.43,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpecyqtzbn.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "4532 0151-1283 0366",
+        "generator": "delimiter",
+        "technique": "mixed_delimiter",
+        "transform_name": "Alternating space and hyphen delimiters",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 519.59,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpx6hqce9v.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "᠔᠕᠓᠒᠐᠑᠕᠑᠑᠒᠘᠓᠐᠓᠖᠖",
+        "generator": "regional_digits",
+        "technique": "regional_mongolian",
+        "transform_name": "Digits replaced with Mongolian digits",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 528.77,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmppetp_qkv.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "4532015112830366 Lorem ipsum dolor si",
+        "generator": "splitting",
+        "technique": "suffix_noise",
+        "transform_name": "Noise text appended",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 524.77,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpe7sh5yb9.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "4532015112830366          ",
+        "generator": "structural",
+        "technique": "right_pad_spaces",
+        "transform_name": "10 spaces appended",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 514.78,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmp_5_29vae.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "453201511283036600000",
+        "generator": "structural",
+        "technique": "right_pad_zeros",
+        "transform_name": "5 zeros appended",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 519.56,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmphlscy1k5.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "4ƼƷƧΟІƼІІƧȢƷΟƷбб",
+        "generator": "unicode_encoding",
+        "technique": "homoglyph_substitution",
+        "transform_name": "Visually similar Cyrillic/Greek characters substituted",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 515.38,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpoob5nlls.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "12830366",
+        "generator": "structural",
+        "technique": "partial_last_half",
+        "transform_name": "Last half of value only",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 497.92,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmptgc86fj0.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "&#x34;&#x35;&#x33;&#x32;&#x30;&#x31;&#x35;&#x31;&#x31;&#x32;&#x38;&#x33;&#x30;&#x33;&#x36;&#x36;",
+        "generator": "unicode_encoding",
+        "technique": "html_entity_hex",
+        "transform_name": "HTML hex entities for every character",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 515.85,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmp4rwzl23k.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "TkRVek1qQXhOVEV4TWpnek1ETTJOZz09",
+        "generator": "encoding",
+        "technique": "base64_double",
+        "transform_name": "Value base64-encoded twice",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 521.56,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpbhb7y2r1.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "4532-0151-1283-0366",
+        "generator": "delimiter",
+        "technique": "hyphen_delimiter",
+        "transform_name": "Groups separated by hyphens",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 519.9,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpse14wosy.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "४५३२०१५११२८३०३६६",
+        "generator": "regional_digits",
+        "technique": "regional_devanagari",
+        "transform_name": "Digits replaced with Devanagari digits",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 523.71,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpeop90d09.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "4532--0151--1283--0366",
+        "generator": "delimiter",
+        "technique": "excessive_delimiter",
+        "transform_name": "Doubled hyphen delimiters",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 510.77,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmp10m3yv1p.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "߄߅߃߂߀߁߅߁߁߂߈߃߀߃߆߆",
+        "generator": "regional_digits",
+        "technique": "regional_nko",
+        "transform_name": "Digits replaced with NKo digits",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 517.86,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpfv2g9o1p.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "{\"part1\": \"45320151\", \"part2\": \"12830366\"}",
+        "generator": "splitting",
+        "technique": "json_field_split",
+        "transform_name": "Value split across two JSON fields",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 509.65,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmprd45435e.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "4​5​3​2​0​1​5​1​1​2​8​3​0​3​6​6",
+        "generator": "unicode_encoding",
+        "technique": "zero_width_injection",
+        "transform_name": "Zero-width ZWSP between every character",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 513.23,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpj8lchxaq.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "000004532015112830366",
+        "generator": "structural",
+        "technique": "left_pad_zeros",
+        "transform_name": "5 zeros prepended",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 524.28,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpjzxncuxa.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "4532015112830366 4532015112830366",
+        "generator": "structural",
+        "technique": "repeated",
+        "transform_name": "Value repeated twice with space separator",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 515.02,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpypnb2ao5.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "4532015112830366",
+        "generator": "unicode_encoding",
+        "technique": "nfd_normalization",
+        "transform_name": "Unicode normalization form NFD",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 523.63,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmp0qfjfyji.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "453201511283036",
+        "generator": "structural",
+        "technique": "partial_minus_one",
+        "transform_name": "Last character removed",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 512.6,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmp3y1hy4rt.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "%34%35%33%32%30%31%35%31%31%32%38%33%30%33%36%36",
+        "generator": "unicode_encoding",
+        "technique": "url_percent_encoding_full",
+        "transform_name": "All characters percent-encoded",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 509.98,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpk9_6e_kg.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "6630382115102354",
+        "generator": "encoding",
+        "technique": "reversed_full",
+        "transform_name": "Entire value reversed",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 517.82,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmp8rctfxnl.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "4532.0151.1283.0366",
+        "generator": "delimiter",
+        "technique": "dot_delimiter",
+        "transform_name": "Groups separated by dots",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 496.42,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpk6ala7q3.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "৪৫৩২০১৫১১২৮৩০৩৬৬",
+        "generator": "regional_digits",
+        "technique": "regional_bengali",
+        "transform_name": "Digits replaced with Bengali digits",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 507.03,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpd7u59g83.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "45320151\n12830366",
+        "generator": "splitting",
+        "technique": "mid_line_break",
+        "transform_name": "Line break injected at midpoint",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 498.95,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmplo35tajq.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "༤༥༣༢༠༡༥༡༡༢༨༣༠༣༦༦",
+        "generator": "regional_digits",
+        "technique": "regional_tibetan",
+        "transform_name": "Digits replaced with Tibetan digits",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 488.31,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmpekxvrt6c.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "4‌5‌3‌2‌0‌1‌5‌1‌1‌2‌8‌3‌0‌3‌6‌6",
+        "generator": "unicode_encoding",
+        "technique": "zero_width_injection",
+        "transform_name": "Zero-width ZWNJ between every character",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 488.98,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmph5ncp42k.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    },
+    {
+      "payload": {
+        "value": "4532015112830366",
+        "category": "credit_card",
+        "label": "Custom (credit_card)"
+      },
+      "variant": {
+        "value": "4532015112830366",
+        "generator": "unicode_encoding",
+        "technique": "nfc_normalization",
+        "transform_name": "Unicode normalization form NFC",
+        "strategy": "docx"
+      },
+      "detected": false,
+      "severity": "error",
+      "duration_ms": 470.71,
+      "error": "dlpscan exited 1: Pipeline extraction error for C:\\Users\\RYZEN5~1\\AppData\\Local\\Temp\\tmp3yz2nyco.docx: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]\nError: DOCX extraction requires 'python-docx'. Install with: pip install dlpscan[office]"
+    }
+  ]
+}

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.3] — 2026-04-02
+
+### Fixed
+- CLI summary line counted adapter errors as "evaded" — now shows detected / evaded / errors separately, errors only shown when non-zero
+
 ## [0.1.2] — 2026-04-01
 
 ### Fixed
