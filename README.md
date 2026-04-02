@@ -54,7 +54,7 @@ pip install evadex
 Or install from source:
 
 ```bash
-git clone https://github.com/your-org/evadex
+git clone https://github.com/tbustenk/evadex
 cd evadex
 pip install -e ".[dev]"
 ```
