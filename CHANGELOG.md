@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.4] — 2026-04-02
+
+### Fixed
+- Move inline imports to module top level in `engine.py`, `dlpscan_cli/adapter.py`, `encoding.py`, and `cli/commands/scan.py`
+
 ## [0.1.3] — 2026-04-02
 
 ### Fixed

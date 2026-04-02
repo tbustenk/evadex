@@ -1,7 +1,7 @@
 import asyncio
 import time
 from typing import AsyncIterator
-from evadex.core.result import Payload, ScanResult
+from evadex.core.result import Payload, Variant, ScanResult
 from evadex.adapters.base import BaseAdapter
 from evadex.variants.base import BaseVariantGenerator
 from evadex.core.registry import all_generators
@@ -55,8 +55,6 @@ class Engine:
     async def _run_one(
         self, sem: asyncio.Semaphore, payload: Payload, variant, strategy: str
     ) -> ScanResult:
-        from evadex.core.result import Variant, ScanResult
-
         # Clone variant with strategy
         v = Variant(
             value=variant.value,

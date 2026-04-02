@@ -1,5 +1,6 @@
 import asyncio
 import json
+import subprocess
 import tempfile
 import os
 from evadex.adapters.base import BaseAdapter
@@ -42,7 +43,6 @@ class DlpscanCliAdapter(BaseAdapter):
             f.write(data)
             path = f.name
         try:
-            import subprocess
             result = subprocess.run(
                 [self._exe, "-f", "json", path],
                 capture_output=True,

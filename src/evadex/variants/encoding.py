@@ -1,5 +1,6 @@
 import base64
 import codecs
+import re
 import unicodedata
 from typing import Iterator
 
@@ -84,7 +85,6 @@ class EncodingGenerator(BaseVariantGenerator):
             yield self._make_variant(rev, "reversed_full", "Entire value reversed")
 
         # Strip non-alphanumeric, split into 4-char groups, reverse within each group
-        import re
         raw = re.sub(r"[^A-Za-z0-9]", "", value)
         groups = [raw[i:i+4] for i in range(0, len(raw), 4)]
         within = "".join(g[::-1] for g in groups)

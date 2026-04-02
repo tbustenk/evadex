@@ -3,7 +3,7 @@ import click
 from rich.console import Console
 from evadex.core.registry import load_builtins, get_adapter, all_generators, get_generator
 from evadex.core.engine import Engine
-from evadex.core.result import Payload, PayloadCategory
+from evadex.core.result import Payload, PayloadCategory, SeverityLevel
 from evadex.payloads.builtins import get_payloads, detect_category
 from evadex.reporters.json_reporter import JsonReporter
 from evadex.reporters.html_reporter import HtmlReporter
@@ -92,7 +92,6 @@ def scan(
     results = engine.run(payloads)
 
     # Summary
-    from evadex.core.result import SeverityLevel
     total  = len(results)
     passes = sum(1 for r in results if r.severity == SeverityLevel.PASS)
     fails  = sum(1 for r in results if r.severity == SeverityLevel.FAIL)
