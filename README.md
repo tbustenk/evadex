@@ -231,7 +231,7 @@ For file strategies, evadex builds the document in memory and writes it to a tem
 
 ### Built-in: `dlpscan`
 
-HTTP adapter for a dlpscan instance running as a REST API. Targets `POST /scan` (text) and `POST /scan/file` (multipart upload).
+Generic HTTP adapter for any DLP tool that exposes a REST API. Sends plain text to `POST /scan` with a `{"content": "..."}` body, and file uploads to `POST /scan/file` as multipart form data. Expects a JSON response with a `detected` boolean (configurable via the `response_detected_key` extra config option).
 
 ```bash
 evadex scan --tool dlpscan --url http://my-dlpscan-server:8080 --api-key my-key

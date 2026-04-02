@@ -8,7 +8,7 @@ from evadex.variants.base import BaseVariantGenerator
 HOMOGLYPHS = {
     '0': '\u039F',   # Greek capital omicron
     '1': '\u0406',   # Cyrillic I
-    '2': '\u0198',   # Latin letter reversed esh (using Ƙ as placeholder — actual: Ƨ U+01A8)
+    '2': '\u01A7',   # Latin capital letter tone two (Ƨ) — visually resembles 2
     '3': '\u01B7',   # Latin letter ezh (Ʒ)
     '5': '\u01BC',   # Latin letter five (Ƽ)
     '6': '\u0431',   # Cyrillic be (б)
