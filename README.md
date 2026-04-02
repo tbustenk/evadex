@@ -2,7 +2,7 @@
 
 A scanner-agnostic DLP evasion test suite. evadex generates hundreds of obfuscated variants of known-sensitive values and submits them to your DLP scanner to find what slips through — including through file extraction pipelines (DOCX, PDF, XLSX), not just plain-text API calls.
 
-Built with [dlpscan](https://github.com/oxide11/dlpscan) as the default target, with a clean adapter interface for testing any DLP tool.
+Built and tested with [dlpscan](https://github.com/oxide11/dlpscan); works with any scanner via its adapter interface. Detection rates vary by scanner, configuration, and ruleset — run evadex against your own deployment to see your results.
 
 ---
 
@@ -95,8 +95,10 @@ evadex scan --tool dlpscan-cli --strategy text --format html -o report.html
 
 ```
 Running evadex scan against dlpscan-cli at http://localhost:8080...
-Done. 501 tests — 425 detected, 76 evaded
+Done. 590 tests — N detected, N evaded
 ```
+
+Detection rates depend on your scanner, its version, and how it's configured.
 
 ### JSON output (`--format json`, default)
 
@@ -104,20 +106,20 @@ Done. 501 tests — 425 detected, 76 evaded
 {
   "meta": {
     "timestamp": "2026-04-01T22:01:36.172424+00:00",
-    "total": 501,
-    "pass": 425,
-    "fail": 76,
+    "total": 590,
+    "pass": 0,
+    "fail": 0,
     "error": 0,
-    "pass_rate": 84.8,
+    "pass_rate": 0.0,
     "summary_by_category": {
-      "credit_card": { "pass": 150, "fail": 9,  "error": 0 },
-      "ssn":         { "pass": 51,  "fail": 2,  "error": 0 },
-      "sin":         { "pass": 51,  "fail": 2,  "error": 0 },
-      "iban":        { "pass": 49,  "fail": 6,  "error": 0 },
-      "aws_key":     { "pass": 27,  "fail": 19, "error": 0 },
-      "jwt":         { "pass": 25,  "fail": 22, "error": 0 },
-      "email":       { "pass": 21,  "fail": 14, "error": 0 },
-      "phone":       { "pass": 51,  "fail": 2,  "error": 0 }
+      "credit_card": { "pass": 0, "fail": 0, "error": 0 },
+      "ssn":         { "pass": 0, "fail": 0, "error": 0 },
+      "sin":         { "pass": 0, "fail": 0, "error": 0 },
+      "iban":        { "pass": 0, "fail": 0, "error": 0 },
+      "aws_key":     { "pass": 0, "fail": 0, "error": 0 },
+      "jwt":         { "pass": 0, "fail": 0, "error": 0 },
+      "email":       { "pass": 0, "fail": 0, "error": 0 },
+      "phone":       { "pass": 0, "fail": 0, "error": 0 }
     }
   },
   "results": [
@@ -221,13 +223,13 @@ evadex scan --tool dlpscan-cli --strategy text --format html -o report.html
 
 ### Built-in: `dlpscan-cli`
 
-Invokes the [dlpscan](https://github.com/oxide11/dlpscan) CLI directly as a subprocess. Requires `dlpscan` to be installed and on `PATH`.
+Invokes the [dlpscan](https://github.com/oxide11/dlpscan) CLI directly as a subprocess. evadex was built and tested with dlpscan as the reference scanner. Requires `dlpscan` to be installed and on `PATH`.
 
 ```bash
 evadex scan --tool dlpscan-cli
 ```
 
-For file strategies, evadex builds the document in memory and writes it to a temp file, runs `dlpscan <file> -f json`, then deletes the temp file.
+For file strategies, evadex builds the document in memory and writes it to a temp file, runs `dlpscan <file> -f json`, then deletes the temp file. File extraction support in dlpscan requires `pip install dlpscan[office]`.
 
 ### Built-in: `dlpscan`
 
