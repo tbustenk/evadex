@@ -101,15 +101,19 @@ class EncodingGenerator(BaseVariantGenerator):
     # ------------------------------------------------------------------
 
     def _double_url_encoding(self, value: str) -> Iterator[Variant]:
+        # Encode UTF-8 bytes so non-ASCII chars produce valid %XX sequences
+        def pct(c: str) -> str:
+            return "".join(f"%{b:02X}" for b in c.encode("utf-8"))
+
         # Single-encode every character, then encode the % signs
-        single = "".join(f"%{ord(c):02X}" for c in value)
+        single = "".join(pct(c) for c in value)
         # Now percent-encode the % signs themselves: % → %25
         double = single.replace("%", "%25")
-        yield self._make_variant(double, "double_url_encoding", "Double percent-encoding (%XX → %2XXX)")
+        yield self._make_variant(double, "double_url_encoding", "Double percent-encoding (%XX → %25XX)")
 
         # Selective double-encoding: only digits double-encoded, rest single
         selective = "".join(
-            f"%25{ord(c):02X}" if c.isdigit() else f"%{ord(c):02X}"
+            "".join(f"%25{b:02X}" for b in c.encode("utf-8")) if c.isdigit() else pct(c)
             for c in value
         )
         if selective != double:

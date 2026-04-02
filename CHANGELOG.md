@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.2] — 2026-04-01
+
+### Fixed
+- `regional_digits` generator missing `Variant` import — same `NameError` on Python 3.10–3.13 as fixed in 0.1.1 for other generators
+- `encoding` generator double URL encoding used `ord(c)` — produced malformed `%1A7`-style sequences for non-ASCII characters; now encodes UTF-8 bytes correctly
+
 ## [0.1.1] — 2026-04-01
 
 ### Fixed
