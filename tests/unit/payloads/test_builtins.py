@@ -44,11 +44,11 @@ def test_detect_unknown():
 
 
 def test_get_payloads_all():
-    payloads = get_payloads()
+    payloads = get_payloads(include_heuristic=True)
     assert len(payloads) == len(BUILTIN_PAYLOADS)
 
 
 def test_get_payloads_filtered():
     payloads = get_payloads({PayloadCategory.CREDIT_CARD})
     assert all(p.category == PayloadCategory.CREDIT_CARD for p in payloads)
-    assert len(payloads) == 3  # Visa, Amex, Mastercard
+    assert len(payloads) == 7  # Visa, Amex, Mastercard, Discover, JCB, UnionPay, Diners

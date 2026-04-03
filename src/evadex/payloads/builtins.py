@@ -3,13 +3,40 @@ from evadex.core.result import Payload, PayloadCategory
 
 
 BUILTIN_PAYLOADS = [
+    # --- Credit cards ---
     Payload("4532015112830366", PayloadCategory.CREDIT_CARD, "Visa 16-digit"),
     Payload("378282246310005",  PayloadCategory.CREDIT_CARD, "Amex 15-digit"),
     Payload("5105105105105100", PayloadCategory.CREDIT_CARD, "Mastercard 16-digit"),
+    Payload("6011111111111117", PayloadCategory.CREDIT_CARD, "Discover 16-digit"),
+    Payload("3530111333300000", PayloadCategory.CREDIT_CARD, "JCB 16-digit"),
+    Payload("6250941006528599", PayloadCategory.CREDIT_CARD, "UnionPay 16-digit"),
+    Payload("30569309025904",   PayloadCategory.CREDIT_CARD, "Diners Club 14-digit"),
+
+    # --- National IDs / government ---
     Payload("123-45-6789",      PayloadCategory.SSN,         "US SSN"),
     Payload("046 454 286",      PayloadCategory.SIN,         "Canada SIN"),
-    Payload("GB82WEST12345698765432", PayloadCategory.IBAN,  "UK IBAN"),
-    Payload("AKIAIOSFODNN7EXAMPLE",   PayloadCategory.AWS_KEY, "AWS Access Key ID"),
+    Payload("340000136",        PayloadCategory.US_PASSPORT, "US Passport number"),       # fires as CUSIP (9-digit collision); context_required for USA Passport pattern
+    Payload("123 456 78",       PayloadCategory.AU_TFN,      "Australia TFN"),
+    Payload("86095742719",      PayloadCategory.DE_TAX_ID,   "Germany Steuer-IdNr"),      # fires as Geohash (11-digit/charset collision); context_required for Germany Tax ID
+    Payload("282097505604213",  PayloadCategory.FR_INSEE,    "France INSEE (NIR)"),       # fires as PAN (15-digit collision); context_required for France NIR
+
+    # --- Banking ---
+    Payload("GB82WEST12345698765432",    PayloadCategory.IBAN,        "UK IBAN"),
+    Payload("DE89370400440532013000",    PayloadCategory.IBAN,        "Germany IBAN"),
+    Payload("FR7630006000011234567890189", PayloadCategory.IBAN,      "France IBAN"),
+    Payload("ES9121000418450200051332",  PayloadCategory.IBAN,        "Spain IBAN"),
+    Payload("DEUTDEDB",                  PayloadCategory.SWIFT_BIC,   "SWIFT/BIC code"),
+    Payload("021000021",                 PayloadCategory.ABA_ROUTING, "ABA routing number"),  # fires as CUSIP (9-digit collision); context_required for ABA Routing Number
+
+    # --- Cryptocurrency ---
+    Payload("1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2",       PayloadCategory.BITCOIN,   "Bitcoin legacy address"),
+    Payload("0x742d35Cc6634C0532925a3b844Bc454e4438f44e", PayloadCategory.ETHEREUM,  "Ethereum address"),
+
+    # --- Secrets (heuristic) ---
+    Payload("AKIAIOSFODNN7EXAMPLE",                         PayloadCategory.AWS_KEY,      "AWS Access Key ID"),
+    Payload("ghp_16C7e42F292c6912E7710c838347Ae178B4a",    PayloadCategory.GITHUB_TOKEN, "GitHub classic token"),
+    Payload("sk_test_4eC39HqLyjWDarjtT7en6bh8Xy9mPqZ",    PayloadCategory.STRIPE_KEY,   "Stripe test secret key"),
+    Payload("xoxb-EXAMPLE-BOTTOKEN-abc123def",              PayloadCategory.SLACK_TOKEN, "Slack bot token"),
     Payload(
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
         ".eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ"
@@ -17,6 +44,12 @@ BUILTIN_PAYLOADS = [
         PayloadCategory.JWT,
         "Sample JWT",
     ),
+
+    # --- Classification labels (heuristic) ---
+    Payload("TOP SECRET",  PayloadCategory.CLASSIFICATION, "Top Secret classification label"),
+    Payload("HIPAA",       PayloadCategory.CLASSIFICATION, "HIPAA privacy label"),
+
+    # --- Contact ---
     Payload("test.user@example.com", PayloadCategory.EMAIL, "Email address"),
     Payload("+1-555-867-5309",       PayloadCategory.PHONE, "US phone number"),
 ]
@@ -79,7 +112,14 @@ def _luhn_check(number: str) -> bool:
     return total % 10 == 0
 
 
-HEURISTIC_CATEGORIES = {PayloadCategory.JWT, PayloadCategory.AWS_KEY}
+HEURISTIC_CATEGORIES = {
+    PayloadCategory.JWT,
+    PayloadCategory.AWS_KEY,
+    PayloadCategory.GITHUB_TOKEN,
+    PayloadCategory.STRIPE_KEY,
+    PayloadCategory.SLACK_TOKEN,
+    PayloadCategory.CLASSIFICATION,
+}
 
 
 def get_payloads(categories=None, include_heuristic: bool = False) -> list[Payload]:

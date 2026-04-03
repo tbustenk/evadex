@@ -9,6 +9,18 @@ class PayloadCategory(Enum):
     SSN = "ssn"
     SIN = "sin"
     IBAN = "iban"
+    SWIFT_BIC = "swift_bic"
+    ABA_ROUTING = "aba_routing"
+    BITCOIN = "bitcoin"
+    ETHEREUM = "ethereum"
+    US_PASSPORT = "us_passport"
+    AU_TFN = "au_tfn"
+    DE_TAX_ID = "de_tax_id"
+    FR_INSEE = "fr_insee"
+    GITHUB_TOKEN = "github_token"
+    STRIPE_KEY = "stripe_key"
+    SLACK_TOKEN = "slack_token"
+    CLASSIFICATION = "classification"
     AWS_KEY = "aws_key"
     JWT = "jwt"
     EMAIL = "email"
@@ -22,15 +34,27 @@ class CategoryType(Enum):
 
 
 CATEGORY_TYPES: dict[PayloadCategory, CategoryType] = {
-    PayloadCategory.CREDIT_CARD: CategoryType.STRUCTURED,
-    PayloadCategory.SSN:         CategoryType.STRUCTURED,
-    PayloadCategory.SIN:         CategoryType.STRUCTURED,
-    PayloadCategory.IBAN:        CategoryType.STRUCTURED,
-    PayloadCategory.EMAIL:       CategoryType.STRUCTURED,
-    PayloadCategory.PHONE:       CategoryType.STRUCTURED,
-    PayloadCategory.AWS_KEY:     CategoryType.HEURISTIC,
-    PayloadCategory.JWT:         CategoryType.HEURISTIC,
-    PayloadCategory.UNKNOWN:     CategoryType.STRUCTURED,
+    PayloadCategory.CREDIT_CARD:    CategoryType.STRUCTURED,
+    PayloadCategory.SSN:            CategoryType.STRUCTURED,
+    PayloadCategory.SIN:            CategoryType.STRUCTURED,
+    PayloadCategory.IBAN:           CategoryType.STRUCTURED,
+    PayloadCategory.SWIFT_BIC:      CategoryType.STRUCTURED,
+    PayloadCategory.ABA_ROUTING:    CategoryType.STRUCTURED,
+    PayloadCategory.BITCOIN:        CategoryType.STRUCTURED,
+    PayloadCategory.ETHEREUM:       CategoryType.STRUCTURED,
+    PayloadCategory.US_PASSPORT:    CategoryType.STRUCTURED,
+    PayloadCategory.AU_TFN:         CategoryType.STRUCTURED,
+    PayloadCategory.DE_TAX_ID:      CategoryType.STRUCTURED,
+    PayloadCategory.FR_INSEE:       CategoryType.STRUCTURED,
+    PayloadCategory.GITHUB_TOKEN:   CategoryType.HEURISTIC,
+    PayloadCategory.STRIPE_KEY:     CategoryType.HEURISTIC,
+    PayloadCategory.SLACK_TOKEN:    CategoryType.HEURISTIC,
+    PayloadCategory.CLASSIFICATION: CategoryType.HEURISTIC,
+    PayloadCategory.EMAIL:          CategoryType.STRUCTURED,
+    PayloadCategory.PHONE:          CategoryType.STRUCTURED,
+    PayloadCategory.AWS_KEY:        CategoryType.HEURISTIC,
+    PayloadCategory.JWT:            CategoryType.HEURISTIC,
+    PayloadCategory.UNKNOWN:        CategoryType.STRUCTURED,
 }
 
 
@@ -96,4 +120,5 @@ class ScanResult:
             "severity": self.severity.value,
             "duration_ms": round(self.duration_ms, 2),
             "error": self.error,
+            "raw_response": self.raw_response,
         }
