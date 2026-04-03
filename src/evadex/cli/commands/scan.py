@@ -1,6 +1,7 @@
 import sys
 import click
 from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, BarColumn, TaskProgressColumn, TextColumn, TimeElapsedColumn
 from evadex.core.registry import load_builtins, get_adapter, all_generators, get_generator
 from evadex.core.engine import Engine
 from evadex.core.result import Payload, PayloadCategory, SeverityLevel
@@ -44,10 +45,18 @@ CATEGORY_CHOICES = click.Choice([c.value for c in PayloadCategory])
 @click.option("--cmd-style", "cmd_style", default=None,
               type=click.Choice(["python", "rust"]), show_default=False,
               help="Command format for dlpscan-cli: 'python' (-f json) or 'rust' (--format json scan)")
+@click.option("--min-detection-rate", "min_detection_rate", default=None, type=float,
+              help="Exit with code 1 if detection rate falls below this threshold (0-100). "
+                   "For CI/CD pipeline integration.")
+@click.option("--baseline", "save_baseline", default=None,
+              help="Save this run's JSON results to a baseline file for future comparison.")
+@click.option("--compare-baseline", "compare_baseline", default=None,
+              help="Compare this run against a saved baseline JSON and report regressions.")
 def scan(
     tool, input_value, fmt, output, url, api_key, timeout,
     strategies, concurrency, categories, variant_groups, include_heuristic,
-    scanner_label, executable, cmd_style,
+    scanner_label, executable, cmd_style, min_detection_rate,
+    save_baseline, compare_baseline,
 ):
     """Run DLP evasion tests."""
     load_builtins()
@@ -116,23 +125,49 @@ def scan(
     else:
         generators = None  # use all registered
 
-    # Run engine
+    # Run engine with live progress bar on stderr
     err_console.print(
         f"[dim]Running evadex scan against [bold]{tool}[/bold] at {url}...[/dim]"
     )
+    progress = Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        TimeElapsedColumn(),
+        console=err_console,
+        transient=True,
+    )
+    progress_task_id = None
+
+    def on_result(result, completed, total):
+        if progress_task_id is not None:
+            label = result.payload.label
+            progress.update(
+                progress_task_id,
+                completed=completed,
+                total=total,
+                description=f"[dim]{label[:35]}[/dim]",
+            )
+
     engine = Engine(
         adapter=adapter,
         generators=generators,
         concurrency=concurrency,
         strategies=active_strategies,
+        on_result=on_result,
     )
-    results = engine.run(payloads)
+
+    with progress:
+        progress_task_id = progress.add_task("[dim]Starting...[/dim]", total=None)
+        results = engine.run(payloads)
 
     # Summary
     total  = len(results)
     passes = sum(1 for r in results if r.severity == SeverityLevel.PASS)
     fails  = sum(1 for r in results if r.severity == SeverityLevel.FAIL)
     errors = sum(1 for r in results if r.severity == SeverityLevel.ERROR)
+    pass_rate = round(passes / total * 100, 1) if total else 0.0
     parts  = [f"[green]{passes} detected[/green]", f"[red]{fails} evaded[/red]"]
     if errors:
         parts.append(f"[yellow]{errors} errors[/yellow]")
@@ -150,3 +185,55 @@ def scan(
         sys.stdout.buffer.write(rendered.encode("utf-8"))
         sys.stdout.buffer.write(b"\n")
         sys.stdout.buffer.flush()
+
+    # --baseline: save a copy of the JSON result as a reference file
+    if save_baseline:
+        baseline_rendered = JsonReporter(scanner_label=scanner_label).render(results)
+        with open(save_baseline, "w", encoding="utf-8") as f:
+            f.write(baseline_rendered)
+        err_console.print(f"[dim]Baseline saved to {save_baseline}[/dim]")
+
+    # --compare-baseline: diff current run against saved baseline
+    if compare_baseline:
+        import json as _json
+        from evadex.cli.commands.compare import build_comparison
+        try:
+            with open(compare_baseline, encoding="utf-8") as f:
+                baseline_data = _json.load(f)
+        except FileNotFoundError:
+            err_console.print(f"[red]Baseline file not found: {compare_baseline}[/red]")
+            sys.exit(1)
+        current_data = _json.loads(JsonReporter(scanner_label=scanner_label).render(results))
+        comp = build_comparison(baseline_data, current_data)
+        delta = comp["overall"]["delta"]
+        regressions = [d for d in comp["diffs"] if d["b_severity"] == "fail" and d["a_severity"] == "pass"]
+        improvements = [d for d in comp["diffs"] if d["b_severity"] == "pass" and d["a_severity"] == "fail"]
+        err_console.print(
+            f"\n[bold]Baseline comparison:[/bold] "
+            f"{'[red]' if delta < 0 else '[green]'}{delta:+.1f} pp[/{'red' if delta < 0 else 'green'}] "
+            f"vs {comp['label_a']}"
+        )
+        if regressions:
+            err_console.print(f"[red]  {len(regressions)} regression(s) — variants now evading that baseline caught:[/red]")
+            for r in regressions[:20]:
+                err_console.print(f"    [dim]{r['category']}[/dim]  {r['payload_label']}  [cyan]{r['generator']}[/cyan]/{r['technique']}")
+            if len(regressions) > 20:
+                err_console.print(f"    [dim]... and {len(regressions) - 20} more[/dim]")
+        if improvements:
+            err_console.print(f"[green]  {len(improvements)} improvement(s) — variants now caught that baseline missed[/green]")
+        if not regressions and not improvements:
+            err_console.print("[green]  No changes vs baseline.[/green]")
+
+    # --min-detection-rate: CI/CD gate (checked last so report is always written first)
+    if min_detection_rate is not None:
+        if pass_rate < min_detection_rate:
+            err_console.print(
+                f"[red][bold]FAIL:[/bold] Detection rate {pass_rate}% is below "
+                f"required minimum {min_detection_rate}%[/red]"
+            )
+            sys.exit(1)
+        else:
+            err_console.print(
+                f"[green][bold]PASS:[/bold] Detection rate {pass_rate}% meets "
+                f"minimum threshold {min_detection_rate}%[/green]"
+            )

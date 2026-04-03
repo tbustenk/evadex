@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.1.0] — 2026-04-03
+
+### Added
+
+- **`evadex compare`** — new command to diff two scan result JSON files. Reports overall delta, per-category delta, per-technique delta (changed techniques only), and a full list of every variant where detection status differs. Supports `--format json` and `--format html`. `--label-a`/`--label-b` override the scanner labels from the JSON `meta.scanner` field.
+- **`--min-detection-rate`** (`evadex scan`) — CI/CD gate flag. If the final detection rate falls below the given threshold, exits with code 1 and a clear `FAIL:` message. Example: `evadex scan --tool dlpscan-cli --min-detection-rate 85`.
+- **`--baseline`** (`evadex scan`) — saves the current run's JSON results to a reference file. Example: `evadex scan --baseline baseline.json`.
+- **`--compare-baseline`** (`evadex scan`) — diffs the current run against a saved baseline and prints regressions (variants now evading that the baseline caught) and improvements (variants now caught that the baseline missed). Does not affect exit code; informational only.
+- **`evadex list-payloads`** — lists all 30 built-in payloads in a Rich table showing label, value, category, and structured/heuristic type. Supports `--type structured` or `--type heuristic` to filter.
+- **`evadex list-techniques`** — lists all registered generators and their techniques in per-generator Rich tables, showing technique name and human-readable description. Supports `--generator <name>` to filter to a single generator.
+- **Live progress bar** (`evadex scan`) — Rich progress bar on stderr showing completed/total count, current payload label, elapsed time, and a spinner. Transient (disappears cleanly after the scan completes so it doesn't pollute piped output).
+- **`Engine.on_result` callback** — the engine now accepts an optional `on_result(result, completed, total)` callback called after each test case completes. Used internally by the progress bar; available for custom integrations.
+
+### Tests
+
+113 tests (up from 88). 25 new tests across two new test files:
+
+- `tests/integration/test_compare.py` — 12 tests covering `build_comparison` logic and the `compare` CLI command (JSON output, HTML output, label override, missing file)
+- `tests/integration/test_new_features.py` — 13 tests covering `--min-detection-rate` (above/below/boundary), `--baseline` file creation, `--compare-baseline` regression/improvement detection, `list-payloads` (all, structured, heuristic), `list-techniques` (all, filtered, unknown generator), and `Engine.on_result` callback
+
 ## [0.2.0] — 2026-04-03
 
 ### Reliability fixes

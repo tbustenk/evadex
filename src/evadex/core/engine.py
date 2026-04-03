@@ -1,6 +1,6 @@
 import asyncio
 import time
-from typing import AsyncIterator
+from typing import AsyncIterator, Callable, Optional
 from evadex.core.result import Payload, Variant, ScanResult
 from evadex.adapters.base import BaseAdapter
 from evadex.variants.base import BaseVariantGenerator
@@ -14,11 +14,13 @@ class Engine:
         generators: list[BaseVariantGenerator] | None = None,
         concurrency: int = 5,
         strategies: list[str] | None = None,
+        on_result: Optional[Callable[[ScanResult, int, int], None]] = None,
     ):
         self.adapter = adapter
         self.generators = generators  # None = use all registered
         self.concurrency = concurrency
         self.strategies = strategies or ["text", "docx", "pdf", "xlsx"]
+        self.on_result = on_result  # callback(result, completed, total)
 
     def run(self, payloads: list[Payload]) -> list[ScanResult]:
         return asyncio.run(self._run_async_collect(payloads))
@@ -42,12 +44,19 @@ class Engine:
                         continue
                 for variant in gen.generate(payload.value):
                     for strategy in self.strategies:
-                        tasks.append(self._run_one(sem, payload, variant, strategy))
+                        tasks.append((payload, variant, strategy))
+
+        total = len(tasks)
+        coros = [self._run_one(sem, payload, variant, strategy) for payload, variant, strategy in tasks]
 
         await self.adapter.setup()
+        completed = 0
         try:
-            for coro in asyncio.as_completed(tasks):
+            for coro in asyncio.as_completed(coros):
                 result = await coro
+                completed += 1
+                if self.on_result:
+                    self.on_result(result, completed, total)
                 yield result
         finally:
             await self.adapter.teardown()
