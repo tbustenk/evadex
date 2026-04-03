@@ -4,7 +4,7 @@ from rich.console import Console
 from evadex.core.registry import load_builtins, get_adapter, all_generators, get_generator
 from evadex.core.engine import Engine
 from evadex.core.result import Payload, PayloadCategory, SeverityLevel
-from evadex.payloads.builtins import get_payloads, detect_category
+from evadex.payloads.builtins import get_payloads, detect_category, HEURISTIC_CATEGORIES
 from evadex.reporters.json_reporter import JsonReporter
 from evadex.reporters.html_reporter import HtmlReporter
 
@@ -35,12 +35,22 @@ CATEGORY_CHOICES = click.Choice([c.value for c in PayloadCategory])
               help="Filter built-in payloads by category. Repeat for multiple.")
 @click.option("--variant-group", "variant_groups", multiple=True,
               help="Limit to specific generator names. Repeat for multiple.")
+@click.option("--include-heuristic", "include_heuristic", is_flag=True, default=False,
+              help="Also run heuristic categories (JWT, AWS key). See README for limitations.")
 def scan(
     tool, input_value, fmt, output, url, api_key, timeout,
-    strategies, concurrency, categories, variant_groups,
+    strategies, concurrency, categories, variant_groups, include_heuristic,
 ):
     """Run DLP evasion tests."""
     load_builtins()
+
+    if include_heuristic:
+        err_console.print(
+            "[yellow]Warning: --include-heuristic is enabled. Heuristic categories (JWT, AWS key) "
+            "rely on fixed-prefix or high-entropy patterns that DLP scanners match differently than "
+            "structured formats. Evasion results for these categories may not reflect real-world "
+            "detection risk and should be interpreted with caution.[/yellow]"
+        )
 
     # Resolve strategies
     active_strategies = list(strategies) if strategies else ["text", "docx", "pdf", "xlsx"]
@@ -55,7 +65,16 @@ def scan(
         )]
     else:
         filter_cats = {PayloadCategory(c) for c in categories} if categories else None
-        payloads = get_payloads(filter_cats)
+        if filter_cats and not include_heuristic:
+            heuristic_requested = filter_cats & HEURISTIC_CATEGORIES
+            if heuristic_requested:
+                names = ", ".join(c.value for c in heuristic_requested)
+                err_console.print(
+                    f"[red]Error: category '{names}' is heuristic. "
+                    f"Add --include-heuristic to include it.[/red]"
+                )
+                sys.exit(1)
+        payloads = get_payloads(filter_cats, include_heuristic=include_heuristic)
 
     if not payloads:
         err_console.print("[red]No payloads to test.[/red]")

@@ -28,18 +28,44 @@ Each variant is tested four ways by default: as plain text, embedded in a DOCX, 
 
 **Built-in test payloads:**
 
-| Label | Value |
-|---|---|
-| Visa 16-digit | `4532015112830366` |
-| Amex 15-digit | `378282246310005` |
-| Mastercard 16-digit | `5105105105105100` |
-| US SSN | `123-45-6789` |
-| Canada SIN | `046 454 286` |
-| UK IBAN | `GB82WEST12345698765432` |
-| AWS Access Key ID | `AKIAIOSFODNN7EXAMPLE` |
-| Sample JWT | *(compact JWT string)* |
-| Email address | `test.user@example.com` |
-| US phone number | `+1-555-867-5309` |
+Payloads are classified as **structured** or **heuristic** — see [Structured vs heuristic categories](#structured-vs-heuristic-categories) below.
+
+| Label | Value | Category type |
+|---|---|---|
+| Visa 16-digit | `4532015112830366` | structured |
+| Amex 15-digit | `378282246310005` | structured |
+| Mastercard 16-digit | `5105105105105100` | structured |
+| US SSN | `123-45-6789` | structured |
+| Canada SIN | `046 454 286` | structured |
+| UK IBAN | `GB82WEST12345698765432` | structured |
+| Email address | `test.user@example.com` | structured |
+| US phone number | `+1-555-867-5309` | structured |
+| AWS Access Key ID | `AKIAIOSFODNN7EXAMPLE` | heuristic |
+| Sample JWT | *(compact JWT string)* | heuristic |
+
+Heuristic payloads are excluded from the default scan. Use `--include-heuristic` to include them.
+
+---
+
+## Structured vs heuristic categories
+
+evadex classifies its built-in payload categories into two groups:
+
+**Structured** — formats with well-defined, mathematically or syntactically validatable patterns. DLP scanners typically enforce these patterns precisely (e.g., Luhn check on credit cards, fixed-length digit groups for SSN/SIN, checksum-verified IBAN). Evasion results in this group reflect meaningful signal: a variant that evades detection is a real gap in coverage.
+
+Categories: `credit_card`, `ssn`, `sin`, `iban`, `email`, `phone`
+
+**Heuristic** — formats where detection relies on fixed prefixes, high-entropy pattern matching, or loosely defined structure. DLP rules for these categories vary widely between scanners and configurations, and a "fail" result may simply reflect that the scanner never had a strong rule for that specific format variant — not that a real exfiltration path was found.
+
+Categories: `aws_key`, `jwt`
+
+Heuristic categories are excluded from the default scan to avoid misleading results. Include them with:
+
+```bash
+evadex scan --tool dlpscan-cli --include-heuristic
+```
+
+A warning is printed to stderr whenever `--include-heuristic` is active reminding you to interpret those results with caution.
 
 ---
 
@@ -127,6 +153,7 @@ Detection rates depend on your scanner, its version, and how it's configured.
       "payload": {
         "value": "5105105105105100",
         "category": "credit_card",
+        "category_type": "structured",
         "label": "Mastercard 16-digit"
       },
       "variant": {
@@ -145,6 +172,7 @@ Detection rates depend on your scanner, its version, and how it's configured.
       "payload": {
         "value": "046 454 286",
         "category": "sin",
+        "category_type": "structured",
         "label": "Canada SIN"
       },
       "variant": {
@@ -182,7 +210,7 @@ evadex scan [OPTIONS]
 | Flag | Default | Description |
 |---|---|---|
 | `--tool`, `-t` | `dlpscan-cli` | Adapter name to use |
-| `--input`, `-i` | *(all built-ins)* | Single value to test. If omitted, runs all 10 built-in payloads. Category is auto-detected (Luhn check, regex patterns for SSN/IBAN/AWS/JWT/email/phone). |
+| `--input`, `-i` | *(all built-ins)* | Single value to test. If omitted, runs all 8 structured built-in payloads (add `--include-heuristic` for all 10). Category is auto-detected (Luhn check, regex patterns for SSN/IBAN/AWS/JWT/email/phone). |
 | `--format`, `-f` | `json` | Output format: `json` or `html` |
 | `--output`, `-o` | stdout | Write report to file instead of stdout |
 | `--strategy` | all four | Submission strategy: `text`, `docx`, `pdf`, `xlsx`. Repeat the flag for multiple. Omit to run all four. |
@@ -190,8 +218,9 @@ evadex scan [OPTIONS]
 | `--timeout` | `30.0` | Request timeout in seconds |
 | `--url` | `http://localhost:8080` | Base URL (for HTTP-based adapters) |
 | `--api-key` | *(env: `EVADEX_API_KEY`)* | API key passed as `Authorization: Bearer` |
-| `--category` | *(all)* | Filter built-in payloads by category. Repeat for multiple. Values: `credit_card`, `ssn`, `sin`, `iban`, `aws_key`, `jwt`, `email`, `phone` |
+| `--category` | *(all structured)* | Filter built-in payloads by category. Repeat for multiple. Values: `credit_card`, `ssn`, `sin`, `iban`, `aws_key`, `jwt`, `email`, `phone` |
 | `--variant-group` | *(all)* | Limit to specific generator(s). Repeat for multiple. Values: `unicode_encoding`, `delimiter`, `splitting`, `leetspeak`, `regional_digits`, `structural`, `encoding` |
+| `--include-heuristic` | off | Also run heuristic categories (`jwt`, `aws_key`). A warning is printed when enabled — see [Structured vs heuristic categories](#structured-vs-heuristic-categories). |
 
 ### Examples
 
@@ -345,6 +374,7 @@ async def submit(self, payload, variant):
 |---|---|---|
 | `payload.value` | string | Original sensitive value |
 | `payload.category` | string | Detected category enum value |
+| `payload.category_type` | string | `structured` or `heuristic` — see [Structured vs heuristic categories](#structured-vs-heuristic-categories) |
 | `payload.label` | string | Human-readable label |
 | `variant.value` | string | Transformed/obfuscated value submitted to scanner |
 | `variant.generator` | string | Which generator produced this variant |

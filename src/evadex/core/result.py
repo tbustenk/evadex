@@ -16,6 +16,24 @@ class PayloadCategory(Enum):
     UNKNOWN = "unknown"
 
 
+class CategoryType(Enum):
+    STRUCTURED = "structured"
+    HEURISTIC = "heuristic"
+
+
+CATEGORY_TYPES: dict[PayloadCategory, CategoryType] = {
+    PayloadCategory.CREDIT_CARD: CategoryType.STRUCTURED,
+    PayloadCategory.SSN:         CategoryType.STRUCTURED,
+    PayloadCategory.SIN:         CategoryType.STRUCTURED,
+    PayloadCategory.IBAN:        CategoryType.STRUCTURED,
+    PayloadCategory.EMAIL:       CategoryType.STRUCTURED,
+    PayloadCategory.PHONE:       CategoryType.STRUCTURED,
+    PayloadCategory.AWS_KEY:     CategoryType.HEURISTIC,
+    PayloadCategory.JWT:         CategoryType.HEURISTIC,
+    PayloadCategory.UNKNOWN:     CategoryType.STRUCTURED,
+}
+
+
 class SeverityLevel(Enum):
     PASS = "pass"      # scanner DETECTED the evasion attempt (good — scanner caught it)
     FAIL = "fail"      # scanner did NOT detect (bad — evasion succeeded)
@@ -29,7 +47,12 @@ class Payload:
     label: str
 
     def to_dict(self):
-        return {"value": self.value, "category": self.category.value, "label": self.label}
+        return {
+            "value": self.value,
+            "category": self.category.value,
+            "category_type": CATEGORY_TYPES.get(self.category, CategoryType.STRUCTURED).value,
+            "label": self.label,
+        }
 
 
 @dataclass

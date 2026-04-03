@@ -79,7 +79,13 @@ def _luhn_check(number: str) -> bool:
     return total % 10 == 0
 
 
-def get_payloads(categories=None) -> list[Payload]:
-    if categories is None:
-        return BUILTIN_PAYLOADS
-    return [p for p in BUILTIN_PAYLOADS if p.category in categories]
+HEURISTIC_CATEGORIES = {PayloadCategory.JWT, PayloadCategory.AWS_KEY}
+
+
+def get_payloads(categories=None, include_heuristic: bool = False) -> list[Payload]:
+    payloads = BUILTIN_PAYLOADS
+    if not include_heuristic:
+        payloads = [p for p in payloads if p.category not in HEURISTIC_CATEGORIES]
+    if categories:
+        payloads = [p for p in payloads if p.category in categories]
+    return payloads
