@@ -14,3 +14,9 @@ def test_generators_registered():
 def test_adapter_registered():
     load_builtins()
     assert "dlpscan" in _ADAPTERS
+    assert "dlpscan-cli" in _ADAPTERS
+
+
+def test_encoding_generator_registered():
+    load_builtins()
+    assert "encoding" in _GENERATORS

@@ -45,7 +45,8 @@ class DlpscanAdapter(BaseAdapter):
         return ScanResult(payload=payload, variant=variant, detected=detected, raw_response=raw)
 
     def _parse_response(self, raw: dict) -> bool:
-        # Try configured key first
+        # Try configured key first. If the key is present, only use it — do not
+        # fall through to the heuristic block regardless of the value's type.
         if self._detected_key in raw:
             val = raw[self._detected_key]
             if isinstance(val, bool):
@@ -54,8 +55,12 @@ class DlpscanAdapter(BaseAdapter):
                 return bool(val)
             if isinstance(val, str):
                 return val.lower() in ('true', '1', 'yes', 'detected')
+            if isinstance(val, list):
+                return len(val) > 0
+            # Unrecognised type (None, dict, …) — treat as not detected.
+            return False
 
-        # Try common response shapes
+        # Configured key absent — try common response shapes.
         for key in ("detected", "found", "matches", "findings", "alert", "flagged"):
             if key in raw:
                 val = raw[key]

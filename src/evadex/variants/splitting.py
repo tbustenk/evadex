@@ -1,3 +1,5 @@
+import html
+import json
 from typing import Iterator
 from evadex.core.registry import register_generator
 from evadex.core.result import Variant
@@ -39,7 +41,7 @@ class SplittingGenerator(BaseVariantGenerator):
             "Noise text appended",
         )
         yield self._make_variant(
-            '{"part1": "' + value[:mid] + '", "part2": "' + value[mid:] + '"}',
+            json.dumps({"part1": value[:mid], "part2": value[mid:]}),
             "json_field_split",
             "Value split across two JSON fields",
         )
@@ -49,7 +51,7 @@ class SplittingGenerator(BaseVariantGenerator):
             "Space inserted between every character",
         )
         yield self._make_variant(
-            f'<data>{value}</data>',
+            f'<data>{html.escape(value)}</data>',
             "xml_tag_injection",
             "Value wrapped in XML data tag",
         )

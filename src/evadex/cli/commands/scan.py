@@ -15,7 +15,7 @@ CATEGORY_CHOICES = click.Choice([c.value for c in PayloadCategory])
 
 
 @click.command()
-@click.option("--tool", "-t", default="dlpscan", show_default=True, help="DLP adapter to use")
+@click.option("--tool", "-t", default="dlpscan-cli", show_default=True, help="DLP adapter to use")
 @click.option("--input", "-i", "input_value", default=None,
               help="Single value to test (if omitted, runs all built-ins)")
 @click.option("--format", "-f", "fmt", type=click.Choice(["json", "html"]),
@@ -37,9 +37,17 @@ CATEGORY_CHOICES = click.Choice([c.value for c in PayloadCategory])
               help="Limit to specific generator names. Repeat for multiple.")
 @click.option("--include-heuristic", "include_heuristic", is_flag=True, default=False,
               help="Also run heuristic categories (JWT, AWS key). See README for limitations.")
+@click.option("--scanner-label", "scanner_label", default="", show_default=False,
+              help="Label for this scanner in JSON output (e.g. 'python-1.3.0' or 'rust-2.0.0')")
+@click.option("--exe", "executable", default=None, show_default=False,
+              help="Path to scanner executable (dlpscan-cli adapter only)")
+@click.option("--cmd-style", "cmd_style", default=None,
+              type=click.Choice(["python", "rust"]), show_default=False,
+              help="Command format for dlpscan-cli: 'python' (-f json) or 'rust' (--format json scan)")
 def scan(
     tool, input_value, fmt, output, url, api_key, timeout,
     strategies, concurrency, categories, variant_groups, include_heuristic,
+    scanner_label, executable, cmd_style,
 ):
     """Run DLP evasion tests."""
     load_builtins()
@@ -82,10 +90,20 @@ def scan(
 
     # Resolve adapter
     config = {"base_url": url, "api_key": api_key, "timeout": timeout}
+    if executable:
+        config["executable"] = executable
+    if cmd_style:
+        config["cmd_style"] = cmd_style
     try:
         adapter = get_adapter(tool, config)
     except KeyError as e:
         err_console.print(f"[red]{e}[/red]")
+        sys.exit(1)
+
+    # Pre-flight health check
+    import asyncio as _asyncio
+    if not _asyncio.run(adapter.health_check()):
+        err_console.print(f"[red]Health check failed for adapter '{tool}'. Is the scanner available?[/red]")
         sys.exit(1)
 
     # Resolve generators
@@ -121,7 +139,7 @@ def scan(
     err_console.print(f"[green]Done.[/green] {total} tests \u2014 " + ", ".join(parts))
 
     # Report
-    reporter = HtmlReporter() if fmt == "html" else JsonReporter()
+    reporter = HtmlReporter() if fmt == "html" else JsonReporter(scanner_label=scanner_label)
     rendered = reporter.render(results)
 
     if output:

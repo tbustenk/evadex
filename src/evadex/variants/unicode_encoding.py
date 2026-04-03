@@ -72,11 +72,12 @@ class UnicodeEncodingGenerator(BaseVariantGenerator):
     def _normalization(self, value: str) -> Iterator[Variant]:
         for form in ('NFD', 'NFC', 'NFKC', 'NFKD'):
             result = unicodedata.normalize(form, value)
-            yield self._make_variant(
-                result,
-                f"{form.lower()}_normalization",
-                f"Unicode normalization form {form}",
-            )
+            if result != value:
+                yield self._make_variant(
+                    result,
+                    f"{form.lower()}_normalization",
+                    f"Unicode normalization form {form}",
+                )
 
     def _html_entities(self, value: str) -> Iterator[Variant]:
         decimal = ''.join(f'&#{ord(c)};' for c in value)

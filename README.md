@@ -30,18 +30,38 @@ Each variant is tested four ways by default: as plain text, embedded in a DOCX, 
 
 Payloads are classified as **structured** or **heuristic** — see [Structured vs heuristic categories](#structured-vs-heuristic-categories) below.
 
-| Label | Value | Category type |
-|---|---|---|
-| Visa 16-digit | `4532015112830366` | structured |
-| Amex 15-digit | `378282246310005` | structured |
-| Mastercard 16-digit | `5105105105105100` | structured |
-| US SSN | `123-45-6789` | structured |
-| Canada SIN | `046 454 286` | structured |
-| UK IBAN | `GB82WEST12345698765432` | structured |
-| Email address | `test.user@example.com` | structured |
-| US phone number | `+1-555-867-5309` | structured |
-| AWS Access Key ID | `AKIAIOSFODNN7EXAMPLE` | heuristic |
-| Sample JWT | *(compact JWT string)* | heuristic |
+| Label | Value | Category | Type |
+|---|---|---|---|
+| Visa 16-digit | `4532015112830366` | `credit_card` | structured |
+| Amex 15-digit | `378282246310005` | `credit_card` | structured |
+| Mastercard 16-digit | `5105105105105100` | `credit_card` | structured |
+| Discover 16-digit | `6011111111111117` | `credit_card` | structured |
+| JCB 16-digit | `3530111333300000` | `credit_card` | structured |
+| UnionPay 16-digit | `6250941006528599` | `credit_card` | structured |
+| Diners Club 14-digit | `30569309025904` | `credit_card` | structured |
+| US SSN | `123-45-6789` | `ssn` | structured |
+| Canada SIN | `046 454 286` | `sin` | structured |
+| US Passport number | `340000136` | `us_passport` | structured |
+| Australia TFN | `123 456 78` | `au_tfn` | structured |
+| Germany Steuer-IdNr | `86095742719` | `de_tax_id` | structured |
+| France INSEE (NIR) | `282097505604213` | `fr_insee` | structured |
+| UK IBAN | `GB82WEST12345698765432` | `iban` | structured |
+| Germany IBAN | `DE89370400440532013000` | `iban` | structured |
+| France IBAN | `FR7630006000011234567890189` | `iban` | structured |
+| Spain IBAN | `ES9121000418450200051332` | `iban` | structured |
+| SWIFT/BIC code | `DEUTDEDB` | `swift_bic` | structured |
+| ABA routing number | `021000021` | `aba_routing` | structured |
+| Bitcoin legacy address | `1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2` | `bitcoin` | structured |
+| Ethereum address | `0x742d35Cc6634C0532925a3b844Bc454e4438f44e` | `ethereum` | structured |
+| Email address | `test.user@example.com` | `email` | structured |
+| US phone number | `+1-555-867-5309` | `phone` | structured |
+| AWS Access Key ID | `AKIAIOSFODNN7EXAMPLE` | `aws_key` | heuristic |
+| GitHub classic token | `ghp_16C7e42F292c6912E7710c838347Ae178B4a` | `github_token` | heuristic |
+| Stripe test secret key | `sk_test_4eC39HqLyjWDarjtT7en6bh8Xy9mPqZ` | `stripe_key` | heuristic |
+| Slack bot token | `xoxb-EXAMPLE-BOTTOKEN-abc123def` | `slack_token` | heuristic |
+| Sample JWT | *(compact JWT string)* | `jwt` | heuristic |
+| Top Secret classification label | `TOP SECRET` | `classification` | heuristic |
+| HIPAA privacy label | `HIPAA` | `classification` | heuristic |
 
 Heuristic payloads are excluded from the default scan. Use `--include-heuristic` to include them.
 
@@ -53,11 +73,11 @@ evadex classifies its built-in payload categories into two groups:
 
 **Structured** — formats with well-defined, mathematically or syntactically validatable patterns. DLP scanners typically enforce these patterns precisely (e.g., Luhn check on credit cards, fixed-length digit groups for SSN/SIN, checksum-verified IBAN). Evasion results in this group reflect meaningful signal: a variant that evades detection is a real gap in coverage.
 
-Categories: `credit_card`, `ssn`, `sin`, `iban`, `email`, `phone`
+Categories: `credit_card`, `ssn`, `sin`, `iban`, `swift_bic`, `aba_routing`, `bitcoin`, `ethereum`, `us_passport`, `au_tfn`, `de_tax_id`, `fr_insee`, `email`, `phone`
 
 **Heuristic** — formats where detection relies on fixed prefixes, high-entropy pattern matching, or loosely defined structure. DLP rules for these categories vary widely between scanners and configurations, and a "fail" result may simply reflect that the scanner never had a strong rule for that specific format variant — not that a real exfiltration path was found.
 
-Categories: `aws_key`, `jwt`
+Categories: `aws_key`, `jwt`, `github_token`, `stripe_key`, `slack_token`, `classification`
 
 Heuristic categories are excluded from the default scan to avoid misleading results. Include them with:
 
@@ -132,20 +152,16 @@ Detection rates depend on your scanner, its version, and how it's configured.
 {
   "meta": {
     "timestamp": "2026-04-01T22:01:36.172424+00:00",
+    "scanner": "rust-2.0.0",
     "total": 590,
-    "pass": 0,
-    "fail": 0,
+    "pass": 142,
+    "fail": 448,
     "error": 0,
-    "pass_rate": 0.0,
+    "pass_rate": 24.1,
     "summary_by_category": {
-      "credit_card": { "pass": 0, "fail": 0, "error": 0 },
-      "ssn":         { "pass": 0, "fail": 0, "error": 0 },
-      "sin":         { "pass": 0, "fail": 0, "error": 0 },
-      "iban":        { "pass": 0, "fail": 0, "error": 0 },
-      "aws_key":     { "pass": 0, "fail": 0, "error": 0 },
-      "jwt":         { "pass": 0, "fail": 0, "error": 0 },
-      "email":       { "pass": 0, "fail": 0, "error": 0 },
-      "phone":       { "pass": 0, "fail": 0, "error": 0 }
+      "credit_card": { "pass": 30, "fail": 90, "error": 0 },
+      "ssn":         { "pass": 12, "fail": 60, "error": 0 },
+      "iban":        { "pass": 10, "fail": 50, "error": 0 }
     }
   },
   "results": [
@@ -166,7 +182,8 @@ Detection rates depend on your scanner, its version, and how it's configured.
       "detected": true,
       "severity": "pass",
       "duration_ms": 371.01,
-      "error": null
+      "error": null,
+      "raw_response": { "detected": true }
     },
     {
       "payload": {
@@ -185,7 +202,8 @@ Detection rates depend on your scanner, its version, and how it's configured.
       "detected": false,
       "severity": "fail",
       "duration_ms": 378.57,
-      "error": null
+      "error": null,
+      "raw_response": { "detected": false }
     }
   ]
 }
@@ -197,7 +215,7 @@ Detection rates depend on your scanner, its version, and how it's configured.
 |---|---|
 | `pass` | Scanner detected the variant (good) |
 | `fail` | Scanner missed the variant — evasion succeeded |
-| `error` | Adapter error (network, timeout, etc.) |
+| `error` | Adapter error (network, timeout, malformed scanner response, etc.) |
 
 ---
 
@@ -210,17 +228,20 @@ evadex scan [OPTIONS]
 | Flag | Default | Description |
 |---|---|---|
 | `--tool`, `-t` | `dlpscan-cli` | Adapter name to use |
-| `--input`, `-i` | *(all built-ins)* | Single value to test. If omitted, runs all 8 structured built-in payloads (add `--include-heuristic` for all 10). Category is auto-detected (Luhn check, regex patterns for SSN/IBAN/AWS/JWT/email/phone). |
+| `--input`, `-i` | *(all built-ins)* | Single value to test. If omitted, runs all 23 structured built-in payloads (add `--include-heuristic` for all 30). Category is auto-detected (Luhn check, regex patterns for SSN/IBAN/AWS/JWT/email/phone). |
 | `--format`, `-f` | `json` | Output format: `json` or `html` |
 | `--output`, `-o` | stdout | Write report to file instead of stdout |
 | `--strategy` | all four | Submission strategy: `text`, `docx`, `pdf`, `xlsx`. Repeat the flag for multiple. Omit to run all four. |
 | `--concurrency` | `5` | Max concurrent requests |
 | `--timeout` | `30.0` | Request timeout in seconds |
 | `--url` | `http://localhost:8080` | Base URL (for HTTP-based adapters) |
-| `--api-key` | *(env: `EVADEX_API_KEY`)* | API key passed as `Authorization: Bearer` |
-| `--category` | *(all structured)* | Filter built-in payloads by category. Repeat for multiple. Values: `credit_card`, `ssn`, `sin`, `iban`, `aws_key`, `jwt`, `email`, `phone` |
+| `--api-key` | *(env: `EVADEX_API_KEY`)* | API key passed as `Authorization: Bearer`. Use the environment variable in preference to the CLI flag to avoid exposure in shell history and process listings. |
+| `--category` | *(all structured)* | Filter built-in payloads by category. Repeat for multiple. Values: `credit_card`, `ssn`, `sin`, `iban`, `swift_bic`, `aba_routing`, `bitcoin`, `ethereum`, `us_passport`, `au_tfn`, `de_tax_id`, `fr_insee`, `email`, `phone`, `aws_key`, `jwt`, `github_token`, `stripe_key`, `slack_token`, `classification` |
 | `--variant-group` | *(all)* | Limit to specific generator(s). Repeat for multiple. Values: `unicode_encoding`, `delimiter`, `splitting`, `leetspeak`, `regional_digits`, `structural`, `encoding` |
-| `--include-heuristic` | off | Also run heuristic categories (`jwt`, `aws_key`). A warning is printed when enabled — see [Structured vs heuristic categories](#structured-vs-heuristic-categories). |
+| `--include-heuristic` | off | Also run heuristic categories (`aws_key`, `jwt`, `github_token`, `stripe_key`, `slack_token`, `classification`). A warning is printed when enabled — see [Structured vs heuristic categories](#structured-vs-heuristic-categories). |
+| `--scanner-label` | *(empty)* | Label recorded in the JSON `meta.scanner` field. Use to tag a specific scanner version, e.g. `python-1.3.0` or `rust-2.0.0`. Useful when comparing results across scanner builds. |
+| `--exe` | `dlpscan` | Path to the scanner executable (dlpscan-cli adapter only). Use when `dlpscan` is not on `PATH` or you need to target a specific build. |
+| `--cmd-style` | `python` | Command format for dlpscan-cli: `python` (invokes `dlpscan -f json <file>`) or `rust` (invokes `dlpscan --format json scan <file>`). |
 
 ### Examples
 
@@ -244,6 +265,10 @@ evadex scan --tool dlpscan-cli --input "4532015112830366" --strategy docx
 
 # Save HTML report
 evadex scan --tool dlpscan-cli --strategy text --format html -o report.html
+
+# Target a specific scanner binary, tag the output
+evadex scan --tool dlpscan-cli --exe /opt/dlpscan/dlpscan --cmd-style rust \
+  --scanner-label "rust-2.0.0" --format json -o rust_results.json
 ```
 
 ---
@@ -252,13 +277,13 @@ evadex scan --tool dlpscan-cli --strategy text --format html -o report.html
 
 ### Built-in: `dlpscan-cli`
 
-Invokes the [dlpscan](https://github.com/oxide11/dlpscan) CLI directly as a subprocess. evadex was built and tested with dlpscan as the reference scanner. Requires `dlpscan` to be installed and on `PATH`.
+Invokes the [dlpscan](https://github.com/oxide11/dlpscan) CLI directly as a subprocess. evadex was built and tested with dlpscan as the reference scanner. Requires `dlpscan` to be installed and on `PATH` (or provide `--exe`).
 
 ```bash
 evadex scan --tool dlpscan-cli
 ```
 
-For file strategies, evadex builds the document in memory and writes it to a temp file, runs `dlpscan <file> -f json`, then deletes the temp file. File extraction support in dlpscan requires `pip install dlpscan[office]`.
+For file strategies, evadex builds the document in memory and writes it to a temp file, runs the scanner against it, then immediately deletes the temp file. No persistent disk footprint from test data. File extraction support in dlpscan requires `pip install dlpscan[office]`.
 
 ### Built-in: `dlpscan`
 
@@ -327,7 +352,7 @@ async def health_check(self) -> bool:
     return await ping_scanner()
 ```
 
-**File strategies:** `variant.strategy` tells you which format evadex wants to use. If your scanner only supports one method, ignore strategies you don't need and handle the rest:
+**File strategies:** `variant.strategy` tells you which format evadex wants to use. If your scanner only supports one method, handle what you need:
 
 ```python
 from evadex.adapters.dlpscan.file_builder import FileBuilder
@@ -360,13 +385,14 @@ async def submit(self, payload, variant):
 
 | Field | Type | Description |
 |---|---|---|
-| `timestamp` | ISO 8601 string | When the scan ran |
+| `timestamp` | ISO 8601 string | When the scan ran (UTC) |
+| `scanner` | string | Scanner label from `--scanner-label` (empty string if not set) |
 | `total` | int | Total test cases run |
 | `pass` | int | Variants detected by scanner |
 | `fail` | int | Variants that evaded scanner |
 | `error` | int | Adapter errors |
-| `pass_rate` | float | `pass / total * 100` |
-| `summary_by_category` | object | Per-category pass/fail/error counts |
+| `pass_rate` | float | `pass / total * 100`, rounded to one decimal |
+| `summary_by_category` | object | Per-category pass/fail/error counts, sorted alphabetically by category name |
 
 ### `results[]`
 
@@ -381,13 +407,22 @@ async def submit(self, payload, variant):
 | `variant.technique` | string | Machine-readable technique name |
 | `variant.transform_name` | string | Human-readable description of the transform |
 | `variant.strategy` | string | Submission strategy: `text`, `docx`, `pdf`, `xlsx` |
-| `detected` | bool | Whether the scanner flagged this variant |
-| `severity` | string | `pass`, `fail`, or `error` |
+| `detected` | bool | Whether the scanner flagged this variant. `false` for error results — check `severity` to distinguish |
+| `severity` | string | `pass` (detected), `fail` (not detected), or `error` (adapter error) |
 | `duration_ms` | float | Time for this test case in milliseconds |
-| `error` | string \| null | Error message if adapter threw |
+| `error` | string \| null | Error message if adapter threw; `null` otherwise |
+| `raw_response` | object | Raw parsed response from the adapter. For `dlpscan-cli` this is `{"matches": [...]}`. May contain match objects that include the variant value — treat the output file accordingly. |
 
 ---
 
+## Security notes
+
+- **API keys:** Prefer the `EVADEX_API_KEY` environment variable over the `--api-key` CLI flag. Command-line arguments are visible in process listings (`ps aux`) and may be saved in shell history.
+- **Output files:** The JSON report's `raw_response` fields may contain scanner match objects that echo variant values (transformed versions of sensitive test data). Apply appropriate access controls to report files.
+- **Temp files:** The `dlpscan-cli` adapter writes each test variant to a temp file for subprocess invocation and deletes it immediately after the scan. No persistent disk footprint from test data.
+- **Network isolation:** Run evadex and the scanner on an isolated test network. Test variant values are obfuscated but structurally derived from real sensitive patterns.
+
+---
 ## License
 
 MIT — see [LICENSE](LICENSE).
