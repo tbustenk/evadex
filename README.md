@@ -388,18 +388,6 @@ async def submit(self, payload, variant):
 
 ---
 
-## Publishing to PyPI
-
-```bash
-pip install build twine
-python -m build
-twine upload dist/*
-```
-
-Update the `[project.urls]` section in `pyproject.toml` with your real GitHub repository URL before publishing.
-
----
-
 ## License
 
 MIT — see [LICENSE](LICENSE).
