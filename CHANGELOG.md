@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.2.0] — 2026-04-03
+
+### Added
+
+- **`context_injection` generator** — 10 techniques that embed the sensitive value inside realistic surrounding text: payment request sentences, email bodies, log lines, multiline form blocks, audit notes, XML records, and JSON transaction records. Tests whether scanners can detect values that appear in document context rather than in isolation. Applies to all payload categories.
+- **`unicode_whitespace` generator** — 8 techniques (7 single-space variants + mixed) that use Unicode whitespace characters as group separators: non-breaking space (U+00A0), en-space (U+2002), em-space (U+2003), thin space (U+2009), figure space (U+2007), narrow no-break space (U+202F), and ideographic space (U+3000). Targets scanners whose regex patterns only match ASCII `\s` or specific ASCII delimiters. Applies to structured numeric/alphanumeric categories (credit card, SSN, SIN, IBAN, phone, ABA routing, passport, TFN, DE tax ID, FR INSEE).
+- **`bidirectional` generator** — 6 techniques using Unicode bidirectional control characters: RTL override wrap (U+202E), LTR override wrap (U+202D), RTL embedding (U+202B), mid-value RTL override injection, RTL isolate (U+2067, Unicode 6.3+ bidi), and Arabic letter mark injection between every character (U+061C). Tests scanners that render or normalise text before pattern-matching — such scanners may see a reversed or reordered value. Scanners matching raw codepoints are unaffected, confirming correct behaviour. Applies to all payload categories.
+
+### Tests
+
+139 tests (up from 113). 26 new tests across three new test files:
+
+- `tests/unit/variants/test_context_injection.py` — 9 tests: template count, value presence in all variants, generator name, newlines in email body, JSON record parseable, XML record structure, brace-safe value handling, no `applicable_categories` restriction, unique technique names
+- `tests/unit/variants/test_unicode_whitespace.py` — 12 tests: NBSP/en-space/em-space/mixed variants, digit preservation, hyphen-separated SSN input, generator name, category membership (CC, SSN), non-membership (JWT, email), unique technique names
+- `tests/unit/variants/test_bidirectional.py` — 11 tests: variant count, RLO/LRO/RLE wrap structure, mid-RLO split at midpoint, RLI isolate, ALM count and char preservation, generator name, no `applicable_categories` restriction, unique technique names
+
 ## [2.1.0] — 2026-04-03
 
 ### Added
