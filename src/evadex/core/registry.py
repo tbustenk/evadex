@@ -44,6 +44,7 @@ def load_builtins():
     import evadex.variants.context_injection
     import evadex.variants.unicode_whitespace
     import evadex.variants.bidirectional
+    import evadex.variants.soft_hyphen
     # Import adapters
     import evadex.adapters.dlpscan.adapter
     import evadex.adapters.dlpscan_cli.adapter

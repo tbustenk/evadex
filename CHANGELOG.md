@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.3.0] — 2026-04-03
+
+### Added
+
+- **`encoding` generator — base32 variants** (4 new techniques): standard base32 (RFC 4648 §6, A–Z 2–7), no-padding, lowercase, and extended hex alphabet (RFC 4648 §7, 0–9 A–V). Targets scanners that decode base64 before scanning but not base32.
+- **`encoding` generator — hex variants** (5 new techniques): lowercase hex (`34313131…`), uppercase hex, `\xNN` escaped bytes, single `0x`-prefixed integer, and space-separated hex dump. Covers common representations in log files and hex editors.
+- **`soft_hyphen` generator** — 6 techniques using invisible Unicode separators at group boundaries and between every character: soft hyphen at 4-char boundaries (`shy_group_boundaries`), soft hyphen at 2-char boundaries (`shy_2char_boundaries`), soft hyphen between every character, word joiner (U+2060) at 4-char boundaries, word joiner between every character, and alternating soft hyphen / word joiner (`mixed_shy_wj`). Applies to structured numeric/secret categories. Targets scanners that pass invisible format characters through to regex matching without stripping them first.
+
+### Tests
+
+171 tests (up from 146). 25 new tests:
+
+- `tests/unit/variants/test_encoding.py`: 11 new tests — base32 standard, no-padding, lowercase, hex alphabet, decodability; hex lowercase, uppercase, escaped bytes, 0x integer, spaced bytes; MIME linebreak boundary check
+- `tests/unit/variants/test_soft_hyphen.py` (new): 15 tests — variant count, SHY group boundary structure and digit preservation, 2-char boundary grouping, SHY between every char, WJ group boundaries and every-char, mixed alternation, SSN with hyphens, generator name, applicable/non-applicable categories, unique technique names
+
 ## [2.2.0] — 2026-04-03
 
 ### Added

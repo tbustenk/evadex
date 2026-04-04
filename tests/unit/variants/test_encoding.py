@@ -1,4 +1,5 @@
 import base64
+import binascii
 import codecs
 from evadex.variants.encoding import EncodingGenerator
 
@@ -91,6 +92,91 @@ def test_all_variants_have_metadata():
         assert v.generator == "encoding"
         assert v.technique
         assert v.transform_name
+
+
+def test_base32_standard():
+    gen = EncodingGenerator()
+    variants = list(gen.generate("4532015112830366"))
+    b32 = [v for v in variants if v.technique == "base32_standard"]
+    assert b32
+    assert b32[0].value == base64.b32encode(b"4532015112830366").decode("ascii")
+
+
+def test_base32_no_padding():
+    gen = EncodingGenerator()
+    variants = list(gen.generate("4532015112830366"))
+    nopad = [v for v in variants if v.technique == "base32_no_padding"]
+    assert nopad
+    assert "=" not in nopad[0].value
+
+
+def test_base32_lowercase():
+    gen = EncodingGenerator()
+    variants = list(gen.generate("4532015112830366"))
+    lower = [v for v in variants if v.technique == "base32_lowercase"]
+    assert lower
+    assert lower[0].value == lower[0].value.lower()
+
+
+def test_base32_hex_alphabet():
+    gen = EncodingGenerator()
+    variants = list(gen.generate("4532015112830366"))
+    hexalpha = [v for v in variants if v.technique == "base32_hex_alphabet"]
+    assert hexalpha
+    # Extended hex alphabet only uses 0–9 and A–V (plus padding =)
+    assert all(c in "0123456789ABCDEFGHIJKLMNOPQRSTUV=" for c in hexalpha[0].value)
+
+
+def test_base32_is_decodable():
+    gen = EncodingGenerator()
+    value = "4532015112830366"
+    variants = list(gen.generate(value))
+    b32 = next(v for v in variants if v.technique == "base32_standard")
+    # Re-pad and decode
+    padded = b32.value + "=" * (-len(b32.value) % 8)
+    assert base64.b32decode(padded).decode("utf-8") == value
+
+
+def test_hex_lowercase():
+    gen = EncodingGenerator()
+    variants = list(gen.generate("4532015112830366"))
+    h = [v for v in variants if v.technique == "hex_lowercase"]
+    assert h
+    assert h[0].value == binascii.hexlify(b"4532015112830366").decode("ascii")
+
+
+def test_hex_uppercase():
+    gen = EncodingGenerator()
+    variants = list(gen.generate("4532015112830366"))
+    h = [v for v in variants if v.technique == "hex_uppercase"]
+    assert h
+    assert h[0].value == h[0].value.upper()
+
+
+def test_hex_escaped_bytes():
+    gen = EncodingGenerator()
+    variants = list(gen.generate("AB"))
+    h = [v for v in variants if v.technique == "hex_escaped_bytes"]
+    assert h
+    assert h[0].value == r"\x41\x42"
+
+
+def test_hex_0x_integer():
+    gen = EncodingGenerator()
+    variants = list(gen.generate("AB"))
+    h = [v for v in variants if v.technique == "hex_0x_integer"]
+    assert h
+    assert h[0].value.startswith("0x")
+    # 0x4142 == int.from_bytes(b"AB", "big")
+    assert int(h[0].value, 16) == int.from_bytes(b"AB", "big")
+
+
+def test_hex_spaced_bytes():
+    gen = EncodingGenerator()
+    variants = list(gen.generate("AB"))
+    h = [v for v in variants if v.technique == "hex_spaced_bytes"]
+    assert h
+    assert h[0].value == "41 42"
 
 
 def test_base64_mime_linebreaks_only_for_long_values():

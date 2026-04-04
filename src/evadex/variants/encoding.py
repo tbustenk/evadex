@@ -1,4 +1,5 @@
 import base64
+import binascii
 import codecs
 import re
 import unicodedata
@@ -15,6 +16,8 @@ class EncodingGenerator(BaseVariantGenerator):
 
     def generate(self, value: str) -> Iterator[Variant]:
         yield from self._base64_variants(value)
+        yield from self._base32_variants(value)
+        yield from self._hex_variants(value)
         yield from self._rot13_variants(value)
         yield from self._reversed_variants(value)
         yield from self._double_url_encoding(value)
@@ -55,6 +58,58 @@ class EncodingGenerator(BaseVariantGenerator):
         # Base64 of base64 (double-encoded)
         b64b64 = base64.b64encode(b64.encode("ascii")).decode("ascii")
         yield self._make_variant(b64b64, "base64_double", "Value base64-encoded twice")
+
+    # ------------------------------------------------------------------
+    # Base32
+    # ------------------------------------------------------------------
+
+    def _base32_variants(self, value: str) -> Iterator[Variant]:
+        raw = value.encode("utf-8")
+
+        # Standard base32 (RFC 4648 §6 — A–Z, 2–7)
+        b32 = base64.b32encode(raw).decode("ascii")
+        yield self._make_variant(b32, "base32_standard", "Value base32-encoded (standard alphabet A–Z, 2–7)")
+
+        # No padding — strip trailing =
+        b32_nopad = b32.rstrip("=")
+        if b32_nopad != b32:
+            yield self._make_variant(b32_nopad, "base32_no_padding", "Value base32-encoded, padding stripped")
+
+        # Lowercase
+        b32_lower = b32.lower()
+        yield self._make_variant(b32_lower, "base32_lowercase", "Value base32-encoded, lowercase alphabet")
+
+        # Extended hex alphabet (RFC 4648 §7 — 0–9, A–V); Python 3.10+
+        b32hex = base64.b32hexencode(raw).decode("ascii")
+        yield self._make_variant(b32hex, "base32_hex_alphabet", "Value base32-encoded with extended hex alphabet (0–9, A–V)")
+
+    # ------------------------------------------------------------------
+    # Hex encoding
+    # ------------------------------------------------------------------
+
+    def _hex_variants(self, value: str) -> Iterator[Variant]:
+        raw = value.encode("utf-8")
+
+        # Raw hex string — each byte as two lowercase hex digits
+        hex_lower = binascii.hexlify(raw).decode("ascii")
+        yield self._make_variant(hex_lower, "hex_lowercase", "Value hex-encoded, lowercase (e.g. 34313131…)")
+
+        # Uppercase hex
+        hex_upper = hex_lower.upper()
+        yield self._make_variant(hex_upper, "hex_uppercase", "Value hex-encoded, uppercase")
+
+        # \\xNN escape sequence per byte
+        hex_escaped = "".join(f"\\x{b:02x}" for b in raw)
+        yield self._make_variant(hex_escaped, "hex_escaped_bytes", r"Value as \xNN escape sequences per byte")
+
+        # 0x-prefixed single integer (the whole value as one big hex number)
+        as_int = int.from_bytes(raw, "big")
+        hex_0x = f"0x{as_int:x}"
+        yield self._make_variant(hex_0x, "hex_0x_integer", "Value encoded as a single 0x-prefixed hex integer")
+
+        # Spaced hex — bytes separated by spaces (common in hex dump output)
+        hex_spaced = " ".join(f"{b:02x}" for b in raw)
+        yield self._make_variant(hex_spaced, "hex_spaced_bytes", "Value as space-separated hex bytes (hex dump style)")
 
     # ------------------------------------------------------------------
     # ROT13  (only meaningful for values containing letters)
