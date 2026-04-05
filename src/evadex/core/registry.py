@@ -48,3 +48,5 @@ def load_builtins():
     # Import adapters
     import evadex.adapters.dlpscan.adapter
     import evadex.adapters.dlpscan_cli.adapter
+    import evadex.variants.morse_code
+    import evadex.adapters.presidio.adapter

@@ -21,6 +21,11 @@ evadex takes a sensitive value (a credit card number, SSN, AWS key, etc.), runs 
 | `regional_digits` | Arabic-Indic, Extended Arabic-Indic, Devanagari, Bengali, Thai, Myanmar, Khmer, Mongolian, NKo, Tibetan — plus mixed-script variants |
 | `structural` | Left/right padding (spaces + zeros), noise embedding, partial values, case variation, repeated value |
 | `encoding` | Base64 (standard, URL-safe, no-padding, MIME line-breaks, partial, double), ROT13, full/group reversal, double URL encoding, mixed NFD/NFC/NFKD normalization |
+| `context_injection` | Value wrapped in email body, JSON record, XML element, CSV row, SQL snippet, and more |
+| `unicode_whitespace` | Spaces replaced with NBSP, en-space, em-space, or a mixed pattern |
+| `bidirectional` | Unicode bidirectional control characters (RLO, LRO, RLE, RLI, ALM) injected around or within the value |
+| `soft_hyphen` | Soft hyphen (U+00AD) and word joiner (U+2060) inserted at group boundaries or between every character |
+| `morse_code` | Digits encoded as International Morse Code — space-separated, slash-separated, concatenated, or newline-separated; applies to `credit_card`, `ssn`, `sin`, `iban`, `phone`, and related numeric categories |
 
 **Submission strategies** (for dlpscan-cli adapter):
 
@@ -183,7 +188,7 @@ Detection rates depend on your scanner, its version, and how it's configured.
       "severity": "pass",
       "duration_ms": 371.01,
       "error": null,
-      "raw_response": { "detected": true }
+      "raw_response": { "matches": [{ "type": "credit_card", "value": "5105105105105100" }] }
     },
     {
       "payload": {
@@ -203,7 +208,7 @@ Detection rates depend on your scanner, its version, and how it's configured.
       "severity": "fail",
       "duration_ms": 378.57,
       "error": null,
-      "raw_response": { "detected": false }
+      "raw_response": { "matches": [] }
     }
   ]
 }
@@ -237,7 +242,7 @@ evadex scan [OPTIONS]
 | `--url` | `http://localhost:8080` | Base URL (for HTTP-based adapters) |
 | `--api-key` | *(env: `EVADEX_API_KEY`)* | API key passed as `Authorization: Bearer`. Use the environment variable in preference to the CLI flag to avoid exposure in shell history and process listings. |
 | `--category` | *(all structured)* | Filter built-in payloads by category. Repeat for multiple. Values: `credit_card`, `ssn`, `sin`, `iban`, `swift_bic`, `aba_routing`, `bitcoin`, `ethereum`, `us_passport`, `au_tfn`, `de_tax_id`, `fr_insee`, `email`, `phone`, `aws_key`, `jwt`, `github_token`, `stripe_key`, `slack_token`, `classification` |
-| `--variant-group` | *(all)* | Limit to specific generator(s). Repeat for multiple. Values: `unicode_encoding`, `delimiter`, `splitting`, `leetspeak`, `regional_digits`, `structural`, `encoding` |
+| `--variant-group` | *(all)* | Limit to specific generator(s). Repeat for multiple. Values: `unicode_encoding`, `delimiter`, `splitting`, `leetspeak`, `regional_digits`, `structural`, `encoding`, `context_injection`, `unicode_whitespace`, `bidirectional`, `soft_hyphen`, `morse_code` |
 | `--include-heuristic` | off | Also run heuristic categories (`aws_key`, `jwt`, `github_token`, `stripe_key`, `slack_token`, `classification`). A warning is printed when enabled — see [Structured vs heuristic categories](#structured-vs-heuristic-categories). |
 | `--scanner-label` | *(empty)* | Label recorded in the JSON `meta.scanner` field. Use to tag a specific scanner version, e.g. `python-1.3.0` or `rust-2.0.0`. Useful when comparing results across scanner builds. |
 | `--exe` | `dlpscan` | Path to the scanner executable (dlpscan-cli adapter only). Use when `dlpscan` is not on `PATH` or you need to target a specific build. |
