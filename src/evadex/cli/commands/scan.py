@@ -1,5 +1,6 @@
 import sys
 import click
+from click.core import ParameterSource
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TaskProgressColumn, TextColumn, TimeElapsedColumn
 from evadex.core.registry import load_builtins, get_adapter, all_generators, get_generator
@@ -16,6 +17,11 @@ CATEGORY_CHOICES = click.Choice([c.value for c in PayloadCategory])
 
 
 @click.command()
+@click.pass_context
+@click.option("--config", "config_path", default=None, metavar="PATH",
+              help="Path to evadex.yaml config file. Config values are defaults; "
+                   "CLI flags override them. Auto-discovered from the current directory "
+                   "if evadex.yaml exists and --config is not passed.")
 @click.option("--tool", "-t", default="dlpscan-cli", show_default=True, help="DLP adapter to use")
 @click.option("--input", "-i", "input_value", default=None,
               help="Single value to test (if omitted, runs all built-ins)")
@@ -53,7 +59,8 @@ CATEGORY_CHOICES = click.Choice([c.value for c in PayloadCategory])
 @click.option("--compare-baseline", "compare_baseline", default=None,
               help="Compare this run against a saved baseline JSON and report regressions.")
 def scan(
-    tool, input_value, fmt, output, url, api_key, timeout,
+    ctx,
+    config_path, tool, input_value, fmt, output, url, api_key, timeout,
     strategies, concurrency, categories, variant_groups, include_heuristic,
     scanner_label, executable, cmd_style, min_detection_rate,
     save_baseline, compare_baseline,
@@ -61,6 +68,49 @@ def scan(
     """Run DLP evasion tests."""
     load_builtins()
 
+    # ── Config file ───────────────────────────────────────────────────────────
+    from evadex.config import load_config, find_config
+    cfg = None
+    if config_path:
+        cfg = load_config(config_path)
+    else:
+        auto_path = find_config()
+        if auto_path:
+            err_console.print(f"[dim]Using config: {auto_path}[/dim]")
+            cfg = load_config(auto_path)
+
+    # Apply config values as defaults for any option not explicitly passed on
+    # the CLI (source == DEFAULT).  CLI flags always win.
+    if cfg is not None:
+        def _is_default(name: str) -> bool:
+            return ctx.get_parameter_source(name) == ParameterSource.DEFAULT
+
+        if _is_default("tool") and cfg.tool is not None:
+            tool = cfg.tool
+        if _is_default("strategies") and cfg.strategy is not None:
+            strategies = tuple(cfg.strategy)
+        if _is_default("fmt") and cfg.format is not None:
+            fmt = cfg.format
+        if _is_default("output") and cfg.output is not None:
+            output = cfg.output
+        if _is_default("timeout") and cfg.timeout is not None:
+            timeout = cfg.timeout
+        if _is_default("concurrency") and cfg.concurrency is not None:
+            concurrency = cfg.concurrency
+        if _is_default("categories") and cfg.categories:
+            categories = tuple(cfg.categories)
+        if _is_default("include_heuristic") and cfg.include_heuristic is not None:
+            include_heuristic = cfg.include_heuristic
+        if _is_default("scanner_label") and cfg.scanner_label is not None:
+            scanner_label = cfg.scanner_label
+        if _is_default("executable") and cfg.exe is not None:
+            executable = cfg.exe
+        if _is_default("cmd_style") and cfg.cmd_style is not None:
+            cmd_style = cfg.cmd_style
+        if _is_default("min_detection_rate") and cfg.min_detection_rate is not None:
+            min_detection_rate = cfg.min_detection_rate
+
+    # ── Heuristic warning ─────────────────────────────────────────────────────
     if include_heuristic:
         err_console.print(
             "[yellow]Warning: --include-heuristic is enabled. Heuristic categories (JWT, AWS key) "
@@ -181,6 +231,10 @@ def scan(
         with open(output, "w", encoding="utf-8") as f:
             f.write(rendered)
         err_console.print(f"[dim]Report written to {output}[/dim]")
+        err_console.print(
+            "[yellow]Note: output file may contain obfuscated variants of sensitive test values "
+            "(credit card numbers, SSNs, etc.). Restrict access to this file accordingly.[/yellow]"
+        )
     else:
         sys.stdout.buffer.write(rendered.encode("utf-8"))
         sys.stdout.buffer.write(b"\n")

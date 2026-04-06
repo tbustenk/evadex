@@ -27,6 +27,9 @@ htmlcov/
 *.json
 !tests/fixtures/*.json
 
+# evadex config file — may contain internal paths or sensitive labels
+evadex.yaml
+
 # IDE
 .idea/
 .vscode/

@@ -140,6 +140,86 @@ evadex scan --tool dlpscan-cli --strategy text --format html -o report.html
 
 ---
 
+## Configuration
+
+evadex supports an optional `evadex.yaml` config file. Config file values are defaults — any CLI flag you pass overrides the corresponding config value.
+
+### Generating a starter config
+
+```bash
+evadex init
+```
+
+Creates `evadex.yaml` in the current directory:
+
+```yaml
+# evadex configuration file
+# Run 'evadex scan --config evadex.yaml' to use this file.
+# CLI flags take precedence over values in this file.
+
+tool: dlpscan-cli
+strategy: text
+min_detection_rate: 85
+scanner_label: production
+exe: null
+cmd_style: python
+categories:
+  - credit_card
+  - ssn
+  - iban
+include_heuristic: false
+concurrency: 5
+timeout: 30.0
+output: results.json
+format: json
+```
+
+### Using a config file
+
+Pass it explicitly:
+
+```bash
+evadex scan --config evadex.yaml
+```
+
+Or drop `evadex.yaml` in the current directory and evadex will pick it up automatically — no flag needed.
+
+CLI flags always win. To override a config value for one run:
+
+```bash
+# Config says scanner_label: production — this run uses "staging" instead
+evadex scan --config evadex.yaml --scanner-label staging
+```
+
+### Config keys
+
+| Key | Type | CLI equivalent | Description |
+|---|---|---|---|
+| `tool` | string | `--tool` | Adapter name (`dlpscan-cli`, `dlpscan`, `presidio`) |
+| `strategy` | string or list | `--strategy` | Submission strategy: `text`, `docx`, `pdf`, `xlsx`. Use a list for multiple. |
+| `min_detection_rate` | number | `--min-detection-rate` | CI/CD gate threshold (0–100) |
+| `scanner_label` | string | `--scanner-label` | Label recorded in JSON `meta.scanner` |
+| `exe` | string or null | `--exe` | Path to scanner executable |
+| `cmd_style` | `python` or `rust` | `--cmd-style` | Command format for dlpscan-cli |
+| `categories` | list of strings | `--category` | Payload categories to test |
+| `include_heuristic` | boolean | `--include-heuristic` | Include heuristic categories |
+| `concurrency` | integer | `--concurrency` | Max concurrent requests |
+| `timeout` | number | `--timeout` | Request timeout in seconds |
+| `output` | string or null | `--output` | Output file path (null = stdout) |
+| `format` | `json` or `html` | `--format` | Output format |
+
+### Validation
+
+evadex validates the config file on load and exits with a clear error for invalid values:
+
+```
+Error: Config 'min_detection_rate' must be between 0 and 100, got: 150.0
+Error: Invalid strategy value(s): foobar. Valid: docx, pdf, text, xlsx
+Error: Unknown config key(s): bad_key. Valid keys: categories, cmd_style, ...
+```
+
+---
+
 ## Example output
 
 ### Terminal summary

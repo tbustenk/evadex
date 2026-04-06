@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.5.0] — 2026-04-06
+
+### Added
+
+- **`evadex init` command** — generates a default `evadex.yaml` config file in the current directory. Errors cleanly if one already exists.
+- **Config file support (`evadex.yaml`)** — all `scan` options can now be set in a YAML config file. Config values are defaults; CLI flags always override them. Supported keys: `tool`, `strategy`, `min_detection_rate`, `scanner_label`, `exe`, `cmd_style`, `categories`, `include_heuristic`, `concurrency`, `timeout`, `output`, `format`.
+- **`--config PATH` flag on `evadex scan`** — explicitly load a config file from any path.
+- **Auto-discovery** — if `--config` is not passed, evadex automatically loads `evadex.yaml` from the current directory if present.
+- **Config validation** — clear error messages for unknown keys, invalid values, out-of-range numbers, and wrong types. Exits with code 2 before any scan runs.
+- **Output file security notice** — a warning is now printed to stderr whenever scan results are written to a file, reminding users to restrict access (results may contain obfuscated variants of sensitive test values).
+- **`evadex.yaml` added to `.gitignore`** — prevents accidental commit of config files that may contain internal paths or sensitive labels.
+- **README: Configuration section** — documents `evadex init`, the full config file format, config key reference table, and validation error examples.
+
+### Dependencies
+
+- Added `pyyaml>=6.0`.
+
+### Tests
+
+226 tests (up from 200). 36 new tests:
+
+- `tests/unit/test_config.py` (23 tests) — config loading, partial configs, empty configs, missing file, unknown keys, and every validation error path (invalid strategy, format, cmd_style, min_detection_rate out of range, invalid category, concurrency ≤ 0, timeout ≤ 0, non-bool include_heuristic). Auto-discovery presence/absence. Default config YAML round-trip.
+- `tests/integration/test_config_cli.py` (13 tests) — `evadex init` creates file, file content is valid, errors if file exists. `--config` loads values, CLI flags override config, concurrency override and default. Auto-discovery loads config from cwd, scan works without config file. Validation errors for invalid strategy, unknown key, missing file, and out-of-range min_detection_rate surface correctly through the CLI.
+
 ## [2.3.0] — 2026-04-03
 
 ### Added
