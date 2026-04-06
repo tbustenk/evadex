@@ -3,7 +3,7 @@ import click
 from click.core import ParameterSource
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TaskProgressColumn, TextColumn, TimeElapsedColumn
-from evadex.core.registry import load_builtins, get_adapter, all_generators, get_generator
+from evadex.core.registry import load_builtins, get_adapter, get_generator
 from evadex.core.engine import Engine
 from evadex.core.result import Payload, PayloadCategory, SeverityLevel
 from evadex.payloads.builtins import get_payloads, detect_category, HEURISTIC_CATEGORIES

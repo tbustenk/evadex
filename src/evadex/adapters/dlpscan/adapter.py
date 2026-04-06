@@ -1,4 +1,4 @@
-from evadex.adapters.base import BaseAdapter, AdapterConfig
+from evadex.adapters.base import BaseAdapter
 from evadex.adapters.dlpscan.client import DlpscanClient
 from evadex.adapters.dlpscan.file_builder import FileBuilder
 from evadex.core.registry import register_adapter

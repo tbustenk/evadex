@@ -1,7 +1,6 @@
 import sys
 import io
 import click
-from rich.console import Console
 from evadex.cli.commands.scan import scan
 from evadex.cli.commands.compare import compare
 from evadex.cli.commands.list_payloads import list_payloads
@@ -14,8 +13,6 @@ if sys.stdout and hasattr(sys.stdout, "buffer") and sys.stdout.encoding.lower() 
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 if sys.stderr and hasattr(sys.stderr, "buffer") and sys.stderr.encoding.lower() not in ("utf-8", "utf_8"):
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
-
-console = Console()
 
 
 @click.group()

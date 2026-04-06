@@ -6,7 +6,7 @@ import unicodedata
 from typing import Iterator
 
 from evadex.core.registry import register_generator
-from evadex.core.result import Variant, PayloadCategory
+from evadex.core.result import Variant
 from evadex.variants.base import BaseVariantGenerator
 
 
