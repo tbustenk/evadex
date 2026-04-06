@@ -1,6 +1,7 @@
 import asyncio
 import json
 import sys
+from collections import defaultdict
 import click
 from click.core import ParameterSource
 from rich.console import Console
@@ -18,6 +19,56 @@ err_console = Console(stderr=True)
 
 STRATEGY_CHOICES = click.Choice(["text", "docx", "pdf", "xlsx"])
 CATEGORY_CHOICES = click.Choice([c.value for c in PayloadCategory])
+
+
+def _print_summary(results, err_console):
+    """Print a structured, human-readable summary to stderr."""
+    total  = len(results)
+    passes = sum(1 for r in results if r.severity == SeverityLevel.PASS)
+    fails  = sum(1 for r in results if r.severity == SeverityLevel.FAIL)
+    errors = sum(1 for r in results if r.severity == SeverityLevel.ERROR)
+    pass_rate = round(passes / total * 100, 1) if total else 0.0
+
+    err_console.print()
+    err_console.print("[bold]=== Evadex Summary ===[/bold]")
+    err_console.print(f"  Total tests:    {total}")
+    err_console.print(f"  [green]Detected:       {passes}[/green]")
+    err_console.print(f"  [red]Bypassed:       {fails}[/red]")
+    if errors:
+        err_console.print(f"  [yellow]Errors:         {errors}[/yellow]")
+    err_console.print(f"  Detection Rate: {pass_rate}%")
+    err_console.print()
+
+    # Group by generator (technique category)
+    by_gen = defaultdict(lambda: {"total": 0, "bypassed": 0})
+    for r in results:
+        by_gen[r.variant.generator]["total"] += 1
+        if r.severity == SeverityLevel.FAIL:
+            by_gen[r.variant.generator]["bypassed"] += 1
+
+    ranked = sorted(
+        by_gen.items(),
+        key=lambda kv: kv[1]["bypassed"] / kv[1]["total"] if kv[1]["total"] else 0,
+        reverse=True,
+    )
+
+    err_console.print("  [bold]By Technique Category:[/bold]")
+    for gen, counts in sorted(by_gen.items()):
+        n, b = counts["total"], counts["bypassed"]
+        rate = round(b / n * 100, 1) if n else 0.0
+        err_console.print(f"    {gen:<25}  {b}/{n} bypassed  ({rate}%)")
+    err_console.print()
+
+    top = ranked[:5]
+    if top:
+        err_console.print("  [bold]Top Bypass Categories:[/bold]")
+        for i, (gen, counts) in enumerate(top, 1):
+            n, b = counts["total"], counts["bypassed"]
+            rate = round(b / n * 100, 1) if n else 0.0
+            err_console.print(f"    {i}. [cyan]{gen}[/cyan] \u2192 {rate}% bypass ({b}/{n})")
+    err_console.print()
+
+    return total, passes, fails, errors, pass_rate
 
 
 @click.command()
@@ -225,15 +276,7 @@ def scan(
         results = engine.run(payloads)
 
     # Summary
-    total     = len(results)
-    passes    = sum(1 for r in results if r.severity == SeverityLevel.PASS)
-    fails     = sum(1 for r in results if r.severity == SeverityLevel.FAIL)
-    errors    = sum(1 for r in results if r.severity == SeverityLevel.ERROR)
-    pass_rate = round(passes / total * 100, 1) if total else 0.0
-    parts     = [f"[green]{passes} detected[/green]", f"[red]{fails} evaded[/red]"]
-    if errors:
-        parts.append(f"[yellow]{errors} errors[/yellow]")
-    err_console.print(f"[green]Done.[/green] {total} tests \u2014 " + ", ".join(parts))
+    total, passes, fails, errors, pass_rate = _print_summary(results, err_console)
 
     # Report
     reporter = HtmlReporter() if fmt == "html" else JsonReporter(scanner_label=scanner_label)

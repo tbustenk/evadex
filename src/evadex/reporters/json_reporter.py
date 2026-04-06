@@ -16,19 +16,21 @@ class JsonReporter(BaseReporter):
         errors = sum(1 for r in results if r.severity == SeverityLevel.ERROR)
 
         by_category: dict = defaultdict(lambda: {"pass": 0, "fail": 0, "error": 0})
+        by_generator: dict = defaultdict(lambda: {"pass": 0, "fail": 0, "error": 0})
         for r in results:
-            cat = r.payload.category.value
-            by_category[cat][r.severity.value] += 1
+            by_category[r.payload.category.value][r.severity.value] += 1
+            by_generator[r.variant.generator][r.severity.value] += 1
 
         meta = {
-            "timestamp":           datetime.now(timezone.utc).isoformat(),
-            "scanner":             self.scanner_label,
-            "total":               total,
-            "pass":                passes,
-            "fail":                fails,
-            "error":               errors,
-            "pass_rate":           round(passes / total * 100, 1) if total else 0.0,
-            "summary_by_category": dict(sorted(by_category.items())),
+            "timestamp":            datetime.now(timezone.utc).isoformat(),
+            "scanner":              self.scanner_label,
+            "total":                total,
+            "pass":                 passes,
+            "fail":                 fails,
+            "error":                errors,
+            "pass_rate":            round(passes / total * 100, 1) if total else 0.0,
+            "summary_by_category":  dict(sorted(by_category.items())),
+            "summary_by_generator": dict(sorted(by_generator.items())),
         }
 
         output = {
