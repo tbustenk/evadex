@@ -190,8 +190,12 @@ def compare(file_a, file_b, fmt, output, label_a, label_b):
     rendered = reporter.render(comparison)
 
     if output:
-        with open(output, "w", encoding="utf-8") as f:
-            f.write(rendered)
+        try:
+            with open(output, "w", encoding="utf-8") as f:
+                f.write(rendered)
+        except OSError as e:
+            err_console.print(f"[red]Cannot write output file '{output}': {e.strerror}[/red]")
+            sys.exit(1)
         err_console.print(f"[dim]Comparison report written to {output}[/dim]")
     else:
         sys.stdout.buffer.write(rendered.encode("utf-8"))

@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from collections import defaultdict
 from jinja2 import Template
 from evadex.reporters.base import BaseReporter
 from evadex.core.result import ScanResult, SeverityLevel

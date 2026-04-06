@@ -1,3 +1,4 @@
+import sys
 import click
 from rich.console import Console
 from rich.table import Table
@@ -18,7 +19,7 @@ def list_techniques(filter_gen):
         generators = [g for g in generators if g.name == filter_gen]
         if not generators:
             console.print(f"[red]No generator named {filter_gen!r}[/red]")
-            raise SystemExit(1)
+            sys.exit(1)
 
     total = 0
     for gen in generators:

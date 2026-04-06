@@ -27,7 +27,7 @@ class JsonReporter(BaseReporter):
             "pass":                passes,
             "fail":                fails,
             "error":               errors,
-            "pass_rate":           round(passes / total * 100, 1) if total else 0,
+            "pass_rate":           round(passes / total * 100, 1) if total else 0.0,
             "summary_by_category": dict(sorted(by_category.items())),
         }
 

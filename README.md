@@ -306,20 +306,25 @@ Detection rates depend on your scanner, its version, and how it's configured.
 
 ## CLI reference
 
+### `evadex scan`
+
+Run DLP evasion tests against a scanner.
+
 ```
 evadex scan [OPTIONS]
 ```
 
 | Flag | Default | Description |
 |---|---|---|
-| `--tool`, `-t` | `dlpscan-cli` | Adapter name to use |
+| `--config` | *(auto-discovered)* | Path to `evadex.yaml` config file. Auto-discovered from current directory if present. CLI flags always override config values. |
+| `--tool`, `-t` | `dlpscan-cli` | Adapter to use. Built-in adapters: `dlpscan-cli`, `dlpscan`, `presidio`. |
 | `--input`, `-i` | *(all built-ins)* | Single value to test. If omitted, runs all 23 structured built-in payloads (add `--include-heuristic` for all 30). Category is auto-detected (Luhn check, regex patterns for SSN/IBAN/AWS/JWT/email/phone). |
 | `--format`, `-f` | `json` | Output format: `json` or `html` |
 | `--output`, `-o` | stdout | Write report to file instead of stdout |
 | `--strategy` | all four | Submission strategy: `text`, `docx`, `pdf`, `xlsx`. Repeat the flag for multiple. Omit to run all four. |
 | `--concurrency` | `5` | Max concurrent requests |
 | `--timeout` | `30.0` | Request timeout in seconds |
-| `--url` | `http://localhost:8080` | Base URL (for HTTP-based adapters) |
+| `--url` | `http://localhost:8080` | Base URL (for HTTP-based adapters: `dlpscan`, `presidio`) |
 | `--api-key` | *(env: `EVADEX_API_KEY`)* | API key passed as `Authorization: Bearer`. Use the environment variable in preference to the CLI flag to avoid exposure in shell history and process listings. |
 | `--category` | *(all structured)* | Filter built-in payloads by category. Repeat for multiple. Values: `credit_card`, `ssn`, `sin`, `iban`, `swift_bic`, `aba_routing`, `bitcoin`, `ethereum`, `us_passport`, `au_tfn`, `de_tax_id`, `fr_insee`, `email`, `phone`, `aws_key`, `jwt`, `github_token`, `stripe_key`, `slack_token`, `classification` |
 | `--variant-group` | *(all)* | Limit to specific generator(s). Repeat for multiple. Values: `unicode_encoding`, `delimiter`, `splitting`, `leetspeak`, `regional_digits`, `structural`, `encoding`, `context_injection`, `unicode_whitespace`, `bidirectional`, `soft_hyphen`, `morse_code` |
@@ -327,6 +332,64 @@ evadex scan [OPTIONS]
 | `--scanner-label` | *(empty)* | Label recorded in the JSON `meta.scanner` field. Use to tag a specific scanner version, e.g. `python-1.3.0` or `rust-2.0.0`. Useful when comparing results across scanner builds. |
 | `--exe` | `dlpscan` | Path to the scanner executable (dlpscan-cli adapter only). Use when `dlpscan` is not on `PATH` or you need to target a specific build. |
 | `--cmd-style` | `python` | Command format for dlpscan-cli: `python` (invokes `dlpscan -f json <file>`) or `rust` (invokes `dlpscan --format json scan <file>`). |
+| `--min-detection-rate` | *(off)* | Exit with code 1 if the detection rate falls below this threshold (0–100). Intended for CI/CD pipeline gating. Report is always written before the exit. |
+| `--baseline` | *(off)* | Save this run's JSON results to a file for future comparison. |
+| `--compare-baseline` | *(off)* | Compare this run against a previously saved baseline and print a regression summary to stderr. |
+
+### `evadex compare`
+
+Diff two evadex scan result JSON files and report what changed between them.
+
+```
+evadex compare [OPTIONS] FILE_A FILE_B
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `--format`, `-f` | `json` | Output format: `json` or `html` |
+| `--output`, `-o` | stdout | Write report to file instead of stdout |
+| `--label-a` | *(from JSON meta.scanner)* | Override the label for the first file |
+| `--label-b` | *(from JSON meta.scanner)* | Override the label for the second file |
+
+The compare report includes:
+- Overall delta in detection rate (percentage points)
+- Per-category detection rate changes
+- Per-technique detection rate changes (only techniques where the rate changed)
+- Per-variant diff list (variants where severity changed between the two runs)
+
+### `evadex init`
+
+Generate a default `evadex.yaml` config file in the current directory.
+
+```
+evadex init
+```
+
+Creates `evadex.yaml` with sensible defaults. Edit the file and run `evadex scan --config evadex.yaml`, or drop it in the working directory for auto-discovery.
+
+### `evadex list-payloads`
+
+List all built-in test payloads with their categories and types.
+
+```
+evadex list-payloads [--type structured|heuristic]
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `--type` | *(all)* | Filter to `structured` or `heuristic` payloads only |
+
+### `evadex list-techniques`
+
+List all registered evasion generators and the techniques each one applies.
+
+```
+evadex list-techniques [--generator NAME]
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `--generator`, `-g` | *(all)* | Show techniques for a specific generator only |
 
 ### Examples
 
@@ -354,7 +417,44 @@ evadex scan --tool dlpscan-cli --strategy text --format html -o report.html
 # Target a specific scanner binary, tag the output
 evadex scan --tool dlpscan-cli --exe /opt/dlpscan/dlpscan --cmd-style rust \
   --scanner-label "rust-2.0.0" --format json -o rust_results.json
+
+# Compare two scanner builds
+evadex scan --tool dlpscan-cli --scanner-label "python-1.3.0" -o python.json
+evadex scan --tool dlpscan-cli --exe /opt/rust-dlpscan --cmd-style rust \
+  --scanner-label "rust-2.0.0" -o rust.json
+evadex compare python.json rust.json --format html -o comparison.html
 ```
+
+---
+
+## CI/CD integration
+
+evadex supports a `--min-detection-rate` flag that exits with code 1 if the scanner's detection rate falls below a threshold. Use it as a pipeline gate to prevent deploying a scanner configuration that regresses detection coverage.
+
+```bash
+evadex scan --tool dlpscan-cli \
+  --strategy text \
+  --scanner-label "$(dlpscan --version)" \
+  --format json -o results.json \
+  --min-detection-rate 90
+```
+
+Exit code 0 means the threshold was met; exit code 1 means it was not. The report is always written before the exit check.
+
+To track regressions against a known-good baseline:
+
+```bash
+# Save a baseline from the current production scanner
+evadex scan --tool dlpscan-cli --scanner-label "prod-baseline" \
+  --baseline baseline.json
+
+# In CI: compare the candidate scanner against the baseline
+evadex scan --tool dlpscan-cli --scanner-label "candidate" \
+  --compare-baseline baseline.json \
+  --min-detection-rate 90
+```
+
+The `--compare-baseline` flag prints a regression summary to stderr listing any variants that were previously detected and are now missed, and any improvements.
 
 ---
 
@@ -508,6 +608,7 @@ async def submit(self, payload, variant):
 - **Network isolation:** Run evadex and the scanner on an isolated test network. Test variant values are obfuscated but structurally derived from real sensitive patterns.
 
 ---
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

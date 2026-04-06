@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from collections import defaultdict
 from jinja2 import Template
 from evadex.reporters.base import BaseReporter
 
@@ -127,7 +126,6 @@ TEMPLATE = """<!DOCTYPE html>
 
 class CompareHtmlReporter(BaseReporter):
     def render(self, comparison: dict) -> str:  # type: ignore[override]
-        total = len(comparison["diffs"])
         return Template(TEMPLATE).render(
             timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
             label_a=comparison["label_a"],

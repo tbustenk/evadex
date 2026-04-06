@@ -1,6 +1,5 @@
 import json
 from datetime import datetime, timezone
-from collections import defaultdict
 from evadex.reporters.base import BaseReporter
 
 

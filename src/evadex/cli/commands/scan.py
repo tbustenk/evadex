@@ -22,11 +22,12 @@ CATEGORY_CHOICES = click.Choice([c.value for c in PayloadCategory])
               help="Path to evadex.yaml config file. Config values are defaults; "
                    "CLI flags override them. Auto-discovered from the current directory "
                    "if evadex.yaml exists and --config is not passed.")
-@click.option("--tool", "-t", default="dlpscan-cli", show_default=True, help="DLP adapter to use")
+@click.option("--tool", "-t", default="dlpscan-cli", show_default=True,
+              help="DLP adapter to use. Built-in adapters: dlpscan-cli, dlpscan, presidio.")
 @click.option("--input", "-i", "input_value", default=None,
               help="Single value to test (if omitted, runs all built-ins)")
 @click.option("--format", "-f", "fmt", type=click.Choice(["json", "html"]),
-              default="json", show_default=True)
+              default="json", show_default=True, help="Output format")
 @click.option("--output", "-o", default=None, help="Output file path (default: stdout)")
 @click.option("--url", default="http://localhost:8080", show_default=True,
               help="Adapter base URL")
@@ -156,13 +157,21 @@ def scan(
     try:
         adapter = get_adapter(tool, config)
     except KeyError as e:
-        err_console.print(f"[red]{e}[/red]")
+        err_console.print(f"[red]{e.args[0]}[/red]")
         sys.exit(1)
 
     # Pre-flight health check
     import asyncio as _asyncio
     if not _asyncio.run(adapter.health_check()):
-        err_console.print(f"[red]Health check failed for adapter '{tool}'. Is the scanner available?[/red]")
+        if tool == "dlpscan-cli":
+            _exe_name = executable or "dlpscan"
+            hint = (
+                f" Is [bold]{_exe_name}[/bold] installed and on PATH? "
+                f"Use --exe to specify a different path."
+            )
+        else:
+            hint = f" Is the scanner reachable at {url}?"
+        err_console.print(f"[red]Health check failed for adapter '{tool}'.{hint}[/red]")
         sys.exit(1)
 
     # Resolve generators
@@ -176,9 +185,10 @@ def scan(
         generators = None  # use all registered
 
     # Run engine with live progress bar on stderr
-    err_console.print(
-        f"[dim]Running evadex scan against [bold]{tool}[/bold] at {url}...[/dim]"
-    )
+    if tool == "dlpscan-cli":
+        err_console.print(f"[dim]Running evadex scan against [bold]{tool}[/bold]...[/dim]")
+    else:
+        err_console.print(f"[dim]Running evadex scan against [bold]{tool}[/bold] at {url}...[/dim]")
     progress = Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -213,12 +223,12 @@ def scan(
         results = engine.run(payloads)
 
     # Summary
-    total  = len(results)
-    passes = sum(1 for r in results if r.severity == SeverityLevel.PASS)
-    fails  = sum(1 for r in results if r.severity == SeverityLevel.FAIL)
-    errors = sum(1 for r in results if r.severity == SeverityLevel.ERROR)
+    total     = len(results)
+    passes    = sum(1 for r in results if r.severity == SeverityLevel.PASS)
+    fails     = sum(1 for r in results if r.severity == SeverityLevel.FAIL)
+    errors    = sum(1 for r in results if r.severity == SeverityLevel.ERROR)
     pass_rate = round(passes / total * 100, 1) if total else 0.0
-    parts  = [f"[green]{passes} detected[/green]", f"[red]{fails} evaded[/red]"]
+    parts     = [f"[green]{passes} detected[/green]", f"[red]{fails} evaded[/red]"]
     if errors:
         parts.append(f"[yellow]{errors} errors[/yellow]")
     err_console.print(f"[green]Done.[/green] {total} tests \u2014 " + ", ".join(parts))
