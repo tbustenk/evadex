@@ -1,8 +1,12 @@
+import asyncio
+import json
 import sys
 import click
 from click.core import ParameterSource
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TaskProgressColumn, TextColumn, TimeElapsedColumn
+from evadex.cli.commands.compare import build_comparison
+from evadex.config import load_config, find_config
 from evadex.core.registry import load_builtins, get_adapter, get_generator
 from evadex.core.engine import Engine
 from evadex.core.result import Payload, PayloadCategory, SeverityLevel
@@ -70,7 +74,6 @@ def scan(
     load_builtins()
 
     # ── Config file ───────────────────────────────────────────────────────────
-    from evadex.config import load_config, find_config
     cfg = None
     if config_path:
         cfg = load_config(config_path)
@@ -161,8 +164,7 @@ def scan(
         sys.exit(1)
 
     # Pre-flight health check
-    import asyncio as _asyncio
-    if not _asyncio.run(adapter.health_check()):
+    if not asyncio.run(adapter.health_check()):
         if tool == "dlpscan-cli":
             _exe_name = executable or "dlpscan"
             hint = (
@@ -179,7 +181,7 @@ def scan(
         try:
             generators = [get_generator(name) for name in variant_groups]
         except KeyError as e:
-            err_console.print(f"[red]{e}[/red]")
+            err_console.print(f"[red]{e.args[0]}[/red]")
             sys.exit(1)
     else:
         generators = None  # use all registered
@@ -267,15 +269,13 @@ def scan(
 
     # --compare-baseline: diff current run against saved baseline
     if compare_baseline:
-        import json as _json
-        from evadex.cli.commands.compare import build_comparison
         try:
             with open(compare_baseline, encoding="utf-8") as f:
-                baseline_data = _json.load(f)
+                baseline_data = json.load(f)
         except FileNotFoundError:
             err_console.print(f"[red]Baseline file not found: {compare_baseline}[/red]")
             sys.exit(1)
-        except _json.JSONDecodeError as e:
+        except json.JSONDecodeError as e:
             err_console.print(f"[red]Baseline file is not valid JSON: {e}[/red]")
             sys.exit(1)
         if not isinstance(baseline_data, dict) or "meta" not in baseline_data or "results" not in baseline_data:
@@ -285,7 +285,7 @@ def scan(
                 f"Generate a baseline with: evadex scan ... --baseline <file>[/red]"
             )
             sys.exit(1)
-        current_data = _json.loads(JsonReporter(scanner_label=scanner_label).render(results))
+        current_data = json.loads(JsonReporter(scanner_label=scanner_label).render(results))
         try:
             comp = build_comparison(baseline_data, current_data)
         except (KeyError, TypeError, ValueError) as e:
