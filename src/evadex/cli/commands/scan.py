@@ -228,8 +228,12 @@ def scan(
     rendered = reporter.render(results)
 
     if output:
-        with open(output, "w", encoding="utf-8") as f:
-            f.write(rendered)
+        try:
+            with open(output, "w", encoding="utf-8") as f:
+                f.write(rendered)
+        except OSError as e:
+            err_console.print(f"[red]Cannot write output file '{output}': {e.strerror}[/red]")
+            sys.exit(1)
         err_console.print(f"[dim]Report written to {output}[/dim]")
         err_console.print(
             "[yellow]Note: output file may contain obfuscated variants of sensitive test values "
@@ -243,8 +247,12 @@ def scan(
     # --baseline: save a copy of the JSON result as a reference file
     if save_baseline:
         baseline_rendered = JsonReporter(scanner_label=scanner_label).render(results)
-        with open(save_baseline, "w", encoding="utf-8") as f:
-            f.write(baseline_rendered)
+        try:
+            with open(save_baseline, "w", encoding="utf-8") as f:
+                f.write(baseline_rendered)
+        except OSError as e:
+            err_console.print(f"[red]Cannot write baseline file '{save_baseline}': {e.strerror}[/red]")
+            sys.exit(1)
         err_console.print(f"[dim]Baseline saved to {save_baseline}[/dim]")
 
     # --compare-baseline: diff current run against saved baseline
@@ -257,8 +265,22 @@ def scan(
         except FileNotFoundError:
             err_console.print(f"[red]Baseline file not found: {compare_baseline}[/red]")
             sys.exit(1)
+        except _json.JSONDecodeError as e:
+            err_console.print(f"[red]Baseline file is not valid JSON: {e}[/red]")
+            sys.exit(1)
+        if not isinstance(baseline_data, dict) or "meta" not in baseline_data or "results" not in baseline_data:
+            err_console.print(
+                f"[red]Baseline file does not look like an evadex result file "
+                f"(missing 'meta' or 'results' keys). "
+                f"Generate a baseline with: evadex scan ... --baseline <file>[/red]"
+            )
+            sys.exit(1)
         current_data = _json.loads(JsonReporter(scanner_label=scanner_label).render(results))
-        comp = build_comparison(baseline_data, current_data)
+        try:
+            comp = build_comparison(baseline_data, current_data)
+        except (KeyError, TypeError, ValueError) as e:
+            err_console.print(f"[red]Baseline comparison failed — baseline file may be from an incompatible evadex version: {e}[/red]")
+            sys.exit(1)
         delta = comp["overall"]["delta"]
         regressions = [d for d in comp["diffs"] if d["b_severity"] == "fail" and d["a_severity"] == "pass"]
         improvements = [d for d in comp["diffs"] if d["b_severity"] == "pass" and d["a_severity"] == "fail"]

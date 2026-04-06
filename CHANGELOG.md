@@ -13,16 +13,27 @@
 - **`evadex.yaml` added to `.gitignore`** — prevents accidental commit of config files that may contain internal paths or sensitive labels.
 - **README: Configuration section** — documents `evadex init`, the full config file format, config key reference table, and validation error examples.
 
+### Security fixes
+
+- **Temp file permissions** — temp files written by the `dlpscan-cli` adapter now have `chmod 0o600` applied immediately after creation (owner-read/write only). Prevents other local processes from reading payload values (card numbers, SSNs, etc.) from the filesystem during the brief window between write and scan. Best-effort on Windows where ACLs apply instead.
+- **Raw tracebacks replaced with clear error messages** — `FileNotFoundError` when writing `--output` or `--baseline` to a non-existent directory now prints `Cannot write output file '...': No such file or directory` and exits 1. Previously the raw Python traceback was printed to the terminal.
+- **Empty or wrong-schema `--compare-baseline` handled cleanly** — an empty file or a JSON file missing `meta`/`results` keys now exits with a descriptive message rather than a `JSONDecodeError` or `KeyError` traceback.
+- **`build_comparison` validates inputs** — raises `ValueError` with a descriptive message if either argument is missing required keys, rather than surfacing a bare `KeyError` to callers.
+- **`KeyboardInterrupt` / `SystemExit` not swallowed by engine** — the per-task `except Exception` in `Engine._run_one` now explicitly re-raises `KeyboardInterrupt` and `SystemExit` before the catch-all, ensuring Ctrl+C always propagates.
+
 ### Dependencies
 
 - Added `pyyaml>=6.0`.
+- All runtime and dev dependencies now have upper-bound caps (`click>=8.1,<9`, etc.) to prevent silent breakage from major-version upgrades landing in CI.
 
 ### Tests
 
-226 tests (up from 200). 36 new tests:
+236 tests (up from 200). 46 new tests:
 
 - `tests/unit/test_config.py` (23 tests) — config loading, partial configs, empty configs, missing file, unknown keys, and every validation error path (invalid strategy, format, cmd_style, min_detection_rate out of range, invalid category, concurrency ≤ 0, timeout ≤ 0, non-bool include_heuristic). Auto-discovery presence/absence. Default config YAML round-trip.
 - `tests/integration/test_config_cli.py` (13 tests) — `evadex init` creates file, file content is valid, errors if file exists. `--config` loads values, CLI flags override config, concurrency override and default. Auto-discovery loads config from cwd, scan works without config file. Validation errors for invalid strategy, unknown key, missing file, and out-of-range min_detection_rate surface correctly through the CLI.
+- `tests/integration/test_new_features.py` (6 new tests) — output/baseline write to non-existent directory exits cleanly; empty and wrong-schema `--compare-baseline` files exit cleanly; adapter exception produces error `ScanResult` rather than crashing; `KeyboardInterrupt` propagates out of the engine.
+- `tests/integration/test_compare.py` (4 new tests) — `build_comparison` raises `ValueError` on empty dict and missing meta fields; `compare` CLI command exits cleanly on bad-schema and empty JSON files.
 
 ## [2.3.0] — 2026-04-03
 

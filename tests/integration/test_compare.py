@@ -1,4 +1,5 @@
 """Integration tests for the compare command and build_comparison logic."""
+import copy
 import json
 import pytest
 from click.testing import CliRunner
@@ -167,3 +168,59 @@ def test_compare_cli_missing_file(tmp_path):
     runner = CliRunner()
     result = runner.invoke(main, ["compare", str(fa), str(tmp_path / "nope.json")])
     assert result.exit_code != 0
+
+
+# ── build_comparison robustness ───────────────────────────────────────────────
+
+def test_build_comparison_empty_dict_raises_value_error():
+    """build_comparison must raise ValueError on dicts missing required keys."""
+    a = _make_scan_data("py", [_result(True)])
+    with pytest.raises(ValueError, match="missing required key"):
+        build_comparison({}, a)
+    with pytest.raises(ValueError, match="missing required key"):
+        build_comparison(a, {})
+
+
+def test_build_comparison_missing_meta_field_raises_value_error():
+    """build_comparison must raise ValueError when meta is missing expected counters."""
+    import copy
+    a = _make_scan_data("py", [_result(True)])
+    b = copy.deepcopy(a)
+    del b["meta"]["pass_rate"]
+    with pytest.raises(ValueError, match="pass_rate"):
+        build_comparison(a, b)
+
+
+def test_compare_cli_bad_schema_file_exits_cleanly(tmp_path):
+    """compare command with a JSON file missing 'meta'/'results' keys should
+    exit with a clear message, not an uncaught exception."""
+    good = _make_scan_data("py", [_result(True)])
+    bad = {"not": "evadex output"}
+    fa = tmp_path / "good.json"
+    fb = tmp_path / "bad.json"
+    fa.write_text(json.dumps(good), encoding="utf-8")
+    fb.write_text(json.dumps(bad), encoding="utf-8")
+    runner = CliRunner()
+    result = runner.invoke(main, ["compare", str(fa), str(fb)])
+    assert result.exit_code != 0
+    # sys.exit(1) shows as SystemExit — that is expected controlled termination
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert "meta" in result.output or "evadex result" in result.output
+    assert "KeyError" not in result.output
+    assert "Traceback" not in result.output
+
+
+def test_compare_cli_empty_json_file_exits_cleanly(tmp_path):
+    """compare command with an empty file should exit with a clear error."""
+    good = _make_scan_data("py", [_result(True)])
+    fa = tmp_path / "good.json"
+    fb = tmp_path / "empty.json"
+    fa.write_text(json.dumps(good), encoding="utf-8")
+    fb.write_text("", encoding="utf-8")
+    runner = CliRunner()
+    result = runner.invoke(main, ["compare", str(fa), str(fb)])
+    assert result.exit_code != 0
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert "Invalid JSON" in result.output or "JSON" in result.output
+    assert "JSONDecodeError" not in result.output
+    assert "Traceback" not in result.output

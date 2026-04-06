@@ -14,13 +14,21 @@ err_console = Console(stderr=True)
 def _load(path: str) -> dict:
     try:
         with open(path, encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
     except FileNotFoundError:
         err_console.print(f"[red]File not found: {path}[/red]")
         sys.exit(1)
     except json.JSONDecodeError as e:
         err_console.print(f"[red]Invalid JSON in {path}: {e}[/red]")
         sys.exit(1)
+    if not isinstance(data, dict) or "meta" not in data or "results" not in data:
+        err_console.print(
+            f"[red]{path} does not look like an evadex result file "
+            f"(missing 'meta' or 'results' keys). "
+            f"Generate one with: evadex scan ... --output <file>[/red]"
+        )
+        sys.exit(1)
+    return data
 
 
 def _index(results: list[dict]) -> dict:
@@ -39,7 +47,29 @@ def _index(results: list[dict]) -> dict:
 
 
 def build_comparison(data_a: dict, data_b: dict) -> dict:
-    """Build a structured comparison dict from two scan result dicts."""
+    """Build a structured comparison dict from two scan result dicts.
+
+    Raises ValueError with a descriptive message if either argument is not a
+    valid evadex result dict (missing 'meta' or 'results' keys, or meta is
+    missing required counters).
+    """
+    for label, data in (("file_a", data_a), ("file_b", data_b)):
+        if not isinstance(data, dict):
+            raise ValueError(f"{label}: expected a dict, got {type(data).__name__!r}")
+        for key in ("meta", "results"):
+            if key not in data:
+                raise ValueError(
+                    f"{label}: missing required key {key!r}. "
+                    "Pass a file produced by 'evadex scan'."
+                )
+        meta = data["meta"]
+        for mkey in ("total", "pass", "fail", "error", "pass_rate"):
+            if mkey not in meta:
+                raise ValueError(
+                    f"{label}: meta is missing required field {mkey!r}. "
+                    "The file may have been produced by an incompatible evadex version."
+                )
+
     meta_a = data_a["meta"]
     meta_b = data_b["meta"]
 

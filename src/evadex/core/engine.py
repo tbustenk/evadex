@@ -78,6 +78,9 @@ class Engine:
                 result = await self.adapter.submit(payload, v)
                 result.duration_ms = (time.perf_counter() - start) * 1000
                 return result
+            except (KeyboardInterrupt, SystemExit):
+                # Re-raise signals and hard exits — do not swallow them
+                raise
             except Exception as e:
                 return ScanResult(
                     payload=payload,

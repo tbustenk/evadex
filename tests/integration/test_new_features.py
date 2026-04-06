@@ -1,6 +1,7 @@
 """Tests for --min-detection-rate, --baseline/--compare-baseline, list-payloads, list-techniques."""
 import json
 import pytest
+from pathlib import Path
 from click.testing import CliRunner
 from unittest.mock import patch, AsyncMock
 from evadex.cli.app import main
@@ -205,3 +206,123 @@ def test_engine_on_result_called():
     assert len(calls) > 0
     # completed should always equal total on the last call
     assert calls[-1][0] == calls[-1][1]
+
+
+# ── output path error handling ────────────────────────────────────────────────
+
+def test_output_nonexistent_dir_gives_clear_error():
+    """Writing to a path whose parent directory doesn't exist should produce a
+    clear error message, not a raw FileNotFoundError traceback."""
+    runner = CliRunner()
+    with patch("evadex.cli.commands.scan.Engine") as ME, \
+         patch.object(DlpscanCliAdapter, "health_check", new_callable=AsyncMock, return_value=True):
+        ME.return_value.run.return_value = [_make_result(True)]
+        result = runner.invoke(main, [
+            "scan", "--input", "4532015112830366", "--strategy", "text",
+            "--output", "/nonexistent/directory/results.json",
+        ])
+    assert result.exit_code == 1
+    # SystemExit from sys.exit(1) is expected; a raw OSError/FileNotFoundError is not
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert "Cannot write output file" in result.output or "nonexistent" in result.output.lower()
+    # Ensure it is NOT a raw traceback
+    assert "FileNotFoundError" not in result.output
+    assert "Traceback" not in result.output
+
+
+def test_baseline_nonexistent_dir_gives_clear_error(tmp_path):
+    """Saving a baseline to a path whose parent directory doesn't exist should
+    produce a clear error message."""
+    runner = CliRunner()
+    with patch("evadex.cli.commands.scan.Engine") as ME, \
+         patch.object(DlpscanCliAdapter, "health_check", new_callable=AsyncMock, return_value=True):
+        ME.return_value.run.return_value = [_make_result(True)]
+        result = runner.invoke(main, [
+            "scan", "--input", "4532015112830366", "--strategy", "text",
+            "--baseline", "/nonexistent/directory/baseline.json",
+        ])
+    assert result.exit_code == 1
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert "FileNotFoundError" not in result.output
+    assert "Traceback" not in result.output
+
+
+# ── compare-baseline error handling ──────────────────────────────────────────
+
+def test_compare_baseline_empty_file_gives_clear_error(tmp_path):
+    """An empty baseline file should produce a descriptive error, not a traceback."""
+    empty = tmp_path / "empty.json"
+    empty.write_text("", encoding="utf-8")
+    runner = CliRunner()
+    with patch("evadex.cli.commands.scan.Engine") as ME, \
+         patch.object(DlpscanCliAdapter, "health_check", new_callable=AsyncMock, return_value=True):
+        ME.return_value.run.return_value = [_make_result(True)]
+        result = runner.invoke(main, [
+            "scan", "--input", "4532015112830366", "--strategy", "text",
+            "--compare-baseline", str(empty),
+        ])
+    assert result.exit_code == 1
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert "JSON" in result.output
+    assert "JSONDecodeError" not in result.output
+    assert "Traceback" not in result.output
+
+
+def test_compare_baseline_wrong_schema_gives_clear_error(tmp_path):
+    """A JSON file that is not an evadex result (missing meta/results) should
+    produce a descriptive error, not a KeyError traceback."""
+    bad = tmp_path / "bad.json"
+    bad.write_text(json.dumps({"unexpected": "value"}), encoding="utf-8")
+    runner = CliRunner()
+    with patch("evadex.cli.commands.scan.Engine") as ME, \
+         patch.object(DlpscanCliAdapter, "health_check", new_callable=AsyncMock, return_value=True):
+        ME.return_value.run.return_value = [_make_result(True)]
+        result = runner.invoke(main, [
+            "scan", "--input", "4532015112830366", "--strategy", "text",
+            "--compare-baseline", str(bad),
+        ])
+    assert result.exit_code == 1
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert "evadex result file" in result.output or "meta" in result.output
+    assert "KeyError" not in result.output
+    assert "Traceback" not in result.output
+
+
+# ── engine exception handling ─────────────────────────────────────────────────
+
+def test_engine_adapter_exception_becomes_error_result():
+    """If the adapter raises an exception for one variant, the engine should
+    return a ScanResult with error set rather than crashing."""
+    from evadex.core.engine import Engine
+    from evadex.adapters.base import BaseAdapter
+
+    class BrokenAdapter(BaseAdapter):
+        async def submit(self, payload, variant):
+            raise RuntimeError("scanner exploded")
+
+    from evadex.core.registry import load_builtins
+    load_builtins()
+    engine = Engine(adapter=BrokenAdapter({}), strategies=["text"], concurrency=1)
+    p = Payload("4532015112830366", PayloadCategory.CREDIT_CARD, "Visa")
+    results = engine.run([p])
+    assert len(results) > 0
+    assert all(r.error is not None for r in results)
+    assert all("scanner exploded" in (r.error or "") for r in results)
+
+
+def test_engine_keyboard_interrupt_propagates():
+    """KeyboardInterrupt from the adapter should propagate out of the engine,
+    not be silently swallowed as an error ScanResult."""
+    from evadex.core.engine import Engine
+    from evadex.adapters.base import BaseAdapter
+
+    class KIAdapter(BaseAdapter):
+        async def submit(self, payload, variant):
+            raise KeyboardInterrupt("simulated Ctrl+C")
+
+    from evadex.core.registry import load_builtins
+    load_builtins()
+    engine = Engine(adapter=KIAdapter({}), strategies=["text"], concurrency=1)
+    p = Payload("4532015112830366", PayloadCategory.CREDIT_CARD, "Visa")
+    with pytest.raises(KeyboardInterrupt):
+        engine.run([p])

@@ -84,7 +84,14 @@ class DlpscanCliAdapter(BaseAdapter):
         return parsed
 
     def _run_on_tempfile(self, data: bytes, suffix: str) -> list:
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f:
+        # mode=0o600 restricts the temp file to the owner only, preventing other
+        # processes from reading sensitive payload values before cleanup.
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False, mode="w+b") as f:
+            # Restrict permissions to owner-only immediately after creation
+            try:
+                os.chmod(f.name, 0o600)
+            except OSError:
+                pass  # Best-effort; Windows ACLs are managed differently
             f.write(data)
             path = f.name
         try:
