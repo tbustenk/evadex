@@ -249,18 +249,18 @@ Detection rates depend on your scanner, its version, and how it's configured.
     "timestamp": "2026-04-01T22:01:36.172424+00:00",
     "scanner": "rust-2.0.0",
     "total": 590,
-    "pass": 142,
-    "fail": 448,
+    "pass": 514,
+    "fail": 76,
     "error": 0,
-    "pass_rate": 24.1,
+    "pass_rate": 87.1,
     "summary_by_category": {
-      "credit_card": { "pass": 30, "fail": 90, "error": 0 },
-      "ssn":         { "pass": 12, "fail": 60, "error": 0 },
-      "iban":        { "pass": 10, "fail": 50, "error": 0 }
+      "credit_card": { "pass": 109, "fail": 15, "error": 0 },
+      "ssn":         { "pass": 43,  "fail": 10, "error": 0 },
+      "iban":        { "pass": 36,  "fail": 8,  "error": 0 }
     },
     "summary_by_generator": {
-      "delimiter":        { "pass": 20, "fail": 60, "error": 0 },
-      "unicode_encoding": { "pass": 15, "fail": 75, "error": 0 }
+      "delimiter":        { "pass": 72, "fail": 10, "error": 0 },
+      "unicode_encoding": { "pass": 54, "fail": 13, "error": 0 }
     }
   },
   "results": [
