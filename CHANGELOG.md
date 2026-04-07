@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.6.0] — 2026-04-07
+
+### Added
+
+- **Audit log** (`--audit-log PATH` / `audit_log:` in config): after every completed scan, evadex appends one JSON line to a log file recording the timestamp, operator (OS username), evadex version, scanner label, tool, strategies, categories, detection counts, pass rate, output file path, baseline paths, gate threshold, and exit code. Parent directories are created automatically. Write failures are silently ignored — a log error never affects the scan result or exit code. Set the path once in `evadex.yaml` and every run is automatically recorded without passing the flag each time.
+- **Dependency lockfiles** (`requirements.txt`, `requirements-dev.txt`): generated with `pip-compile --generate-hashes`. Pin all transitive dependencies to exact versions with SHA-256 hashes for reproducible, tamper-evident installs.
+
+### Config
+
+`audit_log` is now a recognised config key. It accepts a string path or null. Validation exits with a clear error if the value is not a string or null.
+
+### Tests
+
+254 tests (up from 242). 12 new tests:
+
+- `tests/unit/test_audit.py` (7 tests): `append_audit_entry` creates and appends correctly, creates parent directories, record contains all required fields, silently ignores bad paths, timestamp is ISO 8601, operator field is a non-empty string
+- `tests/integration/test_config_cli.py` (5 tests): `--audit-log` CLI flag creates file with correct fields; multiple runs append separate lines; `audit_log` config key is applied; `exit_code: 1` is recorded when the detection-rate gate fails; write failure on bad path does not affect scan exit code
+
 ## [2.5.3] — 2026-04-07
 
 ### Fixed

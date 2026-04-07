@@ -110,6 +110,15 @@ cd evadex
 pip install -e ".[dev]"
 ```
 
+For reproducible installs with pinned, hash-verified dependencies (recommended for regulated environments):
+
+```bash
+pip install -r requirements.txt        # runtime only
+pip install -r requirements-dev.txt    # runtime + test dependencies
+```
+
+These lockfiles are generated with `pip-compile --generate-hashes` and updated with each release.
+
 ---
 
 ## Quick start
@@ -207,6 +216,7 @@ evadex scan --config evadex.yaml --scanner-label staging
 | `timeout` | number | `--timeout` | Request timeout in seconds |
 | `output` | string or null | `--output` | Output file path (null = stdout) |
 | `format` | `json` or `html` | `--format` | Output format |
+| `audit_log` | string or null | `--audit-log` | Append-only audit log file (see [Audit log](#audit-log)) |
 
 ### Validation
 
@@ -339,6 +349,7 @@ evadex scan [OPTIONS]
 | `--min-detection-rate` | *(off)* | Exit with code 1 if the detection rate falls below this threshold (0–100). Intended for CI/CD pipeline gating. Report is always written before the exit. |
 | `--baseline` | *(off)* | Save this run's JSON results to a file for future comparison. |
 | `--compare-baseline` | *(off)* | Compare this run against a previously saved baseline and print a regression summary to stderr. |
+| `--audit-log` | *(off)* | Append a one-line JSON audit record for this run to a file. Parent directories are created if they do not exist. Can also be set via `audit_log` in `evadex.yaml`. |
 
 ### `evadex compare`
 
@@ -459,6 +470,57 @@ evadex scan --tool dlpscan-cli --scanner-label "candidate" \
 ```
 
 The `--compare-baseline` flag prints a regression summary to stderr listing any variants that were previously detected and are now missed, and any improvements.
+
+---
+
+## Audit log
+
+evadex can append a one-line JSON record to a log file after every scan. This gives you a durable, append-only history of what was tested, when, and what the result was — useful for compliance reviews, trend tracking, and demonstrating that regular scans are being performed.
+
+```bash
+evadex scan --tool dlpscan-cli \
+  --scanner-label "rust-2.0.0" \
+  --strategy text \
+  --audit-log /var/log/evadex/audit.jsonl
+```
+
+Or set it in `evadex.yaml` so it fires automatically on every run:
+
+```yaml
+audit_log: /var/log/evadex/audit.jsonl
+```
+
+### Audit record format
+
+Each run appends exactly one line. Fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `timestamp` | ISO 8601 string | When the scan ran (UTC) |
+| `evadex_version` | string | Installed evadex version |
+| `operator` | string | OS username of the person who ran the scan |
+| `scanner_label` | string | Value of `--scanner-label` (empty if not set) |
+| `tool` | string | Adapter used |
+| `strategies` | array | Submission strategies used |
+| `categories` | array | Categories filtered to (empty = all structured) |
+| `include_heuristic` | bool | Whether heuristic categories were included |
+| `total` | int | Total test cases run |
+| `pass` | int | Variants detected |
+| `fail` | int | Variants that evaded scanner |
+| `error` | int | Adapter errors |
+| `pass_rate` | float | Detection rate percentage |
+| `output_file` | string \| null | Path of the report file written, or null |
+| `baseline_saved` | string \| null | Path of baseline saved, or null |
+| `compare_baseline` | string \| null | Path of baseline compared against, or null |
+| `min_detection_rate` | float \| null | Gate threshold used, or null |
+| `exit_code` | int | `0` if scan succeeded, `1` if detection-rate gate failed |
+
+### Notes
+
+- The log file is opened in append mode — existing entries are never modified or deleted.
+- Parent directories are created automatically if they do not exist.
+- A write failure (permissions, disk full, bad path) is silently ignored. The scan result and exit code are never affected by audit log errors.
+- The log contains detection rates and category breakdowns but **not** variant values. It is safe to store in shared log aggregation systems.
 
 ---
 

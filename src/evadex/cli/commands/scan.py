@@ -114,12 +114,16 @@ def _print_summary(results, err_console):
               help="Save this run's JSON results to a baseline file for future comparison.")
 @click.option("--compare-baseline", "compare_baseline", default=None,
               help="Compare this run against a saved baseline JSON and report regressions.")
+@click.option("--audit-log", "audit_log", default=None,
+              help="Append a one-line JSON audit record for this run to a file. "
+                   "Created (with parent directories) if it does not exist. "
+                   "Can also be set via 'audit_log' in evadex.yaml.")
 def scan(
     ctx,
     config_path, tool, input_value, fmt, output, url, api_key, timeout,
     strategies, concurrency, categories, variant_groups, include_heuristic,
     scanner_label, executable, cmd_style, min_detection_rate,
-    save_baseline, compare_baseline,
+    save_baseline, compare_baseline, audit_log,
 ):
     """Run DLP evasion tests."""
     load_builtins()
@@ -176,6 +180,8 @@ def scan(
             cmd_style = cfg.cmd_style
         if _is_default("min_detection_rate") and cfg.min_detection_rate is not None:
             min_detection_rate = cfg.min_detection_rate
+        if _is_default("audit_log") and cfg.audit_log is not None:
+            audit_log = cfg.audit_log
 
     # ── Heuristic warning ─────────────────────────────────────────────────────
     if include_heuristic:
@@ -364,6 +370,32 @@ def scan(
             err_console.print(f"[green]  {len(improvements)} improvement(s) — variants now caught that baseline missed[/green]")
         if not regressions and not improvements:
             err_console.print("[green]  No changes vs baseline.[/green]")
+
+    # --audit-log: append run record before exit-code check so the entry is written
+    # regardless of whether the detection-rate gate passes or fails.
+    if audit_log:
+        from evadex.audit import append_audit_entry
+        append_audit_entry(
+            audit_log,
+            scanner_label=scanner_label,
+            tool=tool,
+            strategies=active_strategies,
+            categories=list(categories) if categories else [],
+            include_heuristic=include_heuristic,
+            total=total,
+            passes=passes,
+            fails=fails,
+            errors=errors,
+            pass_rate=pass_rate,
+            output_file=output,
+            baseline_saved=save_baseline,
+            compare_baseline=compare_baseline,
+            min_detection_rate=min_detection_rate,
+            exit_code=(
+                1 if (min_detection_rate is not None and pass_rate < min_detection_rate)
+                else 0
+            ),
+        )
 
     # --min-detection-rate: CI/CD gate (checked last so report is always written first)
     if min_detection_rate is not None:

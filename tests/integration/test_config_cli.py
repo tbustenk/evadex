@@ -145,6 +145,80 @@ def test_config_concurrency_used_when_no_cli_flag(tmp_path):
     assert captured_concurrency == [3]
 
 
+# ── --audit-log ───────────────────────────────────────────────────────────────
+
+def test_audit_log_cli_flag_creates_file(tmp_path):
+    """--audit-log writes one JSON line per scan."""
+    log_file = tmp_path / "audit.jsonl"
+    result = _invoke_scan(runner=CliRunner(), extra_args=[
+        "--input", "4532015112830366",
+        "--strategy", "text",
+        "--audit-log", str(log_file),
+    ])
+    assert result.exit_code == 0, result.output
+    assert log_file.exists()
+    record = json.loads(log_file.read_text(encoding="utf-8"))
+    assert record["tool"] == "dlpscan-cli"
+    assert record["total"] >= 1
+    assert "timestamp" in record
+    assert "operator" in record
+
+
+def test_audit_log_appends_across_runs(tmp_path):
+    """Two successive scans produce two lines in the same file."""
+    log_file = tmp_path / "audit.jsonl"
+    runner = CliRunner()
+    for _ in range(2):
+        _invoke_scan(runner, [
+            "--input", "4532015112830366",
+            "--strategy", "text",
+            "--audit-log", str(log_file),
+        ])
+    lines = log_file.read_text(encoding="utf-8").strip().splitlines()
+    assert len(lines) == 2
+    assert all(json.loads(l)["tool"] == "dlpscan-cli" for l in lines)
+
+
+def test_audit_log_from_config_file(tmp_path):
+    """audit_log key in evadex.yaml is respected."""
+    log_file = tmp_path / "audit.jsonl"
+    cfg_file = tmp_path / "evadex.yaml"
+    cfg_file.write_text(
+        f"strategy: text\naudit_log: {log_file}\n", encoding="utf-8"
+    )
+    result = _invoke_scan(runner=CliRunner(), extra_args=[
+        "--input", "4532015112830366",
+        "--config", str(cfg_file),
+    ])
+    assert result.exit_code == 0, result.output
+    assert log_file.exists()
+
+
+def test_audit_log_records_exit_code_1_on_gate_failure(tmp_path):
+    """exit_code in the audit entry reflects the --min-detection-rate outcome."""
+    log_file = tmp_path / "audit.jsonl"
+    result = _invoke_scan(runner=CliRunner(), extra_args=[
+        "--input", "4532015112830366",
+        "--strategy", "text",
+        "--min-detection-rate", "101",   # impossible threshold → always fails
+        "--audit-log", str(log_file),
+    ])
+    assert result.exit_code == 1
+    record = json.loads(log_file.read_text(encoding="utf-8"))
+    assert record["exit_code"] == 1
+    assert record["min_detection_rate"] == 101.0
+
+
+def test_audit_log_silent_on_bad_path():
+    """A write failure must not propagate — scan exit code must be 0."""
+    result = _invoke_scan(runner=CliRunner(), extra_args=[
+        "--input", "4532015112830366",
+        "--strategy", "text",
+        "--audit-log", "/proc/evadex_no_write_here.jsonl",
+    ])
+    assert result.exit_code == 0
+
+
 # ── auto-discovery ────────────────────────────────────────────────────────────
 
 def test_auto_discovery_loads_config(tmp_path):

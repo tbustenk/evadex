@@ -19,7 +19,7 @@ VALID_CATEGORIES = {
 KNOWN_KEYS = {
     "tool", "strategy", "min_detection_rate", "scanner_label", "exe",
     "cmd_style", "categories", "include_heuristic", "concurrency",
-    "timeout", "output", "format",
+    "timeout", "output", "format", "audit_log",
 }
 
 DEFAULT_CONFIG_YAML = """\
@@ -42,6 +42,7 @@ concurrency: 5
 timeout: 30.0
 output: results.json
 format: json
+# audit_log: evadex_audit.jsonl
 """
 
 
@@ -59,6 +60,7 @@ class EvadexConfig:
     timeout: Optional[float] = None
     output: Optional[str] = None
     format: Optional[str] = None
+    audit_log: Optional[str] = None
 
 
 def find_config() -> Optional[Path]:
@@ -232,5 +234,13 @@ def load_config(path: "str | Path") -> EvadexConfig:
                 f"got: {val!r}"
             )
         cfg.format = val
+
+    if "audit_log" in raw:
+        val = raw["audit_log"]
+        if val is not None and not isinstance(val, str):
+            raise click.UsageError(
+                f"Config 'audit_log' must be a string or null, got: {type(val).__name__}"
+            )
+        cfg.audit_log = val
 
     return cfg
