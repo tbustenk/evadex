@@ -21,8 +21,9 @@ def _fail(
     generator: str = "unicode_encoding",
     value: str = "4532\u041e15112830366",
     transform_name: str = "Visually similar Cyrillic/Greek characters substituted",
+    category: PayloadCategory = PayloadCategory.CREDIT_CARD,
 ) -> ScanResult:
-    p = Payload("4532015112830366", PayloadCategory.CREDIT_CARD, "Visa 16-digit")
+    p = Payload("4532015112830366", category, "Visa 16-digit")
     v = Variant(value, generator, technique, transform_name, strategy="text")
     return ScanResult(payload=p, variant=v, detected=False, duration_ms=1.0)
 

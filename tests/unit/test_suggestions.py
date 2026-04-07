@@ -89,7 +89,8 @@ def test_base64_fix_mentions_decode():
 
 
 def test_morse_fix_mentions_decode():
-    s = get_suggestions([_fail("space_separated", generator="morse_code")])[0]
+    # Actual technique names use morse_ prefix
+    s = get_suggestions([_fail("morse_space_sep", generator="morse_code")])[0]
     assert "morse" in s.suggested_fix.lower()
 
 
@@ -104,7 +105,8 @@ def test_bidi_fix_mentions_strip():
 
 
 def test_nbsp_fix_mentions_normalise():
-    s = get_suggestions([_fail("nbsp", generator="unicode_whitespace")])[0]
+    # Actual technique name is unicode_nbsp, not nbsp
+    s = get_suggestions([_fail("unicode_nbsp", generator="unicode_whitespace")])[0]
     text = s.suggested_fix.lower()
     assert "normalise" in text or "normalize" in text
 
@@ -117,14 +119,15 @@ def test_unknown_technique_gets_generic_suggestion():
 
 
 def test_regional_digit_prefix_match():
-    s = get_suggestions([_fail("arabic_indic", generator="regional_digits")])[0]
+    # Actual technique names use regional_ prefix
+    s = get_suggestions([_fail("regional_arabic_indic", generator="regional_digits")])[0]
     text = s.suggested_fix.lower()
     assert "digit" in text or "normalise" in text or "normalize" in text
 
 
 def test_devanagari_prefix_match():
-    s = get_suggestions([_fail("devanagari", generator="regional_digits")])[0]
-    assert "devanagari" in s.suggested_fix.lower() or "ascii" in s.suggested_fix.lower()
+    s = get_suggestions([_fail("regional_devanagari", generator="regional_digits")])[0]
+    assert "ascii" in s.suggested_fix.lower() or "digit" in s.suggested_fix.lower()
 
 
 def test_passes_ignored():
@@ -148,12 +151,39 @@ def test_lookup_unknown_returns_generic_with_technique_name():
 
 
 def test_lookup_all_zero_width_variants():
-    for tech in ("zero_width_zwsp", "zero_width_zwnj", "zero_width_zwj", "zero_width_wj"):
+    for tech in ("zero_width_zwsp", "zero_width_zwnj", "zero_width_zwj"):
         desc, fix = _lookup_fix(tech)
         assert "U+" in fix
 
 
 def test_lookup_all_morse_variants():
-    for tech in ("space_separated", "slash_separated", "no_separator", "newline_separated"):
+    # Actual technique names from morse_code generator use morse_ prefix
+    for tech in ("morse_space_sep", "morse_slash_sep", "morse_no_sep", "morse_newline_sep"):
         desc, fix = _lookup_fix(tech)
         assert "morse" in fix.lower()
+
+
+def test_lookup_structural_noise_embedded():
+    desc, fix = _lookup_fix("noise_embedded")
+    assert "noise" in fix.lower() or "boundary" in fix.lower()
+
+
+def test_lookup_structural_overlapping_prefix():
+    desc, fix = _lookup_fix("overlapping_prefix")
+    assert "prefix" in fix.lower() or "boundary" in fix.lower()
+
+
+def test_lookup_base64_partial():
+    desc, fix = _lookup_fix("base64_partial")
+    assert "base64" in fix.lower() and "partial" in fix.lower() or "substring" in fix.lower()
+
+
+def test_lookup_url_percent_encoding_full():
+    desc, fix = _lookup_fix("url_percent_encoding_full")
+    assert "url" in fix.lower() or "percent" in fix.lower() or "unquote" in fix.lower()
+
+
+def test_lookup_unicode_whitespace_variants():
+    for tech in ("unicode_nbsp", "unicode_en_space", "unicode_em_space", "unicode_mixed_spaces"):
+        desc, fix = _lookup_fix(tech)
+        assert "normalise" in fix.lower() or "normalize" in fix.lower()

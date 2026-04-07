@@ -2,6 +2,8 @@
 
 Each unique technique that produced a bypass gets one actionable suggestion
 describing what to add to the scanner's normalisation pipeline to close the gap.
+
+Technique names are taken directly from the generator classes in evadex/variants/.
 """
 from __future__ import annotations
 
@@ -33,10 +35,6 @@ _TECHNIQUE_FIXES: dict[str, tuple[str, str]] = {
         "Sensitive values bypassed detection via Zero Width Joiner (U+200D) inserted between digits",
         "Strip U+200D (Zero Width Joiner) from input in the normalisation pipeline",
     ),
-    "zero_width_wj": (
-        "Sensitive values bypassed detection via Word Joiner (U+2060) inserted between digits",
-        "Strip U+2060 (Word Joiner) from input in the normalisation pipeline",
-    ),
     "homoglyph_substitution": (
         "Sensitive values bypassed detection by substituting ASCII digits/letters with visually"
         " identical Unicode characters from Cyrillic, Greek, or other scripts",
@@ -47,10 +45,6 @@ _TECHNIQUE_FIXES: dict[str, tuple[str, str]] = {
         "Sensitive values bypassed detection using fullwidth Unicode digit/letter forms (０–９, Ａ–Ｚ)",
         "Apply NFKC normalisation to collapse fullwidth characters to their ASCII equivalents before scanning",
     ),
-    "url_encoding_full": (
-        "Sensitive values bypassed detection via full percent-encoding of every character (%36%34%35%32…)",
-        "Add a URL-decode pass (urllib.parse.unquote) to the normalisation pipeline before pattern matching",
-    ),
     "html_entity_decimal": (
         "Sensitive values bypassed detection via decimal HTML entities (&#52;&#53;&#51;&#50;…)",
         "Add an HTML entity decode pass (html.unescape) to the normalisation pipeline",
@@ -58,6 +52,18 @@ _TECHNIQUE_FIXES: dict[str, tuple[str, str]] = {
     "html_entity_hex": (
         "Sensitive values bypassed detection via hexadecimal HTML entities (&#x34;&#x35;…)",
         "Add an HTML entity decode pass (html.unescape) to the normalisation pipeline",
+    ),
+    "url_percent_encoding_full": (
+        "Sensitive values bypassed detection via full percent-encoding of every character (%36%34%35%32…)",
+        "Add a URL-decode pass (urllib.parse.unquote) to the normalisation pipeline before pattern matching",
+    ),
+    "url_percent_encoding_digits": (
+        "Sensitive values bypassed detection via percent-encoding of digit characters only",
+        "Add a URL-decode pass (urllib.parse.unquote) to the normalisation pipeline before pattern matching",
+    ),
+    "url_percent_encoding_mixed": (
+        "Sensitive values bypassed detection via mixed percent-encoding (some digits encoded, others literal)",
+        "Add a URL-decode pass (urllib.parse.unquote) to the normalisation pipeline before pattern matching",
     ),
     "mixed_normalization": (
         "Sensitive values bypassed detection via mixed Unicode normalisation forms (NFD/NFC/NFKD/NFKC)",
@@ -80,13 +86,15 @@ _TECHNIQUE_FIXES: dict[str, tuple[str, str]] = {
         "Sensitive values bypassed detection after base64 encoding without padding characters",
         "Add a base64 decode pass with padding tolerance (pad to multiple of 4) to the normalisation pipeline",
     ),
+    "base64_partial": (
+        "Sensitive values bypassed detection after partial base64 encoding (first half literal,"
+        " second half base64-encoded)",
+        "Add a partial-base64 decode pass: detect and decode any base64-looking substring"
+        " (match /[A-Za-z0-9+/]{12,}={0,2}/) within the input before scanning",
+    ),
     "base64_double": (
         "Sensitive values bypassed detection after double base64 encoding",
         "Apply base64 decode twice before pattern matching to handle double-encoded values",
-    ),
-    "base64_mime_linebreaks": (
-        "Sensitive values bypassed detection after base64 encoding with MIME line breaks (every 76 chars)",
-        "Add a MIME base64 decode pass — strip line breaks, then decode — to the normalisation pipeline",
     ),
     "base32_standard": (
         "Sensitive values bypassed detection after base32 encoding",
@@ -113,8 +121,9 @@ _TECHNIQUE_FIXES: dict[str, tuple[str, str]] = {
         "Add a case-insensitive hex decode pass to the normalisation pipeline",
     ),
     "hex_escaped_bytes": (
-        r"Sensitive values bypassed detection via \xNN escape sequence encoding",
-        r"Add a \xNN escape sequence decode pass to the normalisation pipeline",
+        r"Sensitive values bypassed detection via \xNN escape sequence encoding (e.g. \x34\x35\x33\x32)",
+        r"Add a \xNN escape sequence decode pass: replace /\\x([0-9a-fA-F]{2})/ with chr(int(m,16))"
+        " in the normalisation pipeline",
     ),
     "hex_0x_integer": (
         "Sensitive values bypassed detection via 0x-prefixed hex integer encoding",
@@ -136,6 +145,10 @@ _TECHNIQUE_FIXES: dict[str, tuple[str, str]] = {
         "Sensitive values bypassed detection after within-delimiter-group digit reversal",
         "Add a within-group reversal decode pass to the normalisation pipeline",
     ),
+    "reversed_group_order": (
+        "Sensitive values bypassed detection after reversing the order of delimiter-separated groups",
+        "Add a group-order reversal decode pass to the normalisation pipeline",
+    ),
     "double_url_encoding": (
         "Sensitive values bypassed detection via double URL-encoding (%2534 for %34…)",
         "Apply URL-decode twice before pattern matching to handle double-encoded values",
@@ -150,17 +163,38 @@ _TECHNIQUE_FIXES: dict[str, tuple[str, str]] = {
         "Sensitive values bypassed detection when space was used as a delimiter",
         "Ensure patterns allow space as a delimiter between digit groups",
     ),
+    "hyphen_delimiter": (
+        "Sensitive values bypassed detection when hyphens replaced the standard delimiter",
+        "Ensure patterns allow hyphen as a delimiter between digit groups",
+    ),
     "dot_delimiter": (
         "Sensitive values bypassed detection when dot was used as a delimiter",
         "Ensure patterns allow dot as a delimiter between digit groups",
     ),
-    "underscore_delimiter": (
-        "Sensitive values bypassed detection when underscore was used as a delimiter",
-        "Ensure patterns allow underscore as a delimiter between digit groups",
-    ),
     "slash_delimiter": (
         "Sensitive values bypassed detection when forward slash was used as a delimiter",
         "Ensure patterns allow forward slash as a delimiter between digit groups",
+    ),
+    "tab_delimiter": (
+        "Sensitive values bypassed detection when tab character was used as a delimiter",
+        "Ensure patterns allow tab (\\t) as a delimiter between digit groups, or normalise"
+        " tabs to spaces before scanning",
+    ),
+    "newline_delimiter": (
+        "Sensitive values bypassed detection when newline was used as a delimiter between digit groups",
+        "Normalise newlines to spaces before pattern matching, or extend patterns to allow \\n"
+        " as a delimiter between digit groups",
+    ),
+    "mixed_delimiter": (
+        "Sensitive values bypassed detection when different delimiter characters were mixed"
+        " between digit groups",
+        "Use a flexible delimiter character class in patterns: [-. \\t/\\\\_ \\u2013\\u2014\\u00a0]?"
+        " to match any common separator",
+    ),
+    "excessive_delimiter": (
+        "Sensitive values bypassed detection via excessive/repeated delimiters between digit groups",
+        "Collapse repeated delimiters before pattern matching:"
+        " normalise /[\\-\\s]{2,}/ to a single separator",
     ),
     "plus_delimiter": (
         "Sensitive values bypassed detection when plus sign was used as a delimiter",
@@ -170,10 +204,9 @@ _TECHNIQUE_FIXES: dict[str, tuple[str, str]] = {
         "Sensitive values bypassed detection when comma was used as a delimiter",
         "Ensure patterns allow comma as a delimiter between digit groups",
     ),
-    "excessive_delimiter": (
-        "Sensitive values bypassed detection via excessive/repeated delimiters between digit groups",
-        "Collapse repeated delimiters before pattern matching:"
-        " normalise /[\\-\\s]{2,}/ to a single separator",
+    "underscore_delimiter": (
+        "Sensitive values bypassed detection when underscore was used as a delimiter",
+        "Ensure patterns allow underscore as a delimiter between digit groups",
     ),
     # ── Invisible separators (soft hyphen / word joiner) ─────────────────────
     "shy_group_boundaries": (
@@ -196,7 +229,7 @@ _TECHNIQUE_FIXES: dict[str, tuple[str, str]] = {
         "Sensitive values bypassed detection via Word Joiners (U+2060) inserted between every character",
         "Strip U+2060 (Word Joiner) from input in the normalisation pipeline",
     ),
-    "mixed_shy_wj_alternates": (
+    "mixed_shy_wj": (
         "Sensitive values bypassed detection via alternating soft hyphens (U+00AD) and word joiners (U+2060)",
         "Strip both U+00AD (Soft Hyphen) and U+2060 (Word Joiner) from input in the normalisation pipeline",
     ),
@@ -229,40 +262,62 @@ _TECHNIQUE_FIXES: dict[str, tuple[str, str]] = {
         " (category Cf) from input before scanning",
     ),
     # ── Unicode whitespace ────────────────────────────────────────────────────
-    "nbsp": (
+    "unicode_nbsp": (
         "Sensitive values bypassed detection when spaces were replaced with non-breaking spaces (U+00A0)",
         "Normalise U+00A0 (NBSP) to regular ASCII space before pattern matching",
     ),
-    "en_space": (
+    "unicode_en_space": (
         "Sensitive values bypassed detection when spaces were replaced with en-spaces (U+2002)",
         "Normalise Unicode space variants (U+2002, U+2003, U+2009, etc.) to regular ASCII space"
         " before pattern matching",
     ),
-    "em_space": (
+    "unicode_em_space": (
         "Sensitive values bypassed detection when spaces were replaced with em-spaces (U+2003)",
         "Normalise Unicode space variants to regular ASCII space before pattern matching",
     ),
-    "mixed_spaces": (
+    "unicode_thin_space": (
+        "Sensitive values bypassed detection when spaces were replaced with thin spaces (U+2009)",
+        "Normalise Unicode space variants to regular ASCII space before pattern matching",
+    ),
+    "unicode_figure_space": (
+        "Sensitive values bypassed detection when spaces were replaced with figure spaces (U+2007)",
+        "Normalise Unicode space variants to regular ASCII space before pattern matching",
+    ),
+    "unicode_narrow_nbsp": (
+        "Sensitive values bypassed detection when spaces were replaced with narrow no-break spaces (U+202F)",
+        "Normalise U+202F (Narrow No-Break Space) and other Unicode space variants to regular ASCII space",
+    ),
+    "unicode_ideographic_space": (
+        "Sensitive values bypassed detection when spaces were replaced with ideographic spaces (U+3000)",
+        "Normalise U+3000 (Ideographic Space) to regular ASCII space before pattern matching",
+    ),
+    "unicode_mixed_spaces": (
         "Sensitive values bypassed detection via mixed Unicode whitespace character variants",
         "Normalise all Unicode whitespace variants to regular ASCII space before pattern matching"
-        " (apply re.sub(r'[\\s\\u00A0\\u2000-\\u200A]+', ' ', text))",
+        r" (apply re.sub(r'[\s\u00A0\u2000-\u200A\u202F\u3000]+', ' ', text))",
     ),
     # ── Morse code ───────────────────────────────────────────────────────────
-    "space_separated": (
-        "Sensitive values bypassed detection after morse code encoding with space-separated symbols",
-        "Add a morse code decode pass to the normalisation pipeline",
+    "morse_space_sep": (
+        "Sensitive values bypassed detection after morse code encoding with space-separated symbols"
+        " (e.g. '....' '-.-.' for digits)",
+        "Add a morse code decode pass to the normalisation pipeline;"
+        " decode International Morse sequences back to digits before scanning",
     ),
-    "slash_separated": (
-        "Sensitive values bypassed detection after morse code encoding with slash-separated symbols",
-        "Add a morse code decode pass to the normalisation pipeline",
+    "morse_slash_sep": (
+        "Sensitive values bypassed detection after morse code encoding with slash-separated symbols"
+        " (e.g. '..../-.-.')",
+        "Add a morse code decode pass to the normalisation pipeline;"
+        " handle slash-separated morse word boundaries",
     ),
-    "no_separator": (
-        "Sensitive values bypassed detection after concatenated morse code encoding (no separators)",
-        "Add a morse code decode pass to the normalisation pipeline",
+    "morse_no_sep": (
+        "Sensitive values bypassed detection after concatenated morse code encoding"
+        " (no separator between symbols)",
+        "Add a morse code decode pass that handles ambiguous concatenated sequences",
     ),
-    "newline_separated": (
-        "Sensitive values bypassed detection after morse code encoding with newline separators",
-        "Add a morse code decode pass to the normalisation pipeline",
+    "morse_newline_sep": (
+        "Sensitive values bypassed detection after morse code encoding with newline-separated symbols",
+        "Add a morse code decode pass to the normalisation pipeline;"
+        " strip newlines and decode morse sequences before scanning",
     ),
     # ── Leetspeak ─────────────────────────────────────────────────────────────
     "minimal_leet": (
@@ -276,6 +331,11 @@ _TECHNIQUE_FIXES: dict[str, tuple[str, str]] = {
         "Sensitive values bypassed detection when embedded inside an email body template",
         "Scan the complete message body for sensitive patterns, not just structured/named fields",
     ),
+    "email_header_body": (
+        "Sensitive values bypassed detection when embedded across email headers and body",
+        "Scan the full email text (headers + body) for sensitive patterns,"
+        " not just the structured envelope fields",
+    ),
     "json_record": (
         "Sensitive values bypassed detection when embedded as a JSON field value",
         "Extract and scan individual JSON field values, not just the raw JSON string",
@@ -288,76 +348,165 @@ _TECHNIQUE_FIXES: dict[str, tuple[str, str]] = {
         "Sensitive values bypassed detection when embedded as a CSV field",
         "Scan each CSV field value individually after parsing",
     ),
+    "log_line": (
+        "Sensitive values bypassed detection when embedded inside a structured log line",
+        "Scan log field values individually; strip log prefixes (timestamps, log levels)"
+        " before pattern matching",
+    ),
+    "multiline_form": (
+        "Sensitive values bypassed detection when embedded in a multiline form-like text block",
+        "Scan each line and each field value independently within multiline input",
+    ),
+    "audit_note": (
+        "Sensitive values bypassed detection when embedded inside an audit note template",
+        "Scan the full text body of audit notes for sensitive patterns,"
+        " not just structured fields",
+    ),
+    "sentence_payment_request": (
+        "Sensitive values bypassed detection when embedded in a payment request sentence",
+        "Scan free-form sentence content for sensitive patterns,"
+        " not just structured/labelled fields",
+    ),
+    "sentence_reference": (
+        "Sensitive values bypassed detection when embedded in a reference sentence",
+        "Scan free-form sentence content for sensitive patterns,"
+        " not just structured/labelled fields",
+    ),
+    "confidential_header": (
+        "Sensitive values bypassed detection when embedded under a confidential header block",
+        "Scan content below confidential headers; do not skip sections based on header labels",
+    ),
     # ── Splitting ─────────────────────────────────────────────────────────────
-    "json_split": (
-        "Sensitive values bypassed detection when split across multiple adjacent JSON string values",
+    "mid_line_break": (
+        "Sensitive values bypassed detection when split across two lines with a mid-value line break",
+        "Normalise line breaks within candidate token spans before pattern matching,"
+        " or use multi-line regex mode with newline ignored inside digit groups",
+    ),
+    "html_comment_injection": (
+        "Sensitive values bypassed detection when split by an injected HTML comment (<!-- -->)",
+        "Strip HTML comment tags (<!-- ... -->) before scanning, then scan the resulting text",
+    ),
+    "css_comment_injection": (
+        "Sensitive values bypassed detection when split by an injected CSS comment (/* */)",
+        "Strip CSS comment tokens (/* ... */) before scanning, then scan the resulting text",
+    ),
+    "prefix_noise": (
+        "Sensitive values bypassed detection when arbitrary noise was prepended to the value",
+        "Use patterns that do not require a clean left boundary;"
+        " match the sensitive pattern anywhere within the token",
+    ),
+    "suffix_noise": (
+        "Sensitive values bypassed detection when arbitrary noise was appended to the value",
+        "Use patterns that do not require a clean right boundary;"
+        " match the sensitive pattern anywhere within the token",
+    ),
+    "json_field_split": (
+        "Sensitive values bypassed detection when split across multiple adjacent JSON string fields",
         "Reassemble adjacent string values across JSON field boundaries before scanning",
     ),
-    "html_comment": (
-        "Sensitive values bypassed detection when split using an HTML comment tag (<!-- -->)",
-        "Strip HTML comment tags before scanning, then scan the resulting text",
+    "whitespace_padding": (
+        "Sensitive values bypassed detection when padded with leading and trailing whitespace",
+        "Trim leading/trailing whitespace from candidate token spans before pattern matching",
+    ),
+    "xml_tag_injection": (
+        "Sensitive values bypassed detection when split by an injected XML tag mid-value",
+        "Strip XML tags from text before scanning, or scan the concatenated text content"
+        " of adjacent XML text nodes",
+    ),
+    # ── Structural ────────────────────────────────────────────────────────────
+    "left_pad_spaces": (
+        "Sensitive values bypassed detection when padded with leading spaces",
+        "Trim leading whitespace from candidate token spans before pattern matching",
+    ),
+    "right_pad_spaces": (
+        "Sensitive values bypassed detection when padded with trailing spaces",
+        "Trim trailing whitespace from candidate token spans before pattern matching",
+    ),
+    "left_pad_zeros": (
+        "Sensitive values bypassed detection when padded with leading zeros",
+        "Ensure patterns tolerate leading zeros before digit groups"
+        " (e.g. \\b0*\\d{16}\\b for credit card numbers)",
+    ),
+    "right_pad_zeros": (
+        "Sensitive values bypassed detection when padded with trailing zeros",
+        "Ensure patterns tolerate trailing zeros after digit groups",
+    ),
+    "noise_embedded": (
+        "Sensitive values bypassed detection when surrounded by noise characters"
+        " (e.g. XXXXXXXXXX4532015112830366XXXXXXXXXX)",
+        "Use patterns that anchor on the sensitive value itself rather than the surrounding context;"
+        " avoid requiring clean boundaries when the value is embedded in noise",
+    ),
+    "overlapping_prefix": (
+        "Sensitive values bypassed detection when prefixed with a word boundary-breaking string"
+        " (e.g. test_value_4532015112830366)",
+        "Ensure patterns allow the sensitive value to be preceded by underscore or alphanumeric"
+        " characters, or strip common prefix patterns (test_, id_, ref_) before scanning",
+    ),
+    "partial_first_half": (
+        "Sensitive values bypassed detection when only the first half of the value was present",
+        "If partial values are a concern, add a fuzzy/partial-match rule for truncated patterns"
+        " and flag them at lower confidence",
+    ),
+    "partial_last_half": (
+        "Sensitive values bypassed detection when only the last half of the value was present",
+        "If partial values are a concern, add a fuzzy/partial-match rule for truncated patterns"
+        " and flag them at lower confidence",
+    ),
+    "partial_minus_one": (
+        "Sensitive values bypassed detection when one digit was removed from the value",
+        "Add a fuzzy-length variant to patterns that tolerates ±1 digit"
+        " (e.g. allow 15–17 digits for a 16-digit credit card)",
+    ),
+    "repeated": (
+        "Sensitive values bypassed detection when the value was repeated twice in sequence",
+        "Ensure patterns match within a sliding window;"
+        " a doubled value should still be detected",
     ),
 }
 
-# Prefix-based fallbacks for technique families not fully enumerated above.
+# Prefix-based fallbacks for technique families.
 # Each entry: (prefix, description_fragment, suggested_fix)
+# Listed in order of specificity (longer prefixes first to avoid partial matches).
 _PREFIX_FIXES: list[tuple[str, str, str]] = [
     (
-        "arabic_indic",
-        "Arabic-Indic digit script",
-        "Normalise Arabic-Indic digits to ASCII before pattern matching"
-        " (apply unicodedata.digit() or NFKD normalisation)",
+        "regional_mixed",
+        "mixed Unicode digit scripts",
+        "Normalise all Unicode digit scripts to ASCII digits before pattern matching:"
+        " apply unicodedata.digit(ch, None) or NFKD normalisation across the full input",
     ),
     (
-        "extended_arabic",
-        "Extended Arabic-Indic digit script",
-        "Normalise Extended Arabic-Indic digits to ASCII before pattern matching",
+        "regional_",
+        "Unicode regional digit script",
+        "Normalise Unicode regional digit scripts to ASCII digits before pattern matching:"
+        " apply unicodedata.digit(ch, None) for each character, or use NFKD normalisation",
     ),
     (
-        "devanagari",
-        "Devanagari digit script",
-        "Normalise Devanagari digits (०–९) to ASCII digits before pattern matching",
+        "morse_",
+        "morse code encoding",
+        "Add a morse code decode pass to the normalisation pipeline;"
+        " decode International Morse sequences back to digits before scanning",
     ),
     (
-        "bengali",
-        "Bengali digit script",
-        "Normalise Bengali digits to ASCII digits before pattern matching",
+        "unicode_",
+        "Unicode whitespace variant",
+        "Normalise Unicode whitespace variants to regular ASCII space before pattern matching"
+        r" (apply re.sub(r'[\u00A0\u2000-\u200A\u202F\u3000]+', ' ', text))",
     ),
     (
-        "thai",
-        "Thai digit script",
-        "Normalise Thai digits (๐–๙) to ASCII digits before pattern matching",
+        "base64_",
+        "base64 encoding variant",
+        "Add a base64 decode pass to the normalisation pipeline; scan the decoded content",
     ),
     (
-        "myanmar",
-        "Myanmar digit script",
-        "Normalise Myanmar digits to ASCII digits before pattern matching",
+        "base32_",
+        "base32 encoding variant",
+        "Add a base32 decode pass to the normalisation pipeline",
     ),
     (
-        "mongolian",
-        "Mongolian digit script",
-        "Normalise Mongolian digits to ASCII digits before pattern matching",
-    ),
-    (
-        "khmer",
-        "Khmer digit script",
-        "Normalise Khmer digits to ASCII digits before pattern matching",
-    ),
-    (
-        "tibetan",
-        "Tibetan digit script",
-        "Normalise Tibetan digits to ASCII digits before pattern matching",
-    ),
-    (
-        "lao",
-        "Lao digit script",
-        "Normalise Lao digits to ASCII digits before pattern matching",
-    ),
-    (
-        "math",
-        "mathematical Unicode digit forms",
-        "Normalise mathematical Unicode digit forms (𝟎–𝟗, 𝟘–𝟡) to ASCII"
-        " digits; apply NFKD normalisation",
+        "hex_",
+        "hex encoding variant",
+        "Add a hex decode pass to the normalisation pipeline",
     ),
 ]
 
@@ -370,7 +519,7 @@ def _lookup_fix(technique: str) -> tuple[str, str]:
     for prefix, frag, fix in _PREFIX_FIXES:
         if technique.startswith(prefix):
             return (
-                f"Sensitive values bypassed detection using {frag} (technique: {technique})",
+                f"Sensitive values bypassed detection via {frag} (technique: {technique})",
                 fix,
             )
 
