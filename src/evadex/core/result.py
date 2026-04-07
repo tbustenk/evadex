@@ -78,7 +78,7 @@ class Payload:
         }
 
 
-@dataclass
+@dataclass(frozen=True)
 class Variant:
     value: str
     generator: str          # e.g. "unicode_encoding"

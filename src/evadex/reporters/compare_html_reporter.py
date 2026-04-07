@@ -43,11 +43,11 @@ TEMPLATE = """<!DOCTYPE html>
 </head>
 <body>
 <h1>evadex Comparison Report</h1>
-<div class="meta">{{ label_a }} vs {{ label_b }} &bull; Generated {{ timestamp }}</div>
+<div class="meta">{{ label_a | e }} vs {{ label_b | e }} &bull; Generated {{ timestamp }}</div>
 
 <div class="cards">
-  <div class="card rate-a"><div class="card-label">{{ label_a }} rate</div><div class="card-value">{{ overall.a_rate }}%</div></div>
-  <div class="card rate-b"><div class="card-label">{{ label_b }} rate</div><div class="card-value">{{ overall.b_rate }}%</div></div>
+  <div class="card rate-a"><div class="card-label">{{ label_a | e }} rate</div><div class="card-value">{{ overall.a_rate }}%</div></div>
+  <div class="card rate-b"><div class="card-label">{{ label_b | e }} rate</div><div class="card-value">{{ overall.b_rate }}%</div></div>
   <div class="card {{ 'pos' if overall.delta >= 0 else 'neg' }}">
     <div class="card-label">Delta</div>
     <div class="card-value">{{ '+' if overall.delta >= 0 else '' }}{{ overall.delta }}pp</div>
@@ -59,8 +59,8 @@ TEMPLATE = """<!DOCTYPE html>
 <table>
 <thead><tr>
   <th>Category</th>
-  <th class="num">{{ label_a }} Pass</th><th class="num">{{ label_a }}%</th>
-  <th class="num">{{ label_b }} Pass</th><th class="num">{{ label_b }}%</th>
+  <th class="num">{{ label_a | e }} Pass</th><th class="num">{{ label_a | e }}%</th>
+  <th class="num">{{ label_b | e }} Pass</th><th class="num">{{ label_b | e }}%</th>
   <th class="num">Delta</th>
 </tr></thead>
 <tbody>
@@ -81,8 +81,8 @@ TEMPLATE = """<!DOCTYPE html>
 <table>
 <thead><tr>
   <th>Generator</th><th>Technique</th>
-  <th class="num">{{ label_a }}%</th>
-  <th class="num">{{ label_b }}%</th>
+  <th class="num">{{ label_a | e }}%</th>
+  <th class="num">{{ label_b | e }}%</th>
   <th class="num">Delta</th>
 </tr></thead>
 <tbody>
@@ -104,7 +104,7 @@ TEMPLATE = """<!DOCTYPE html>
 <table>
 <thead><tr>
   <th>Payload</th><th>Category</th><th>Generator</th><th>Technique</th><th>Strategy</th>
-  <th>{{ label_a }}</th><th>{{ label_b }}</th>
+  <th>{{ label_a | e }}</th><th>{{ label_b | e }}</th>
 </tr></thead>
 <tbody>
 {% for d in diffs %}

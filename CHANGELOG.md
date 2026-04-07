@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.3] — 2026-04-07
+
+### Fixed
+
+- **`Variant` dataclass is now frozen** (`core/result.py`): `Variant` fields are never mutated after construction — the engine creates a new `Variant` per strategy rather than modifying the generator's original. Making the class frozen enforces this invariant and prevents accidental field assignment in future code.
+- **Scanner labels escaped in compare HTML report** (`reporters/compare_html_reporter.py`): `label_a` and `label_b` (from `--scanner-label` or `--label-a`/`--label-b`) were rendered without the `| e` Jinja2 escape filter in all seven places they appear in the template. A label containing `&`, `<`, or `>` (e.g. `"rust-2.0.0 & python-1.3.0"`) would produce malformed HTML. All occurrences now use `| e`.
+
 ## [2.5.2] — 2026-04-07
 
 ### Fixed
