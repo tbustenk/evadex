@@ -28,7 +28,8 @@ def list_techniques(filter_gen):
         sample = "4532015112830366"
         try:
             variants = list(gen.generate(sample))
-        except Exception:
+        except Exception as exc:
+            console.print(f"[red]Error loading generator {gen.name!r}: {exc}[/red]")
             variants = []
 
         # Deduplicate by technique name

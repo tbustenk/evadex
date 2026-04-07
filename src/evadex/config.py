@@ -108,9 +108,10 @@ def load_config(path: "str | Path") -> EvadexConfig:
 
     if "tool" in raw:
         val = raw["tool"]
-        if not isinstance(val, str):
+        if not isinstance(val, str) or val not in VALID_TOOLS:
             raise click.UsageError(
-                f"Config 'tool' must be a string, got: {type(val).__name__}"
+                f"Config 'tool' must be one of: {', '.join(sorted(VALID_TOOLS))}, "
+                f"got: {val!r}"
             )
         cfg.tool = val
 
@@ -177,6 +178,11 @@ def load_config(path: "str | Path") -> EvadexConfig:
             if not isinstance(val, list):
                 raise click.UsageError(
                     f"Config 'categories' must be a list, got: {type(val).__name__}"
+                )
+            if len(val) == 0:
+                raise click.UsageError(
+                    "Config 'categories' must not be empty. "
+                    "Remove the key to run all structured categories."
                 )
             bad = [c for c in val if c not in VALID_CATEGORIES]
             if bad:

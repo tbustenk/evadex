@@ -78,8 +78,8 @@ def build_comparison(data_a: dict, data_b: dict) -> dict:
     all_keys = set(idx_a) | set(idx_b)
 
     # Per-category aggregates
-    cats_a = meta_a.get("summary_by_category", {})
-    cats_b = meta_b.get("summary_by_category", {})
+    cats_a = meta_a.get("summary_by_category") or {}
+    cats_b = meta_b.get("summary_by_category") or {}
     all_cats = sorted(set(cats_a) | set(cats_b))
     by_category = []
     for cat in all_cats:

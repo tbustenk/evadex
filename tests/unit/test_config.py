@@ -116,6 +116,20 @@ def test_load_multiple_unknown_keys_listed(tmp_path):
 
 # ── load_config: validation errors ───────────────────────────────────────────
 
+def test_invalid_tool_value(tmp_path):
+    import click
+    cfg_file = _write_yaml(tmp_path, "tool: bad-scanner\n")
+    with pytest.raises(click.UsageError, match="tool"):
+        load_config(cfg_file)
+
+
+def test_empty_categories_list_raises(tmp_path):
+    import click
+    cfg_file = _write_yaml(tmp_path, "categories: []\n")
+    with pytest.raises(click.UsageError, match="categories"):
+        load_config(cfg_file)
+
+
 def test_invalid_strategy_value(tmp_path):
     import click
     cfg_file = _write_yaml(tmp_path, "strategy: foobar\n")

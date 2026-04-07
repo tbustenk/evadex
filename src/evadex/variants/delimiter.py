@@ -44,12 +44,15 @@ class DelimiterGenerator(BaseVariantGenerator):
                 parts.append(g)
                 if i < len(groups) - 1:
                     parts.append(' ' if i % 2 == 0 else '-')
-            yield self._make_variant(
-                ''.join(parts),
-                "mixed_delimiter",
-                "Alternating space and hyphen delimiters",
-            )
+            mixed = ''.join(parts)
+            if mixed != value:
+                yield self._make_variant(
+                    mixed,
+                    "mixed_delimiter",
+                    "Alternating space and hyphen delimiters",
+                )
 
         # Excessive: double hyphens
-        result = '--'.join(groups)
-        yield self._make_variant(result, "excessive_delimiter", "Doubled hyphen delimiters")
+        excessive = '--'.join(groups)
+        if excessive != value:
+            yield self._make_variant(excessive, "excessive_delimiter", "Doubled hyphen delimiters")

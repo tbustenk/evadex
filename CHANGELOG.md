@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.5.1] — 2026-04-07
+
+### Fixed
+
+- **Config `tool` validation now enforced** (`config.py`): the `VALID_TOOLS` set was defined but never applied in `load_config()` — an invalid tool name (e.g. `tool: bad-scanner`) was accepted without error and only failed later during the scan with a less clear message. Now raises `UsageError` at config load time with the list of valid adapters.
+- **Config `categories: []` now rejected** (`config.py`): an empty list was silently accepted and then ignored (falsy check in `scan.py`), giving the impression all categories were being tested. Now raises `UsageError` with a clear message: _"Remove the key to run all structured categories."_
+- **`compare` null `summary_by_category` no longer crashes** (`compare.py`): if a result file had `summary_by_category: null` (e.g., manually edited or produced by a very old build), `meta.get("summary_by_category", {})` returned `None` rather than the default `{}` (`.get()` returns the stored value, not the default, when the key is present). The comparison then crashed with `TypeError: 'NoneType' object is not iterable`. Fixed with `or {}` fallback.
+- **`list-techniques` generator errors now surfaced** (`cli/commands/list_techniques.py`): a generator that raised an exception during technique enumeration was silently caught and displayed as having zero techniques, hiding the failure entirely. Now prints a `[red]Error loading generator ...[/red]` line so broken generators are immediately visible.
+- **`delimiter` generator duplicate variants eliminated** (`variants/delimiter.py`): the `mixed_delimiter` and `excessive_delimiter` techniques did not check whether their output was identical to the original input value before yielding. Inputs already formatted with alternating or doubled delimiters would produce a duplicate of the original as a variant. Both now guard with `if result != value`.
+
+### Tests
+
+238 tests (up from 236). 2 new tests in `tests/unit/test_config.py`:
+
+- `test_invalid_tool_value` — verifies `tool: bad-scanner` raises `UsageError` matching `"tool"`
+- `test_empty_categories_list_raises` — verifies `categories: []` raises `UsageError` matching `"categories"`
+
 ## [2.5.0] — 2026-04-06
 
 ### Added
