@@ -247,6 +247,10 @@ Detection rates depend on your scanner, its version, and how it's configured.
       "credit_card": { "pass": 30, "fail": 90, "error": 0 },
       "ssn":         { "pass": 12, "fail": 60, "error": 0 },
       "iban":        { "pass": 10, "fail": 50, "error": 0 }
+    },
+    "summary_by_generator": {
+      "delimiter":        { "pass": 20, "fail": 60, "error": 0 },
+      "unicode_encoding": { "pass": 15, "fail": 75, "error": 0 }
     }
   },
   "results": [
@@ -578,6 +582,7 @@ async def submit(self, payload, variant):
 | `error` | int | Adapter errors |
 | `pass_rate` | float | `pass / total * 100`, rounded to one decimal |
 | `summary_by_category` | object | Per-category pass/fail/error counts, sorted alphabetically by category name |
+| `summary_by_generator` | object | Per-generator pass/fail/error counts, sorted alphabetically by generator name |
 
 ### `results[]`
 
