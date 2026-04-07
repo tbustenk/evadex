@@ -266,12 +266,15 @@ def _print_summary(results, err_console):
               help="Append a one-line JSON audit record for this run to a file. "
                    "Created (with parent directories) if it does not exist. "
                    "Can also be set via 'audit_log' in evadex.yaml.")
+@click.option("--feedback-report", "feedback_report", default=None, metavar="PATH",
+              help="Save a structured JSON feedback report to PATH. Contains per-technique "
+                   "evasion counts, fix suggestions, and the generated regression test code.")
 def scan(
     ctx,
     config_path, tool, input_value, fmt, output, url, api_key, timeout,
     strategies, concurrency, categories, variant_groups, include_heuristic,
     scanner_label, executable, cmd_style, min_detection_rate,
-    save_baseline, compare_baseline, audit_log,
+    save_baseline, compare_baseline, audit_log, feedback_report,
 ):
     """Run DLP evasion tests."""
     load_builtins()
@@ -464,6 +467,42 @@ def scan(
         sys.stdout.buffer.write(rendered.encode("utf-8"))
         sys.stdout.buffer.write(b"\n")
         sys.stdout.buffer.flush()
+
+    # ── Feedback: fix suggestions, regression file, and optional report ────────
+    evasions = [r for r in results if r.severity == SeverityLevel.FAIL]
+    if evasions:
+        from evadex.feedback.suggestions import get_suggestions
+        from evadex.feedback.regression_writer import write_regression_file
+
+        suggestions = get_suggestions(results)
+        if suggestions:
+            err_console.print("[bold]=== Fix Suggestions ===[/bold]")
+            for s in suggestions:
+                err_console.print(
+                    f"  [cyan]• {s.technique}[/cyan] [dim]({s.generator})[/dim]"
+                )
+                err_console.print(f"    {s.suggested_fix}")
+            err_console.print()
+
+        reg_path = "evadex_regressions.py"
+        try:
+            write_regression_file(results, reg_path)
+            err_console.print(f"[dim]Regression tests written to {reg_path}[/dim]")
+        except OSError as e:
+            err_console.print(
+                f"[yellow]Warning: could not write regression file '{reg_path}': {e.strerror}[/yellow]"
+            )
+
+    if feedback_report:
+        from evadex.feedback.report import write_feedback_report
+        try:
+            write_feedback_report(results, feedback_report, scanner_label=scanner_label)
+            err_console.print(f"[dim]Feedback report written to {feedback_report}[/dim]")
+        except OSError as e:
+            err_console.print(
+                f"[red]Cannot write feedback report '{feedback_report}': {e.strerror}[/red]"
+            )
+            sys.exit(1)
 
     # --baseline: save a copy of the JSON result as a reference file
     if save_baseline:

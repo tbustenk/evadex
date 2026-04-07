@@ -350,6 +350,7 @@ evadex scan [OPTIONS]
 | `--baseline` | *(off)* | Save this run's JSON results to a file for future comparison. |
 | `--compare-baseline` | *(off)* | Compare this run against a previously saved baseline and print a regression summary to stderr. |
 | `--audit-log` | *(off)* | Append a one-line JSON audit record for this run to a file. Parent directories are created if they do not exist. Can also be set via `audit_log` in `evadex.yaml`. |
+| `--feedback-report` | *(off)* | Save a structured JSON feedback report to PATH. Contains per-technique evasion counts with example variant values, actionable fix suggestions, and the generated regression test code as a string field. Always written when specified, even if there are no evasions. |
 
 ### `evadex compare`
 
@@ -521,6 +522,123 @@ Each run appends exactly one line. Fields:
 - Parent directories are created automatically if they do not exist.
 - A write failure (permissions, disk full, bad path) is silently ignored. The scan result and exit code are never affected by audit log errors.
 - The log contains detection rates and category breakdowns but **not** variant values. It is safe to store in shared log aggregation systems.
+
+---
+
+## Feedback loop
+
+evadex Phase 2 implements a GAN-inspired feedback cycle: evadex is the **adversarial fuzzer** and your DLP scanner is the **discriminator**. When the fuzzer finds an evasion that works, the system automatically surfaces what failed and how to close the gap — without requiring manual triage.
+
+After any scan that produces evasions, evadex does three things automatically:
+
+1. **Prints fix suggestions to stderr** — one concrete, actionable normalisation step per unique bypass technique.
+2. **Writes `evadex_regressions.py`** to the current directory — a pytest file with one test function per evasion, using dlpscan's `InputGuard` API. These tests fail until the scanner is fixed.
+3. **Optionally writes a structured JSON feedback report** via `--feedback-report PATH`.
+
+### Fix suggestions
+
+Suggestions are printed to stderr after the scan summary whenever evasions are found:
+
+```
+=== Fix Suggestions ===
+  • homoglyph_substitution (unicode_encoding)
+    Add Cyrillic/Greek lookalikes to homoglyph normalisation map: О→0, З→3, ο→0, Α→A, Ζ→Z.
+    Apply NFKC normalisation then a homoglyph table lookup before scanning
+  • zero_width_zwsp (unicode_encoding)
+    Strip U+200B (Zero Width Space) from input in the normalisation pipeline before pattern matching
+  • base64_standard (encoding)
+    Add a base64 decode pass to the normalisation pipeline; scan the decoded content
+```
+
+Each suggestion names the technique, the generator group it belongs to, and a specific normalisation step to add to the scanner's input pipeline.
+
+### Regression test file
+
+`evadex_regressions.py` is written to the current directory whenever there are evasions. Each test function:
+
+- Is named after the payload label and evasion technique (`test_visa_16_digit_homoglyph_substitution`)
+- Imports and invokes dlpscan's `InputGuard` with the appropriate preset (`PCI_DSS`, `PII`, or `CREDENTIALS`)
+- Scans the exact obfuscated variant value that evaded detection
+- Asserts `not result.is_clean` — the test passes once the scanner is fixed
+
+```python
+def test_visa_16_digit_homoglyph_substitution():
+    """Visa 16-digit evaded via homoglyph_substitution — should be detected"""
+    from dlpscan import InputGuard, Preset
+    guard = InputGuard(presets=[Preset.PCI_DSS])
+    result = guard.scan('4532\u041e15112830366')  # Visually similar Cyrillic/Greek characters substituted
+    assert not result.is_clean
+
+
+def test_canada_sin_zero_width_zwsp():
+    """Canada SIN evaded via zero_width_zwsp — should be detected"""
+    from dlpscan import InputGuard, Preset
+    guard = InputGuard(presets=[Preset.PII])
+    result = guard.scan('0\u200b4\u200b6\u200b \u200b4\u200b5\u200b4\u200b \u200b2\u200b8\u200b6')  # Zero-width ZWSP between every character
+    assert not result.is_clean
+```
+
+Run the generated file with:
+
+```bash
+pytest evadex_regressions.py
+```
+
+Tests fail until the scanner is patched. Each time you fix a technique and re-run evadex, failing tests disappear and the regression file is regenerated to reflect the remaining gaps.
+
+### `--feedback-report PATH`
+
+Saves a structured JSON report containing everything in one file:
+
+```bash
+evadex scan --feedback-report feedback.json
+```
+
+**Report structure:**
+
+```json
+{
+  "meta": {
+    "timestamp": "2026-04-07T14:22:01.123456+00:00",
+    "scanner": "python-1.6.0",
+    "total_tests": 590,
+    "total_evasions": 76
+  },
+  "techniques": [
+    {
+      "technique": "homoglyph_substitution",
+      "generator": "unicode_encoding",
+      "count": 23,
+      "example_variants": ["4532\u041e15112830366", "4\u03bf32015112830366"]
+    },
+    {
+      "technique": "zero_width_zwsp",
+      "generator": "unicode_encoding",
+      "count": 18,
+      "example_variants": ["0\u200b4\u200b6 4\u200b5\u200b4 2\u200b8\u200b6"]
+    }
+  ],
+  "fix_suggestions": [
+    {
+      "technique": "homoglyph_substitution",
+      "generator": "unicode_encoding",
+      "description": "Sensitive values bypassed detection by substituting ASCII digits/letters with visually identical Unicode characters from Cyrillic, Greek, or other scripts",
+      "suggested_fix": "Add Cyrillic/Greek lookalikes to homoglyph normalisation map: О→0, З→3, ο→0, Α→A, Ζ→Z. Apply NFKC normalisation then a homoglyph table lookup before scanning"
+    }
+  ],
+  "regression_test_code": "\"\"\"Regression tests generated by evadex.\n...\"\"\"\nimport pytest\n\n\ndef test_visa_16_digit_homoglyph_substitution():\n    ..."
+}
+```
+
+The report is always written, even when there are no evasions (techniques and fix_suggestions will be empty arrays, regression_test_code will be an empty string).
+
+### Three-phase design
+
+| Phase | Role | Status |
+|---|---|---|
+| Phase 1 | Adversarial fuzzer — evasion generators test known-sensitive values against the scanner | ✅ Done |
+| Phase 2 | Feedback generator — surfaces fix suggestions, regression tests, and structured reports when evasions succeed | ✅ This release |
+| Phase 3 | False-positive adversary — generates values that *look* sensitive but aren't, to test the scanner's precision | Planned |
 
 ---
 
