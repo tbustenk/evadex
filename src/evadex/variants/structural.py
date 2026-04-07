@@ -17,9 +17,13 @@ class StructuralGenerator(BaseVariantGenerator):
         yield self._make_variant(value + '0' * 5, "right_pad_zeros", "5 zeros appended")
         yield self._make_variant('X' * 10 + value + 'X' * 10, "noise_embedded", "Value surrounded by noise characters")
         yield self._make_variant('test_value_' + value, "overlapping_prefix", "Noise prefix prepended")
-        yield self._make_variant(value[:mid], "partial_first_half", "First half of value only (tests partial detection)")
-        yield self._make_variant(value[mid:], "partial_last_half", "Last half of value only")
-        yield self._make_variant(value[:-1], "partial_minus_one", "Last character removed")
+        if mid > 0:
+            yield self._make_variant(value[:mid], "partial_first_half", "First half of value only (tests partial detection)")
+        if value[mid:] != value:  # skip when mid == 0 (same as original)
+            yield self._make_variant(value[mid:], "partial_last_half", "Last half of value only")
+        truncated = value[:-1]
+        if truncated:  # skip when value is a single character (would be empty)
+            yield self._make_variant(truncated, "partial_minus_one", "Last character removed")
         yield self._make_variant(value + ' ' + value, "repeated", "Value repeated twice with space separator")
 
         upper = value.upper()

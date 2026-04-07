@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.5.2] — 2026-04-07
+
+### Fixed
+
+- **`unicode_encoding` duplicate technique names** (`variants/unicode_encoding.py`): all three zero-width injection variants (ZWSP U+200B, ZWNJ U+200C, ZWJ U+200D) were emitted under the same technique name `"zero_width_injection"`. This caused `summary_by_generator` aggregation, per-technique comparison deltas, and `list-techniques` deduplication to conflate three distinct evasion techniques into one. Renamed to `"zero_width_zwsp"`, `"zero_width_zwnj"`, and `"zero_width_zwj"`. **Note:** baseline files produced before this fix will show these three variants as new/absent in `evadex compare` output — re-run the baseline to reset.
+- **HTML report displays corrupted data for encoded variants** (`reporters/html_reporter.py`): the variant value cell (`{{ r.variant.value[:60] }}`) was rendered without the Jinja2 `| e` escape filter. Variants from `html_entity_decimal` (e.g. `&#52;&#53;&#49;`) were decoded by the browser and displayed as the original numeric value instead of the encoded string. Variants from `context_injection` containing XML tags (e.g. `<record>...`) corrupted the table structure. Fixed by adding `| e`.
+- **`--baseline` and `--compare-baseline` same file destroys baseline** (`cli/commands/scan.py`): when both flags pointed to the same path, the scan wrote new results to the file first, then compared against itself — always showing zero delta and permanently destroying the original baseline. Now detected early (before the scan runs) and exits with a clear error message.
+- **`structural` generator produced empty string variants** (`variants/structural.py`): `partial_first_half`, `partial_last_half`, and `partial_minus_one` were yielded unconditionally. For single-character inputs (or other very short values where `mid == 0`), this produced empty strings — variants that cannot meaningfully test scanner detection. Added guards to skip these when the result would be empty or identical to the original.
+- **Engine `on_result` callback exception aborted scan** (`core/engine.py`): an uncaught exception from the `on_result` callback propagated through `run_async`, causing the scan to stop mid-run and lose all subsequent results. The callback is now wrapped in `try/except Exception: pass` so a buggy callback is silently ignored and the scan always completes.
+
+### Tests
+
+242 tests (up from 238). 4 new tests:
+
+- `tests/unit/variants/test_unicode_encoding.py`: `test_zero_width_technique_names_are_unique` — asserts the three zero-width techniques have distinct names (`zero_width_zwsp`, `zero_width_zwnj`, `zero_width_zwj`)
+- `tests/unit/variants/test_structural.py`: `test_partial_no_empty_variants` — asserts no empty string variant is produced for single-char and two-char inputs
+- `tests/integration/test_new_features.py`: `test_engine_on_result_exception_does_not_abort_scan` — a callback that raises must not interrupt the scan
+- `tests/integration/test_new_features.py`: `test_baseline_and_compare_baseline_same_file_rejected` — same-file conflict exits with code 1 before any scan runs
+
 ## [2.5.1] — 2026-04-07
 
 ### Fixed

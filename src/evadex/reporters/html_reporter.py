@@ -94,7 +94,7 @@ TEMPLATE = """<!DOCTYPE html>
   <td><span class="gen">{{ r.variant.generator }}</span></td>
   <td>{{ r.variant.transform_name }}</td>
   <td><span class="strategy-badge">{{ r.variant.strategy }}</span></td>
-  <td class="variant-cell" title="{{ r.variant.value | e }}">{{ r.variant.value[:60] }}{% if r.variant.value | length > 60 %}&hellip;{% endif %}</td>
+  <td class="variant-cell" title="{{ r.variant.value | e }}">{{ r.variant.value[:60] | e }}{% if r.variant.value | length > 60 %}&hellip;{% endif %}</td>
   <td>
     {% if r.error %}<span class="badge badge-error">error</span>
     {% elif r.detected %}<span class="badge badge-pass">detected</span>

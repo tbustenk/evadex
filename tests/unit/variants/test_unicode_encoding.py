@@ -14,6 +14,17 @@ def test_zero_width_variants():
     assert len(zw_variants) == 3  # ZWSP, ZWNJ, ZWJ
 
 
+def test_zero_width_technique_names_are_unique():
+    """Each zero-width variant must have its own technique name."""
+    gen = UnicodeEncodingGenerator()
+    variants = list(gen.generate("4532015112830366"))
+    zw_techniques = [v.technique for v in variants if "zero_width" in v.technique]
+    assert len(zw_techniques) == len(set(zw_techniques)), "Duplicate zero-width technique names"
+    assert "zero_width_zwsp" in zw_techniques
+    assert "zero_width_zwnj" in zw_techniques
+    assert "zero_width_zwj" in zw_techniques
+
+
 def test_fullwidth_digits():
     gen = UnicodeEncodingGenerator()
     variants = list(gen.generate("4532015112830366"))

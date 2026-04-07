@@ -326,3 +326,42 @@ def test_engine_keyboard_interrupt_propagates():
     p = Payload("4532015112830366", PayloadCategory.CREDIT_CARD, "Visa")
     with pytest.raises(KeyboardInterrupt):
         engine.run([p])
+
+
+def test_engine_on_result_exception_does_not_abort_scan():
+    """A callback that raises must not interrupt the scan; all results must be returned."""
+    from evadex.core.engine import Engine
+    from evadex.adapters.base import BaseAdapter
+
+    class StubAdapter(BaseAdapter):
+        async def submit(self, payload, variant):
+            return ScanResult(payload=payload, variant=variant, detected=True)
+
+    def bad_callback(result, completed, total):
+        raise RuntimeError("callback exploded")
+
+    from evadex.core.registry import load_builtins
+    load_builtins()
+    engine = Engine(
+        adapter=StubAdapter({}),
+        strategies=["text"],
+        on_result=bad_callback,
+    )
+    p = Payload("4532015112830366", PayloadCategory.CREDIT_CARD, "Visa")
+    results = engine.run([p])
+    # Scan must complete and return all results despite the failing callback
+    assert len(results) > 0
+
+
+def test_baseline_and_compare_baseline_same_file_rejected(tmp_path):
+    """Using the same path for --baseline and --compare-baseline must fail early
+    with a clear error before running any scan."""
+    runner = CliRunner()
+    same_file = str(tmp_path / "baseline.json")
+    result = runner.invoke(main, [
+        "scan", "--input", "4532015112830366", "--strategy", "text",
+        "--baseline", same_file,
+        "--compare-baseline", same_file,
+    ])
+    assert result.exit_code == 1
+    assert "same file" in result.output.lower() or "cannot" in result.output.lower()

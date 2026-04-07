@@ -56,7 +56,10 @@ class Engine:
                 result = await coro
                 completed += 1
                 if self.on_result:
-                    self.on_result(result, completed, total)
+                    try:
+                        self.on_result(result, completed, total)
+                    except Exception:
+                        pass
                 yield result
         finally:
             await self.adapter.teardown()

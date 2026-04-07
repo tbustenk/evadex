@@ -124,6 +124,18 @@ def scan(
     """Run DLP evasion tests."""
     load_builtins()
 
+    # Early guard: --baseline and --compare-baseline must not point to the same file.
+    # Writing the baseline happens before comparison, so using the same path destroys
+    # the original baseline and the comparison always shows zero delta.
+    if save_baseline and compare_baseline:
+        from pathlib import Path
+        if Path(save_baseline).resolve() == Path(compare_baseline).resolve():
+            err_console.print(
+                "[red]Error: --baseline and --compare-baseline cannot point to the same file. "
+                "Use separate paths: save the baseline first, then compare against it in a later run.[/red]"
+            )
+            sys.exit(1)
+
     # ── Config file ───────────────────────────────────────────────────────────
     cfg = None
     if config_path:

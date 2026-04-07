@@ -43,11 +43,15 @@ class UnicodeEncodingGenerator(BaseVariantGenerator):
         yield from self._url_encoding(value)
 
     def _zero_width_injection(self, value: str) -> Iterator[Variant]:
-        for char, name in [('\u200B', 'ZWSP'), ('\u200C', 'ZWNJ'), ('\u200D', 'ZWJ')]:
+        for char, abbr, name in [
+            ('\u200B', 'zwsp', 'ZWSP'),
+            ('\u200C', 'zwnj', 'ZWNJ'),
+            ('\u200D', 'zwj',  'ZWJ'),
+        ]:
             result = char.join(value)
             yield self._make_variant(
                 result,
-                "zero_width_injection",
+                f"zero_width_{abbr}",
                 f"Zero-width {name} between every character",
             )
 
