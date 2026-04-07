@@ -1,5 +1,37 @@
 # Changelog
 
+## [2.6.2] — 2026-04-07
+
+### Added
+
+- **Key Findings section in scan summary**: after the technique breakdown table, evadex now prints a plain-English synthesis of the scan results. Up to five findings are generated:
+  1. **Top bypass technique** — the generator with the highest bypass rate and a severity-adjusted label ("consistently evades" ≥80%, "shows highest bypass rate" otherwise)
+  2. **Cross-category impact** — a second generator that bypasses ≥30% of tests across at least half the payload categories tested (omitted if no generator qualifies)
+  3. **Most exposed payload category** — the category with the highest bypass rate, when ≥40%
+  4. **File vs text strategy gap** — when multiple strategies were tested and the gap between file extraction and plain-text bypass rates is ≥5 percentage points
+  5. **Zero-bypass technique classes** — generators that evaded no tests (up to four; suppressed when too many qualify to be informative)
+  - When all variants are detected: prints a single positive finding instead
+  - Colour-coded: red for high-severity bypass patterns, yellow for moderate, green for strengths
+
+### Fixed
+
+- **`→` (U+2192) in Top Bypass Categories caused `UnicodeEncodeError` on Windows cp1252 terminals**: replaced with `—` (em dash, present in cp1252).
+
+### Tests
+
+267 tests (up from 257). 10 new tests in `tests/unit/test_key_findings.py`:
+
+- `test_no_results_produces_no_output`
+- `test_all_detected_reports_clean`
+- `test_highest_bypass_generator_named`
+- `test_bypass_rate_shown_in_finding`
+- `test_file_strategy_gap_reported_when_significant`
+- `test_no_strategy_finding_when_text_only`
+- `test_zero_bypass_generator_reported`
+- `test_zero_bypass_not_reported_when_too_many`
+- `test_unknown_generator_uses_raw_name`
+- `test_all_known_generators_have_labels`
+
 ## [2.6.1] — 2026-04-07
 
 ### Fixed

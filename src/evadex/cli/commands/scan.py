@@ -21,6 +21,152 @@ STRATEGY_CHOICES = click.Choice(["text", "docx", "pdf", "xlsx"])
 CATEGORY_CHOICES = click.Choice([c.value for c in PayloadCategory])
 
 
+_GENERATOR_LABELS: dict[str, str] = {
+    "unicode_encoding":   "Unicode encoding",
+    "delimiter":          "Delimiter variation",
+    "splitting":          "Value splitting",
+    "leetspeak":          "Leetspeak substitution",
+    "regional_digits":    "Regional digit scripts",
+    "structural":         "Structural manipulation",
+    "encoding":           "Encoding obfuscation",
+    "context_injection":  "Context injection",
+    "unicode_whitespace": "Unicode whitespace",
+    "bidirectional":      "Bidirectional text",
+    "soft_hyphen":        "Invisible separator injection",
+    "morse_code":         "Morse code encoding",
+}
+
+
+def _gen_label(name: str) -> str:
+    return _GENERATOR_LABELS.get(name, name)
+
+
+def _key_findings(results, err_console) -> None:
+    """Print plain-English findings synthesised from scan results."""
+    if not results:
+        return
+
+    total_fails = sum(1 for r in results if r.severity == SeverityLevel.FAIL)
+
+    if total_fails == 0:
+        err_console.print("  [bold]Key Findings:[/bold]")
+        err_console.print("    [green]• Scanner detected all variants — no bypass techniques succeeded[/green]")
+        err_console.print()
+        return
+
+    findings: list[str] = []
+
+    # ── Per-generator bypass rates ────────────────────────────────────────────
+    by_gen: dict = defaultdict(lambda: {"total": 0, "fail": 0})
+    for r in results:
+        by_gen[r.variant.generator]["total"] += 1
+        if r.severity == SeverityLevel.FAIL:
+            by_gen[r.variant.generator]["fail"] += 1
+
+    gen_rates = {
+        g: round(c["fail"] / c["total"] * 100, 1)
+        for g, c in by_gen.items() if c["total"]
+    }
+    ranked_gens = sorted(gen_rates.items(), key=lambda kv: kv[1], reverse=True)
+
+    # Finding 1: generator with highest bypass rate
+    if ranked_gens:
+        top_gen, top_rate = ranked_gens[0]
+        label = _gen_label(top_gen)
+        if top_rate >= 80:
+            findings.append(f"[red]{label} consistently evades detection ({top_rate}% bypass)[/red]")
+        elif top_rate >= 50:
+            findings.append(f"[red]{label} shows highest bypass rate ({top_rate}%)[/red]")
+        else:
+            findings.append(f"[yellow]{label} shows highest bypass rate ({top_rate}%)[/yellow]")
+
+    # Finding 2: generator that bypasses across the broadest spread of categories
+    by_gen_cats: dict = defaultdict(set)
+    for r in results:
+        if r.severity == SeverityLevel.FAIL:
+            by_gen_cats[r.variant.generator].add(r.payload.category.value)
+
+    all_cats = {r.payload.category.value for r in results}
+    top_gen_name = ranked_gens[0][0] if ranked_gens else None
+    broad = [
+        (g, cats) for g, cats in by_gen_cats.items()
+        if g != top_gen_name
+        and len(cats) >= max(2, len(all_cats) // 2)
+        and gen_rates.get(g, 0) >= 30
+    ]
+    if broad:
+        broad_gen, broad_cats = max(broad, key=lambda x: len(x[1]))
+        rate = gen_rates.get(broad_gen, 0)
+        findings.append(
+            f"[yellow]{_gen_label(broad_gen)} bypasses detection across "
+            f"{len(broad_cats)} of {len(all_cats)} tested categories ({rate}% overall)[/yellow]"
+        )
+
+    # Finding 3: payload category most exposed
+    by_cat: dict = defaultdict(lambda: {"total": 0, "fail": 0})
+    for r in results:
+        by_cat[r.payload.category.value]["total"] += 1
+        if r.severity == SeverityLevel.FAIL:
+            by_cat[r.payload.category.value]["fail"] += 1
+
+    cat_rates = {
+        c: round(v["fail"] / v["total"] * 100, 1)
+        for c, v in by_cat.items() if v["total"]
+    }
+    if len(cat_rates) > 1:
+        worst_cat = max(cat_rates, key=lambda c: cat_rates[c])
+        worst_rate = cat_rates[worst_cat]
+        if worst_rate >= 40:
+            readable = worst_cat.replace("_", " ").title()
+            findings.append(
+                f"[yellow]{readable} payloads most exposed ({worst_rate}% bypass rate)[/yellow]"
+            )
+
+    # Finding 4: file-strategy gap vs plain text
+    by_strat: dict = defaultdict(lambda: {"total": 0, "fail": 0})
+    for r in results:
+        by_strat[r.variant.strategy]["total"] += 1
+        if r.severity == SeverityLevel.FAIL:
+            by_strat[r.variant.strategy]["fail"] += 1
+
+    if "text" in by_strat and len(by_strat) > 1:
+        t = by_strat["text"]
+        text_rate = round(t["fail"] / t["total"] * 100, 1) if t["total"] else 0.0
+        file_total = sum(v["total"] for s, v in by_strat.items() if s != "text")
+        file_fail  = sum(v["fail"]  for s, v in by_strat.items() if s != "text")
+        file_rate  = round(file_fail / file_total * 100, 1) if file_total else 0.0
+        gap = round(file_rate - text_rate, 1)
+        if abs(gap) >= 5:
+            if gap > 0:
+                findings.append(
+                    f"[yellow]File extraction strategies bypass detection {gap}pp more than plain text "
+                    f"({file_rate}% vs {text_rate}%)[/yellow]"
+                )
+            else:
+                findings.append(
+                    f"[green]File extraction pipeline adds {abs(gap)}pp additional filtering vs plain text "
+                    f"({file_rate}% vs {text_rate}% bypass)[/green]"
+                )
+
+    # Finding 5: zero-bypass technique classes (good news)
+    zero_gens = sorted(g for g, rate in gen_rates.items() if rate == 0)
+    if zero_gens and len(zero_gens) <= 4:
+        labels = ", ".join(_gen_label(g) for g in zero_gens)
+        noun = "technique" if len(zero_gens) == 1 else "techniques"
+        findings.append(
+            f"[green]{labels}: 0% bypass — scanner handles "
+            f"{'this' if len(zero_gens) == 1 else 'these'} {noun} well[/green]"
+        )
+
+    if not findings:
+        return
+
+    err_console.print("  [bold]Key Findings:[/bold]")
+    for f in findings:
+        err_console.print(f"    • {f}")
+    err_console.print()
+
+
 def _print_summary(results, err_console):
     """Print a structured, human-readable summary to stderr."""
     total  = len(results)
@@ -65,8 +211,10 @@ def _print_summary(results, err_console):
         for i, (gen, counts) in enumerate(top, 1):
             n, b = counts["total"], counts["bypassed"]
             rate = round(b / n * 100, 1) if n else 0.0
-            err_console.print(f"    {i}. [cyan]{gen}[/cyan] \u2192 {rate}% bypass ({b}/{n})")
+            err_console.print(f"    {i}. [cyan]{gen}[/cyan] — {rate}% bypass ({b}/{n})")
     err_console.print()
+
+    _key_findings(results, err_console)
 
     return total, passes, fails, errors, pass_rate
 
