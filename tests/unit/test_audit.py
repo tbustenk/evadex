@@ -79,9 +79,19 @@ def test_record_contains_required_fields(tmp_path):
     assert record["exit_code"] == 1
 
 
-def test_silently_ignores_bad_path():
-    # Writing to an invalid path (root-owned directory) must not raise
-    append_audit_entry("/proc/evadex_audit.jsonl", **_entry())  # always fails on any OS
+def test_silently_ignores_write_error(monkeypatch):
+    """Any exception during the write must be swallowed — callers must not see it."""
+    import builtins
+    real_open = builtins.open
+
+    def exploding_open(path, *args, **kwargs):
+        if "audit" in str(path):
+            raise PermissionError("simulated permission denied")
+        return real_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "open", exploding_open)
+    # Must not raise
+    append_audit_entry("/any/path/audit.jsonl", **_entry())
 
 
 def test_timestamp_is_iso8601(tmp_path):

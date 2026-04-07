@@ -200,6 +200,27 @@ def test_include_heuristic_not_bool(tmp_path):
         load_config(cfg_file)
 
 
+# ── audit_log config key ─────────────────────────────────────────────────────
+
+def test_audit_log_string_is_accepted(tmp_path):
+    cfg_file = _write_yaml(tmp_path, "audit_log: /var/log/evadex/audit.jsonl\n")
+    cfg = load_config(cfg_file)
+    assert cfg.audit_log == "/var/log/evadex/audit.jsonl"
+
+
+def test_audit_log_null_is_accepted(tmp_path):
+    cfg_file = _write_yaml(tmp_path, "audit_log: null\n")
+    cfg = load_config(cfg_file)
+    assert cfg.audit_log is None
+
+
+def test_audit_log_wrong_type_raises(tmp_path):
+    import click
+    cfg_file = _write_yaml(tmp_path, "audit_log: 123\n")
+    with pytest.raises(click.UsageError, match="audit_log"):
+        load_config(cfg_file)
+
+
 # ── find_config ───────────────────────────────────────────────────────────────
 
 def test_find_config_present(tmp_path, monkeypatch):

@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.6.1] — 2026-04-07
+
+### Fixed
+
+- **Version number corrected in `pyproject.toml`**: was still `"2.5.0"` after the 2.6.0 release; every audit log entry written since 2.6.0 was published recorded `evadex_version: "2.5.0"` instead of the correct version. Corrected to `"2.6.0"`.
+- **`test_silently_ignores_bad_path` made reliable cross-platform**: the old test wrote to `/proc/evadex_audit.jsonl` and assumed it would fail on all OSes. On Windows `/proc` does not exist as a filesystem restriction in the same way, making the test depend on platform-specific behaviour. Replaced with a `monkeypatch` that injects a `PermissionError` directly into `builtins.open` — the failure is guaranteed and platform-independent.
+- **Lockfiles regenerated** after version bump: `requirements.txt` and `requirements-dev.txt` updated to reflect `evadex==2.6.0`.
+
+### Tests
+
+257 tests (up from 254). 3 new tests in `tests/unit/test_config.py`:
+
+- `test_audit_log_string_is_accepted` — valid path string loads correctly
+- `test_audit_log_null_is_accepted` — explicit null loads as None
+- `test_audit_log_wrong_type_raises` — integer value raises UsageError
+
 ## [2.6.0] — 2026-04-07
 
 ### Added
