@@ -3,6 +3,7 @@ import io
 import click
 from evadex.cli.commands.scan import scan
 from evadex.cli.commands.compare import compare
+from evadex.cli.commands.generate import generate
 from evadex.cli.commands.list_payloads import list_payloads
 from evadex.cli.commands.list_techniques import list_techniques
 from evadex.cli.commands.init import init_cmd
@@ -24,6 +25,7 @@ def main():
 
 main.add_command(scan)
 main.add_command(compare)
+main.add_command(generate)
 main.add_command(list_payloads)
 main.add_command(list_techniques)
 main.add_command(init_cmd)

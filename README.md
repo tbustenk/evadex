@@ -352,6 +352,68 @@ evadex scan [OPTIONS]
 | `--audit-log` | *(off)* | Append a one-line JSON audit record for this run to a file. Parent directories are created if they do not exist. Can also be set via `audit_log` in `evadex.yaml`. |
 | `--feedback-report` | *(off)* | Save a structured JSON feedback report to PATH. Contains per-technique evasion counts with example variant values, actionable fix suggestions, and the generated regression test code as a string field. Always written when specified, even if there are no evasions. |
 
+### `evadex generate`
+
+Generate test documents filled with synthetic sensitive data for DLP scanner testing. Values are embedded in realistic business sentences, tables, and paragraphs. Evasion variants use the same obfuscation techniques as `evadex scan`.
+
+```
+evadex generate --format FORMAT --output PATH [OPTIONS]
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `--format` | *(required)* | Output file format: `xlsx`, `docx`, `pdf`, `csv`, `txt` |
+| `--output` | *(required)* | Output file path |
+| `--category` | *(all structured)* | Payload category to include. Repeat for multiple. Omit for all structured categories. |
+| `--count` | `100` | Number of test values to generate **per category** |
+| `--evasion-rate` | `0.5` | Fraction of values that are evasion variants (0.0–1.0) |
+| `--keyword-rate` | `0.5` | Fraction of values wrapped in keyword context sentences (0.0–1.0) |
+| `--technique` | *(all)* | Limit evasion variants to specific technique names. Repeat for multiple. |
+| `--random` | off | Randomise categories, evasion rate, and keyword rate |
+| `--seed` | *(none)* | Integer seed for reproducible output |
+| `--include-heuristic` | off | Also include heuristic categories (AWS keys, tokens, JWT, etc.) |
+
+**Format details:**
+
+- **`xlsx`** — Multiple sheets: one `Summary` sheet plus one sheet per category. Columns include embedded text, plain value, variant value, technique, and generator. Evasion rows are highlighted yellow.
+- **`docx`** — Title page with disclaimer; one heading per category; two-thirds prose paragraphs, one-third tabular layout.
+- **`pdf`** — Sections per category with header/footer; evasion rows highlighted.
+- **`csv`** — Flat CSV with columns: `category`, `plain_value`, `variant_value`, `technique`, `generator`, `transform_name`, `has_keywords`, `embedded_text`.
+- **`txt`** — Plain-text document with section headings and numbered entry list.
+
+**Examples:**
+
+```bash
+# 100 credit cards, 40% evasion variants → XLSX
+evadex generate --format xlsx --category credit_card --count 100 \
+  --evasion-rate 0.4 --output test_cards.xlsx
+
+# Mixed categories → DOCX
+evadex generate --format docx \
+  --category credit_card --category ssn --category iban \
+  --count 50 --evasion-rate 0.5 --output test_mixed.docx
+
+# Specific evasion techniques only → PDF
+evadex generate --format pdf --count 200 --evasion-rate 0.6 \
+  --technique homoglyph_substitution --technique zero_width_zwsp \
+  --output test_homoglyph.pdf
+
+# Reproducible random document
+evadex generate --format xlsx --random --count 500 --seed 42 --output random.xlsx
+
+# CSV for programmatic inspection
+evadex generate --format csv --category ssn --count 1000 \
+  --evasion-rate 0.3 --output ssn_variants.csv
+```
+
+**Value generation:**
+
+- **Credit cards** — Valid Luhn numbers generated programmatically using common BIN prefixes (Visa, Mastercard, Amex, Discover, JCB). `--count 1000` always works.
+- **All other categories** — Built-in seed values are rotated to fill the requested count.
+- **Evasion variants** — Drawn from all 12 evadex generators (same techniques as `evadex scan`). Use `--technique` to restrict to specific techniques.
+
+---
+
 ### `evadex compare`
 
 Diff two evadex scan result JSON files and report what changed between them.
