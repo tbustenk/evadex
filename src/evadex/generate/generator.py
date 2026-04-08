@@ -44,6 +44,7 @@ class GenerateConfig:
     seed: Optional[int] = None
     output: str = "output"
     include_heuristic: bool = False
+    language: str = "en"   # "en" or "fr-CA"
 
 
 # ── Luhn-valid credit card generation ─────────────────────────────────────────
@@ -75,11 +76,17 @@ def _pick_plain_value(
     cat: PayloadCategory,
     seeds: list[str],
     idx: int,
+    synthetic_pools: Optional[dict] = None,
 ) -> str:
     if cat == PayloadCategory.CREDIT_CARD:
         prefix, length = rng.choice(_CC_PREFIXES)
         return _generate_cc(rng, prefix, length)
-    # For non-CC categories: rotate through seed values
+    # Use synthetic pool if available for this category
+    if synthetic_pools and cat in synthetic_pools:
+        pool = synthetic_pools[cat]
+        if pool:
+            return pool[idx % len(pool)]
+    # Fallback: rotate through seed values
     return seeds[idx % len(seeds)]
 
 
@@ -128,6 +135,8 @@ def generate_entries(config: GenerateConfig) -> list[GeneratedEntry]:
     Returns count entries *per resolved category*.
     """
     load_builtins()
+    from evadex.synthetic.registry import load_synthetic_generators
+    load_synthetic_generators()
     rng = random.Random(config.seed)
 
     if config.random_mode:
@@ -156,11 +165,21 @@ def generate_entries(config: GenerateConfig) -> list[GeneratedEntry]:
     gens = all_generators()
 
     from evadex.generate.filler import get_keyword_sentence
+    from evadex.synthetic.registry import get_synthetic_generator
+
+    # Build per-category synthetic value pools for categories that have generators
+    _synthetic_pools: dict[PayloadCategory, list[str]] = {}
 
     entries: list[GeneratedEntry] = []
     for cat, seeds in sorted(by_cat.items(), key=lambda kv: kv[0].value):
+        # Pre-generate a synthetic pool if a generator is registered for this category
+        syn_gen = get_synthetic_generator(cat)
+        if syn_gen is not None and config.count > len(seeds):
+            seed_val = rng.randint(0, 2 ** 31)
+            _synthetic_pools[cat] = syn_gen.generate(config.count, seed=seed_val)
+
         for i in range(config.count):
-            plain = _pick_plain_value(rng, cat, seeds, i)
+            plain = _pick_plain_value(rng, cat, seeds, i, _synthetic_pools)
 
             # Evasion decision
             do_evasion = rng.random() < evasion_rate
@@ -182,7 +201,7 @@ def generate_entries(config: GenerateConfig) -> list[GeneratedEntry]:
             if gen_name == "context_injection":
                 embedded = variant_value
             elif rng.random() < keyword_rate:
-                embedded = get_keyword_sentence(rng, cat, variant_value)
+                embedded = get_keyword_sentence(rng, cat, variant_value, config.language)
             else:
                 embedded = variant_value
 

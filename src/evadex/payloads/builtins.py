@@ -52,6 +52,16 @@ BUILTIN_PAYLOADS = [
     # --- Contact ---
     Payload("test.user@example.com", PayloadCategory.EMAIL, "Email address"),
     Payload("+1-555-867-5309",       PayloadCategory.PHONE, "US phone number"),
+
+    # --- Canadian regional IDs ---
+    Payload("BOUD 1234 5678",        PayloadCategory.CA_RAMQ,           "Quebec RAMQ health card"),
+    Payload("1234-567-890-AB",       PayloadCategory.CA_ONTARIO_HEALTH, "Ontario health card"),
+    Payload("9123456789",            PayloadCategory.CA_BC_CARECARD,    "BC CareCard"),
+    Payload("123456789",             PayloadCategory.CA_AB_HEALTH,      "Alberta health card"),
+    Payload("A12345678901234",       PayloadCategory.CA_QC_DRIVERS,     "Quebec driver's licence"),
+    Payload("A1234-56789-01234",     PayloadCategory.CA_ON_DRIVERS,     "Ontario driver's licence"),
+    Payload("1234567",               PayloadCategory.CA_BC_DRIVERS,     "British Columbia driver's licence"),
+    Payload("AB123456",              PayloadCategory.CA_PASSPORT,       "Canadian passport"),
 ]
 
 

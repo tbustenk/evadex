@@ -153,6 +153,207 @@ _TEMPLATES: dict[PayloadCategory, list[str]] = {
         "Outbound marketing call placed to {v} — DNC checked.",
         "Emergency contact on record: {v}.",
     ],
+    # Canadian regional IDs
+    PayloadCategory.CA_RAMQ: [
+        "Numéro de carte d'assurance maladie du Québec (RAMQ): {v}.",
+        "RAMQ health card on file: {v} — Quebec provincial coverage.",
+        "Patient record: RAMQ {v}, registered with Régie de l'assurance maladie.",
+        "Carte Soleil number {v} verified for provincial healthcare coverage.",
+    ],
+    PayloadCategory.CA_ONTARIO_HEALTH: [
+        "Ontario health card number: {v}.",
+        "OHIP card on file: {v} — Ontario provincial health insurance.",
+        "Patient registration: Ontario health card {v}, version code on file.",
+        "Health card {v} verified against OHIP registry.",
+    ],
+    PayloadCategory.CA_BC_CARECARD: [
+        "BC CareCard number: {v}.",
+        "British Columbia personal health number: {v}.",
+        "BC Services Card PHN {v} registered with MSP.",
+        "Patient record: BC CareCard {v}, active coverage confirmed.",
+    ],
+    PayloadCategory.CA_AB_HEALTH: [
+        "Alberta health card number: {v}.",
+        "AHCIP personal health number: {v}.",
+        "Alberta personal health number {v} verified with Alberta Health.",
+        "Patient record: Alberta PHN {v}, active provincial coverage.",
+    ],
+    PayloadCategory.CA_QC_DRIVERS: [
+        "Quebec driver's licence number: {v}.",
+        "Permis de conduire du Québec : {v}.",
+        "Quebec SAAQ driver's licence {v} verified for identity check.",
+        "Driver ID: Quebec licence {v}, class 5, expires 2027.",
+    ],
+    PayloadCategory.CA_ON_DRIVERS: [
+        "Ontario driver's licence number: {v}.",
+        "MTO driver's licence: {v} — Ontario resident.",
+        "Ontario driver's licence {v} verified at border crossing.",
+        "Driver ID: Ontario licence {v}, class G, expires 2028.",
+    ],
+    PayloadCategory.CA_BC_DRIVERS: [
+        "British Columbia driver's licence number: {v}.",
+        "BC ICBC driver's licence: {v}.",
+        "BC driver's licence {v} verified for identity purposes.",
+        "Driver ID: BC licence {v}, class 5, expires 2026.",
+    ],
+    PayloadCategory.CA_PASSPORT: [
+        "Canadian passport number: {v}.",
+        "Numéro de passeport canadien : {v}.",
+        "Travel document: Canadian passport {v}, expires 2029.",
+        "KYC verification: Canadian passport {v}, issued by IRCC.",
+        "Border crossing record: Canadian passport {v} scanned at CBSA.",
+    ],
+}
+
+_TEMPLATES_FR_CA: dict[PayloadCategory, list[str]] = {
+    PayloadCategory.CREDIT_CARD: [
+        "Veuillez débiter la carte {v} pour le renouvellement de l'abonnement annuel.",
+        "Carte bancaire en dossier : {v} — autorisée pour la facturation mensuelle récurrente.",
+        "Paiement par carte traité avec succès, numéro de carte {v}.",
+        "Référence de facturation : carte {v} débitée de 249,99 $ le 2024-03-14.",
+        "Mon numéro de carte est le {v}, veuillez procéder au paiement.",
+        "Numéro de carte bancaire : {v} — coordonnées de paiement confidentielles.",
+    ],
+    PayloadCategory.SSN: [
+        "Numéro de sécurité sociale de l'employé : {v}.",
+        "Déclaration fiscale pour le NAS {v} soumise électroniquement.",
+        "Vérification d'identité réussie : numéro {v} confirmé.",
+        "Dossier de paie — numéro {v} : brut 5 200 $, net 3 890 $.",
+    ],
+    PayloadCategory.SIN: [
+        "Numéro d'assurance sociale de l'employé canadien : {v}.",
+        "Feuillet T4 émis pour le NAS {v}, année d'imposition 2023.",
+        "Référence ARC : NAS {v}, solde dû 1 234,00 $.",
+        "Demande de prestations déposée sous le NAS {v} — dossier AE #88921.",
+        "Mon NAS est le {v} — veuillez traiter ce formulaire.",
+        "Assurance sociale numéro {v} inscrit au registre de l'employeur.",
+    ],
+    PayloadCategory.IBAN: [
+        "Numéro de compte bénéficiaire (IBAN) : {v}.",
+        "Virement bancaire vers le compte {v}, montant 12 500,00 EUR.",
+        "Coordonnées bancaires — IBAN {v}, BIC : DEUTDEDB.",
+        "Relevé bancaire : virement entrant de {v}, 3 200,00 EUR.",
+        "Numéro de compte pour le virement SEPA : {v}.",
+    ],
+    PayloadCategory.SWIFT_BIC: [
+        "Code SWIFT de la banque bénéficiaire : {v}.",
+        "Instruction de virement international : BIC {v}, réf TXN-884421.",
+        "Virement via correspondant bancaire {v}.",
+    ],
+    PayloadCategory.ABA_ROUTING: [
+        "Numéro de routage ACH : {v}.",
+        "Dépôt direct configuré avec le numéro de routage {v}.",
+        "Routage bancaire {v}, compte 000123456789 — paie ACH.",
+    ],
+    PayloadCategory.BITCOIN: [
+        "Adresse de paiement Bitcoin : {v}.",
+        "Envoyer 0,05 BTC à l'adresse {v} — facture #BTC-0042.",
+        "Transaction confirmée en chaîne : destinataire {v}.",
+    ],
+    PayloadCategory.ETHEREUM: [
+        "Contrat Ethereum déployé à : {v}.",
+        "Transfert ETH vers {v} — montant 0,25 ETH, gaz 21000.",
+        "Interaction avec le protocole DeFi : contrat {v}.",
+    ],
+    PayloadCategory.US_PASSPORT: [
+        "Numéro de passeport américain : {v} — expire le 2029-08-14.",
+        "Document de voyage scanné à la frontière : passeport américain {v}.",
+    ],
+    PayloadCategory.AU_TFN: [
+        "Numéro de dossier fiscal australien (TFN) : {v}.",
+        "TFN {v} enregistré auprès de l'Administration fiscale australienne.",
+    ],
+    PayloadCategory.DE_TAX_ID: [
+        "Numéro d'identification fiscale allemand (IdNr) : {v}.",
+        "Déclaration de revenus 2023 : IdNr {v}.",
+    ],
+    PayloadCategory.FR_INSEE: [
+        "Numéro de sécurité sociale (NIR) : {v}.",
+        "INSEE {v} enregistré à la CPAM de Paris.",
+        "Formulaire CERFA : NIR assuré {v}.",
+    ],
+    PayloadCategory.AWS_KEY: [
+        "Clé d'accès AWS : {v}.",
+        "AWS_ACCESS_KEY_ID={v}",
+    ],
+    PayloadCategory.GITHUB_TOKEN: [
+        "Jeton GitHub Actions : {v}.",
+        "GITHUB_TOKEN={v}",
+    ],
+    PayloadCategory.STRIPE_KEY: [
+        "Clé secrète Stripe : {v}.",
+        "STRIPE_SECRET_KEY={v}",
+    ],
+    PayloadCategory.SLACK_TOKEN: [
+        "Jeton du bot Slack : {v}.",
+        "SLACK_BOT_TOKEN={v}",
+    ],
+    PayloadCategory.JWT: [
+        "Autorisation : Bearer {v}",
+        "Jeton de session émis : {v}",
+    ],
+    PayloadCategory.CLASSIFICATION: [
+        "Classification du document : {v}.",
+        "Ce document est classifié {v} et ne doit pas être distribué à l'externe.",
+        "Politique de protection des données : contenu étiqueté {v} détecté.",
+    ],
+    PayloadCategory.EMAIL: [
+        "Courriel de contact : {v}.",
+        "Réinitialisation du mot de passe envoyée à l'adresse courriel {v}.",
+        "Mon courriel est {v} — veuillez me contacter.",
+        "Adresse courriel enregistrée : {v}.",
+        "Demande de droits LPRPDE reçue de {v}.",
+    ],
+    PayloadCategory.PHONE: [
+        "Numéro de téléphone du client : {v}.",
+        "Code d'authentification à deux facteurs envoyé par SMS au {v}.",
+        "Composez le {v} pour vérifier la propriété du compte.",
+        "Cellulaire enregistré : {v}.",
+        "Téléphone de contact : {v}.",
+    ],
+    PayloadCategory.CA_RAMQ: [
+        "Numéro de carte d'assurance maladie (RAMQ) : {v}.",
+        "Carte Soleil numéro {v} vérifiée pour la couverture provinciale.",
+        "Dossier patient : RAMQ {v}, inscrit à la Régie de l'assurance maladie du Québec.",
+        "Renseignements personnels — numéro RAMQ : {v}.",
+    ],
+    PayloadCategory.CA_ONTARIO_HEALTH: [
+        "Numéro de carte Santé de l'Ontario : {v}.",
+        "Carte OHIP en dossier : {v} — assurance maladie de l'Ontario.",
+        "Vérification de la carte santé {v} auprès du registre OHIP.",
+    ],
+    PayloadCategory.CA_BC_CARECARD: [
+        "Numéro de CareCard de la Colombie-Britannique : {v}.",
+        "Numéro de santé personnel de la C.-B. : {v}.",
+        "Dossier patient : CareCard C.-B. {v}, couverture MSP confirmée.",
+    ],
+    PayloadCategory.CA_AB_HEALTH: [
+        "Numéro de carte santé de l'Alberta : {v}.",
+        "Numéro de santé personnel AHCIP : {v}.",
+        "Dossier patient : PHN Alberta {v}, couverture provinciale active.",
+    ],
+    PayloadCategory.CA_QC_DRIVERS: [
+        "Numéro de permis de conduire du Québec : {v}.",
+        "Permis de conduire délivré par la SAAQ : {v}.",
+        "Vérification d'identité — permis québécois {v}, classe 5.",
+        "Informations personnelles : permis de conduire Québec {v}.",
+    ],
+    PayloadCategory.CA_ON_DRIVERS: [
+        "Numéro de permis de conduire de l'Ontario : {v}.",
+        "Permis MTO de l'Ontario : {v} — résident ontarien.",
+        "Vérification du permis de conduire {v} à la frontière.",
+    ],
+    PayloadCategory.CA_BC_DRIVERS: [
+        "Numéro de permis de conduire de la Colombie-Britannique : {v}.",
+        "Permis ICBC de la C.-B. : {v}.",
+        "Vérification d'identité — permis C.-B. {v}, classe 5.",
+    ],
+    PayloadCategory.CA_PASSPORT: [
+        "Numéro de passeport canadien : {v}.",
+        "Document de voyage : passeport canadien {v}, expire en 2029.",
+        "Vérification KYC : passeport canadien {v}, émis par IRCC.",
+        "Vie privée — renseignements personnels : passeport {v}.",
+    ],
 }
 
 _FALLBACK_TEMPLATES = [
@@ -161,8 +362,30 @@ _FALLBACK_TEMPLATES = [
     "Record: {v}.",
 ]
 
+_FALLBACK_TEMPLATES_FR_CA = [
+    "Valeur de référence : {v}.",
+    "Données confidentielles : {v}.",
+    "Renseignements personnels : {v}.",
+]
 
-def get_keyword_sentence(rng: random.Random, cat: PayloadCategory, value: str) -> str:
-    """Return a realistic business sentence with value embedded."""
-    templates = _TEMPLATES.get(cat, _FALLBACK_TEMPLATES)
+
+def get_keyword_sentence(
+    rng: random.Random,
+    cat: PayloadCategory,
+    value: str,
+    language: str = "en",
+) -> str:
+    """Return a realistic business sentence with value embedded.
+
+    Args:
+        rng:      Random number generator for template selection.
+        cat:      Payload category to select appropriate templates.
+        value:    Sensitive value to embed in the sentence.
+        language: Language code — ``"en"`` (default) or ``"fr-CA"`` for
+                  Canadian French templates.
+    """
+    if language == "fr-CA":
+        templates = _TEMPLATES_FR_CA.get(cat, _FALLBACK_TEMPLATES_FR_CA)
+    else:
+        templates = _TEMPLATES.get(cat, _FALLBACK_TEMPLATES)
     return rng.choice(templates).format(v=value)

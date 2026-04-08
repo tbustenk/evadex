@@ -79,6 +79,12 @@ class MorseCodeGenerator(BaseVariantGenerator):
         PayloadCategory.AU_TFN,
         PayloadCategory.DE_TAX_ID,
         PayloadCategory.FR_INSEE,
+        # Canadian IDs with predominantly digit content
+        PayloadCategory.CA_RAMQ,
+        PayloadCategory.CA_BC_CARECARD,
+        PayloadCategory.CA_AB_HEALTH,
+        PayloadCategory.CA_QC_DRIVERS,
+        PayloadCategory.CA_BC_DRIVERS,
     }
 
     def generate(self, value: str) -> Iterator[Variant]:

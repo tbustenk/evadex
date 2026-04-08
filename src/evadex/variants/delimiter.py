@@ -14,6 +14,14 @@ class DelimiterGenerator(BaseVariantGenerator):
         PayloadCategory.SIN,
         PayloadCategory.IBAN,
         PayloadCategory.PHONE,
+        PayloadCategory.CA_RAMQ,
+        PayloadCategory.CA_ONTARIO_HEALTH,
+        PayloadCategory.CA_BC_CARECARD,
+        PayloadCategory.CA_AB_HEALTH,
+        PayloadCategory.CA_QC_DRIVERS,
+        PayloadCategory.CA_ON_DRIVERS,
+        PayloadCategory.CA_BC_DRIVERS,
+        PayloadCategory.CA_PASSPORT,
     }
 
     def generate(self, value: str) -> Iterator[Variant]:

@@ -33,6 +33,14 @@ class SoftHyphenGenerator(BaseVariantGenerator):
         PayloadCategory.AWS_KEY,
         PayloadCategory.GITHUB_TOKEN,
         PayloadCategory.STRIPE_KEY,
+        PayloadCategory.CA_RAMQ,
+        PayloadCategory.CA_ONTARIO_HEALTH,
+        PayloadCategory.CA_BC_CARECARD,
+        PayloadCategory.CA_AB_HEALTH,
+        PayloadCategory.CA_QC_DRIVERS,
+        PayloadCategory.CA_ON_DRIVERS,
+        PayloadCategory.CA_BC_DRIVERS,
+        PayloadCategory.CA_PASSPORT,
     }
 
     def generate(self, value: str) -> Iterator[Variant]:

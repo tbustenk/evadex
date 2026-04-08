@@ -6,6 +6,7 @@ from evadex.core.result import Variant
 from evadex.variants.base import BaseVariantGenerator
 
 NOISE = "Lorem ipsum dolor sit amet consectetur"
+NOISE_FR_CA = "Veuillez trouver ci-joint les renseignements"
 
 
 @register_generator("splitting")
@@ -54,4 +55,14 @@ class SplittingGenerator(BaseVariantGenerator):
             f'<data>{html.escape(value)}</data>',
             "xml_tag_injection",
             "Value wrapped in XML data tag",
+        )
+        yield self._make_variant(
+            NOISE_FR_CA[:30] + ' ' + value,
+            "fr_ca_prefix_noise",
+            "French Canadian noise text prepended",
+        )
+        yield self._make_variant(
+            value + ' ' + NOISE_FR_CA[:30],
+            "fr_ca_suffix_noise",
+            "French Canadian noise text appended",
         )

@@ -9,7 +9,8 @@ def _variants(value=VALUE):
 
 def test_generates_all_templates():
     variants = _variants()
-    assert len(variants) == 10
+    # 10 English + 10 French CA templates
+    assert len(variants) == 20
 
 
 def test_every_variant_contains_value():

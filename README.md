@@ -60,6 +60,14 @@ Payloads are classified as **structured** or **heuristic** — see [Structured v
 | Ethereum address | `0x742d35Cc6634C0532925a3b844Bc454e4438f44e` | `ethereum` | structured |
 | Email address | `test.user@example.com` | `email` | structured |
 | US phone number | `+1-555-867-5309` | `phone` | structured |
+| Quebec RAMQ health card | `BOUD 1234 5678` | `ca_ramq` | structured |
+| Ontario health card | `1234-567-890-AB` | `ca_ontario_health` | structured |
+| BC CareCard | `9123456789` | `ca_bc_carecard` | structured |
+| Alberta health card | `123456789` | `ca_ab_health` | structured |
+| Quebec driver's licence | `A12345678901234` | `ca_qc_drivers` | structured |
+| Ontario driver's licence | `A1234-56789-01234` | `ca_on_drivers` | structured |
+| BC driver's licence | `1234567` | `ca_bc_drivers` | structured |
+| Canadian passport | `AB123456` | `ca_passport` | structured |
 | AWS Access Key ID | `AKIAIOSFODNN7EXAMPLE` | `aws_key` | heuristic |
 | GitHub classic token | `ghp_16C7e42F292c6912E7710c838347Ae178B4a` | `github_token` | heuristic |
 | Stripe test secret key | `sk_test_4eC39HqLyjWDarjtT7en6bh8Xy9mPqZ` | `stripe_key` | heuristic |
@@ -72,13 +80,50 @@ Heuristic payloads are excluded from the default scan. Use `--include-heuristic`
 
 ---
 
+## Canadian French support
+
+evadex generates test content in Canadian French (`fr-CA`) so you can verify that your DLP scanner catches sensitive data when surrounded by French-language business text — a common real-world condition in Canadian financial institutions.
+
+### French keyword context
+
+The following French Canadian keywords are used as surrounding context in generated documents and evasion variants:
+
+| Category | Keywords |
+|---|---|
+| `credit_card` | *carte de crédit*, *numéro de carte*, *mon numéro de carte est*, *carte bancaire*, *numéro de carte bancaire*, *paiement par carte* |
+| `sin` | *numéro d'assurance sociale*, *NAS*, *mon NAS est*, *assurance sociale* |
+| `iban` | *numéro de compte*, *virement bancaire*, *coordonnées bancaires*, *relevé bancaire* |
+| `email` | *courriel*, *adresse courriel*, *mon courriel est* |
+| `phone` | *numéro de téléphone*, *composez le*, *téléphone*, *cellulaire* |
+| all categories | *renseignements personnels*, *données confidentielles*, *informations personnelles*, *vie privée* |
+
+French keywords are active in two places:
+1. **`context_injection` variants** — 10 additional French CA sentence templates are generated alongside the standard English ones during `evadex scan`.
+2. **`splitting` variants** — French noise text is prepended/appended in `fr_ca_prefix_noise` and `fr_ca_suffix_noise` variants.
+
+### `--language fr-CA`
+
+Pass `--language fr-CA` to the `generate` command to produce test documents with French keyword context sentences:
+
+```bash
+evadex generate --format docx --category credit_card --category sin \
+  --count 200 --language fr-CA --output test_fr_ca.docx
+
+evadex generate --format csv --category ca_ramq --count 500 \
+  --language fr-CA --output ramq_fr.csv
+```
+
+Without `--language`, the default is English (`en`).
+
+---
+
 ## Structured vs heuristic categories
 
 evadex classifies its built-in payload categories into two groups:
 
 **Structured** — formats with well-defined, mathematically or syntactically validatable patterns. DLP scanners typically enforce these patterns precisely (e.g., Luhn check on credit cards, fixed-length digit groups for SSN/SIN, checksum-verified IBAN). Evasion results in this group reflect meaningful signal: a variant that evades detection is a real gap in coverage.
 
-Categories: `credit_card`, `ssn`, `sin`, `iban`, `swift_bic`, `aba_routing`, `bitcoin`, `ethereum`, `us_passport`, `au_tfn`, `de_tax_id`, `fr_insee`, `email`, `phone`
+Categories: `credit_card`, `ssn`, `sin`, `iban`, `swift_bic`, `aba_routing`, `bitcoin`, `ethereum`, `us_passport`, `au_tfn`, `de_tax_id`, `fr_insee`, `email`, `phone`, `ca_ramq`, `ca_ontario_health`, `ca_bc_carecard`, `ca_ab_health`, `ca_qc_drivers`, `ca_on_drivers`, `ca_bc_drivers`, `ca_passport`
 
 **Heuristic** — formats where detection relies on fixed prefixes, high-entropy pattern matching, or loosely defined structure. DLP rules for these categories vary widely between scanners and configurations, and a "fail" result may simply reflect that the scanner never had a strong rule for that specific format variant — not that a real exfiltration path was found.
 
@@ -372,6 +417,7 @@ evadex generate --format FORMAT --output PATH [OPTIONS]
 | `--random` | off | Randomise categories, evasion rate, and keyword rate |
 | `--seed` | *(none)* | Integer seed for reproducible output |
 | `--include-heuristic` | off | Also include heuristic categories (AWS keys, tokens, JWT, etc.) |
+| `--language` | `en` | Language for keyword context sentences: `en` (English) or `fr-CA` (Canadian French) |
 
 **Format details:**
 
@@ -408,8 +454,16 @@ evadex generate --format csv --category ssn --count 1000 \
 
 **Value generation:**
 
-- **Credit cards** — Valid Luhn numbers generated programmatically using common BIN prefixes (Visa, Mastercard, Amex, Discover, JCB). `--count 1000` always works.
-- **All other categories** — Built-in seed values are rotated to fill the requested count.
+evadex generates values two ways:
+
+- **Synthetic generators** (preferred, unlimited) — Produce structurally valid values algorithmically, so `--count 1000` always returns 1000 distinct values. Registered for:
+  - `credit_card` — Luhn-valid numbers for Visa, Mastercard, Amex, Discover
+  - `sin` — Valid Canadian SINs (Luhn checksum, NNN NNN NNN format)
+  - `iban` — Valid IBANs for GB, DE, and FR (ISO 13616 mod-97 checksum)
+  - `phone` — Canadian E.164 numbers (`+1-NPA-NXX-XXXX`) from real area codes
+  - `email` — Realistic addresses with common Canadian and international domains
+  - `ca_ramq` — Quebec RAMQ health card numbers (XXXX YYMM DDSS format)
+- **Seed rotation fallback** — Categories without a synthetic generator rotate through the built-in seed values.
 - **Evasion variants** — Drawn from all 12 evadex generators (same techniques as `evadex scan`). Use `--technique` to restrict to specific techniques.
 
 ---

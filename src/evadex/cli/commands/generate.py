@@ -91,6 +91,13 @@ _CATEGORY_CHOICES = click.Choice(
     default=False,
     help="Include heuristic payload categories (AWS keys, tokens, JWT, etc.).",
 )
+@click.option(
+    "--language",
+    default="en",
+    show_default=True,
+    type=click.Choice(["en", "fr-CA"], case_sensitive=False),
+    help="Language for keyword context sentences: 'en' (English) or 'fr-CA' (Canadian French).",
+)
 def generate(
     fmt: str,
     categories: tuple[str, ...],
@@ -102,6 +109,7 @@ def generate(
     seed: int | None,
     output: str,
     include_heuristic: bool,
+    language: str,
 ) -> None:
     """Generate test documents filled with synthetic sensitive data for DLP testing.
 
@@ -140,6 +148,7 @@ def generate(
         seed=seed,
         output=output,
         include_heuristic=include_heuristic,
+        language=language,
     )
 
     # ── Generate entries ───────────────────────────────────────────────────

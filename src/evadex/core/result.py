@@ -24,6 +24,15 @@ class PayloadCategory(Enum):
     JWT = "jwt"
     EMAIL = "email"
     PHONE = "phone"
+    # Canadian regional IDs
+    CA_RAMQ = "ca_ramq"
+    CA_ONTARIO_HEALTH = "ca_ontario_health"
+    CA_BC_CARECARD = "ca_bc_carecard"
+    CA_AB_HEALTH = "ca_ab_health"
+    CA_QC_DRIVERS = "ca_qc_drivers"
+    CA_ON_DRIVERS = "ca_on_drivers"
+    CA_BC_DRIVERS = "ca_bc_drivers"
+    CA_PASSPORT = "ca_passport"
     UNKNOWN = "unknown"
 
 
@@ -53,6 +62,14 @@ CATEGORY_TYPES: dict[PayloadCategory, CategoryType] = {
     PayloadCategory.PHONE:          CategoryType.STRUCTURED,
     PayloadCategory.AWS_KEY:        CategoryType.HEURISTIC,
     PayloadCategory.JWT:            CategoryType.HEURISTIC,
+    PayloadCategory.CA_RAMQ:           CategoryType.STRUCTURED,
+    PayloadCategory.CA_ONTARIO_HEALTH: CategoryType.STRUCTURED,
+    PayloadCategory.CA_BC_CARECARD:    CategoryType.STRUCTURED,
+    PayloadCategory.CA_AB_HEALTH:      CategoryType.STRUCTURED,
+    PayloadCategory.CA_QC_DRIVERS:     CategoryType.STRUCTURED,
+    PayloadCategory.CA_ON_DRIVERS:     CategoryType.STRUCTURED,
+    PayloadCategory.CA_BC_DRIVERS:     CategoryType.STRUCTURED,
+    PayloadCategory.CA_PASSPORT:       CategoryType.STRUCTURED,
     PayloadCategory.UNKNOWN:        CategoryType.STRUCTURED,
 }
 
