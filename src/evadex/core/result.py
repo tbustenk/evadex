@@ -33,6 +33,25 @@ class PayloadCategory(Enum):
     CA_ON_DRIVERS = "ca_on_drivers"
     CA_BC_DRIVERS = "ca_bc_drivers"
     CA_PASSPORT = "ca_passport"
+    # Remaining provincial health cards
+    CA_MB_HEALTH = "ca_mb_health"
+    CA_SK_HEALTH = "ca_sk_health"
+    CA_NS_HEALTH = "ca_ns_health"
+    CA_NB_HEALTH = "ca_nb_health"
+    CA_PEI_HEALTH = "ca_pei_health"
+    CA_NL_HEALTH = "ca_nl_health"
+    # Remaining provincial driver's licences
+    CA_MB_DRIVERS = "ca_mb_drivers"
+    CA_SK_DRIVERS = "ca_sk_drivers"
+    CA_NS_DRIVERS = "ca_ns_drivers"
+    CA_NB_DRIVERS = "ca_nb_drivers"
+    CA_PEI_DRIVERS = "ca_pei_drivers"
+    CA_NL_DRIVERS = "ca_nl_drivers"
+    # Canadian corporate identifiers
+    CA_BUSINESS_NUMBER = "ca_business_number"
+    CA_GST_HST = "ca_gst_hst"
+    CA_TRANSIT_NUMBER = "ca_transit_number"
+    CA_BANK_ACCOUNT = "ca_bank_account"
     UNKNOWN = "unknown"
 
 
@@ -70,6 +89,22 @@ CATEGORY_TYPES: dict[PayloadCategory, CategoryType] = {
     PayloadCategory.CA_ON_DRIVERS:     CategoryType.STRUCTURED,
     PayloadCategory.CA_BC_DRIVERS:     CategoryType.STRUCTURED,
     PayloadCategory.CA_PASSPORT:       CategoryType.STRUCTURED,
+    PayloadCategory.CA_MB_HEALTH:      CategoryType.STRUCTURED,
+    PayloadCategory.CA_SK_HEALTH:      CategoryType.STRUCTURED,
+    PayloadCategory.CA_NS_HEALTH:      CategoryType.STRUCTURED,
+    PayloadCategory.CA_NB_HEALTH:      CategoryType.STRUCTURED,
+    PayloadCategory.CA_PEI_HEALTH:     CategoryType.STRUCTURED,
+    PayloadCategory.CA_NL_HEALTH:      CategoryType.STRUCTURED,
+    PayloadCategory.CA_MB_DRIVERS:     CategoryType.STRUCTURED,
+    PayloadCategory.CA_SK_DRIVERS:     CategoryType.STRUCTURED,
+    PayloadCategory.CA_NS_DRIVERS:     CategoryType.STRUCTURED,
+    PayloadCategory.CA_NB_DRIVERS:     CategoryType.STRUCTURED,
+    PayloadCategory.CA_PEI_DRIVERS:    CategoryType.STRUCTURED,
+    PayloadCategory.CA_NL_DRIVERS:     CategoryType.STRUCTURED,
+    PayloadCategory.CA_BUSINESS_NUMBER: CategoryType.STRUCTURED,
+    PayloadCategory.CA_GST_HST:        CategoryType.STRUCTURED,
+    PayloadCategory.CA_TRANSIT_NUMBER: CategoryType.STRUCTURED,
+    PayloadCategory.CA_BANK_ACCOUNT:   CategoryType.STRUCTURED,
     PayloadCategory.UNKNOWN:        CategoryType.STRUCTURED,
 }
 

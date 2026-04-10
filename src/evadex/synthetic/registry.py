@@ -35,9 +35,12 @@ def get_synthetic_generator(category) -> Optional["BaseSyntheticGenerator"]:
 
 def load_synthetic_generators() -> None:
     """Import all synthetic generator modules so their decorators register them."""
-    import evadex.synthetic.credit_card  # noqa: F401
-    import evadex.synthetic.sin          # noqa: F401
-    import evadex.synthetic.iban         # noqa: F401
-    import evadex.synthetic.phone        # noqa: F401
-    import evadex.synthetic.email        # noqa: F401
-    import evadex.synthetic.ramq         # noqa: F401
+    import evadex.synthetic.credit_card        # noqa: F401
+    import evadex.synthetic.sin               # noqa: F401
+    import evadex.synthetic.iban              # noqa: F401
+    import evadex.synthetic.phone             # noqa: F401
+    import evadex.synthetic.email             # noqa: F401
+    import evadex.synthetic.ramq              # noqa: F401
+    import evadex.synthetic.ca_health_cards   # noqa: F401
+    import evadex.synthetic.ca_drivers_licences  # noqa: F401
+    import evadex.synthetic.ca_corporate      # noqa: F401

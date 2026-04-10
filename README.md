@@ -26,6 +26,7 @@ evadex takes a sensitive value (a credit card number, SSN, AWS key, etc.), runs 
 | `bidirectional` | Unicode bidirectional control characters (RLO, LRO, RLE, RLI, ALM) injected around or within the value |
 | `soft_hyphen` | Soft hyphen (U+00AD) and word joiner (U+2060) inserted at group boundaries or between every character |
 | `morse_code` | Digits encoded as International Morse Code — space-separated, slash-separated, concatenated, or newline-separated; applies to `credit_card`, `ssn`, `sin`, `iban`, `phone`, and related numeric categories |
+| `encoding_chains` | Chained multi-step encodings: `base64(rot13)`, `base64(hex)`, `hex(base64)`, `rot13(base64)`, `url(base64)`, `base64(base64)`, and the triple chain `base64(rot13(hex))` — defeats scanners that only decode one layer |
 
 **Submission strategies** (for dlpscan-cli adapter):
 
@@ -68,6 +69,22 @@ Payloads are classified as **structured** or **heuristic** — see [Structured v
 | Ontario driver's licence | `A1234-56789-01234` | `ca_on_drivers` | structured |
 | BC driver's licence | `1234567` | `ca_bc_drivers` | structured |
 | Canadian passport | `AB123456` | `ca_passport` | structured |
+| Manitoba health card | `987654321` | `ca_mb_health` | structured |
+| Saskatchewan health card | `234567890` | `ca_sk_health` | structured |
+| Nova Scotia health card | `1234 567 890` | `ca_ns_health` | structured |
+| New Brunswick health card | `1234567890` | `ca_nb_health` | structured |
+| PEI health card | `123456789012` | `ca_pei_health` | structured |
+| Newfoundland health card | `9876543210` | `ca_nl_health` | structured |
+| Manitoba driver's licence | `AB-123-456-789` | `ca_mb_drivers` | structured |
+| Saskatchewan driver's licence | `12345678` | `ca_sk_drivers` | structured |
+| Nova Scotia driver's licence | `AB1234567` | `ca_ns_drivers` | structured |
+| New Brunswick driver's licence | `1234567` | `ca_nb_drivers` | structured |
+| PEI driver's licence | `123456` | `ca_pei_drivers` | structured |
+| Newfoundland driver's licence | `A123456789` | `ca_nl_drivers` | structured |
+| Canadian Business Number (BN) | `111222333` | `ca_business_number` | structured |
+| Canadian GST/HST registration | `111222333RT0001` | `ca_gst_hst` | structured |
+| Canadian transit/routing number | `12345-678` | `ca_transit_number` | structured |
+| Canadian bank account | `12345678` | `ca_bank_account` | structured |
 | AWS Access Key ID | `AKIAIOSFODNN7EXAMPLE` | `aws_key` | heuristic |
 | GitHub classic token | `ghp_16C7e42F292c6912E7710c838347Ae178B4a` | `github_token` | heuristic |
 | Stripe test secret key | `sk_test_4eC39HqLyjWDarjtT7en6bh8Xy9mPqZ` | `stripe_key` | heuristic |
@@ -463,6 +480,20 @@ evadex generates values two ways:
   - `phone` — Canadian E.164 numbers (`+1-NPA-NXX-XXXX`) from real area codes
   - `email` — Realistic addresses with common Canadian and international domains
   - `ca_ramq` — Quebec RAMQ health card numbers (XXXX YYMM DDSS format)
+  - `ca_mb_health`, `ca_sk_health` — 9-digit Manitoba/Saskatchewan health cards
+  - `ca_ns_health` — Nova Scotia 10-digit health card (NNNN NNN NNN format)
+  - `ca_nb_health`, `ca_nl_health` — 10-digit NB/NL health cards
+  - `ca_pei_health` — 12-digit PEI health card
+  - `ca_mb_drivers` — Manitoba licence (LL-NNN-NNN-NNN format)
+  - `ca_sk_drivers` — Saskatchewan 8-digit licence
+  - `ca_ns_drivers` — Nova Scotia licence (2 letters + 7 digits)
+  - `ca_nb_drivers` — New Brunswick 7-digit licence
+  - `ca_pei_drivers` — PEI 6-digit licence
+  - `ca_nl_drivers` — Newfoundland licence (1 letter + 9 digits)
+  - `ca_business_number` — Canadian Business Number (9 digits, CRA)
+  - `ca_gst_hst` — GST/HST registration (9-digit BN + RT + 4 digits)
+  - `ca_transit_number` — Transit/routing number (NNNNN-NNN format)
+  - `ca_bank_account` — Bank account (7–12 random digits)
 - **Seed rotation fallback** — Categories without a synthetic generator rotate through the built-in seed values.
 - **Evasion variants** — Drawn from all 12 evadex generators (same techniques as `evadex scan`). Use `--technique` to restrict to specific techniques.
 
@@ -498,6 +529,93 @@ evadex init
 ```
 
 Creates `evadex.yaml` with sensible defaults. Edit the file and run `evadex scan --config evadex.yaml`, or drop it in the working directory for auto-discovery.
+
+### `evadex falsepos`
+
+Measure scanner false positive rate — values that look like sensitive data but are provably invalid.
+
+Generates structurally plausible but mathematically invalid values (Luhn-failing credit card numbers, SSNs with reserved area codes, SINs with wrong checksums, IBAN-shaped strings with invalid mod-97 checks, etc.) and submits them to the scanner. Any value the scanner flags is a false positive.
+
+```
+evadex falsepos [OPTIONS]
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `--tool`, `-t` | `dlpscan-cli` | Adapter to use |
+| `--category` | *(all)* | Category to test. Repeat for multiple. Supported: `credit_card`, `ssn`, `sin`, `iban`, `email`, `phone`, `ca_ramq` |
+| `--count` | `100` | Number of false positive values per category |
+| `--format`, `-f` | `table` | Output format: `table` (summary to stderr) or `json` (full report) |
+| `--output`, `-o` | stdout | Write JSON report to file |
+| `--exe` | `dlpscan` | Path to scanner executable (dlpscan-cli only) |
+| `--cmd-style` | `python` | Command format for dlpscan-cli: `python` or `rust` |
+| `--timeout` | `30.0` | Request timeout in seconds |
+| `--concurrency` | `5` | Max concurrent scanner requests |
+| `--seed` | *(random)* | Integer seed for reproducible false positive values |
+
+**Examples:**
+
+```bash
+# Test false positive rate for credit cards
+evadex falsepos --tool dlpscan-cli --category credit_card --count 100
+
+# All categories
+evadex falsepos --tool dlpscan-cli --count 100
+
+# Save JSON report
+evadex falsepos --tool dlpscan-cli --count 100 --format json -o falsepos_report.json
+```
+
+**Output:**
+
+```
+  credit_card            0/100 flagged  (0.0%)
+  ssn                    2/100 flagged  (2.0%)
+  sin                    0/100 flagged  (0.0%)
+  ...
+
+Overall false positive rate: 0.3%  (2/700)
+```
+
+The JSON report includes per-category rates, overall rate, and the list of specific values that were incorrectly flagged:
+
+```json
+{
+  "tool": "dlpscan-cli",
+  "count_per_category": 100,
+  "total_tested": 700,
+  "total_flagged": 2,
+  "overall_false_positive_rate": 0.3,
+  "by_category": {
+    "credit_card": {
+      "total": 100,
+      "flagged": 0,
+      "false_positive_rate": 0.0,
+      "flagged_values": []
+    },
+    "ssn": {
+      "total": 100,
+      "flagged": 2,
+      "false_positive_rate": 2.0,
+      "flagged_values": ["000-12-3456", "666-99-0001"]
+    }
+  }
+}
+```
+
+**False positive generators by category:**
+
+| Category | Generation strategy |
+|---|---|
+| `credit_card` | 16-digit numbers with card-like prefixes (4, 51, 37, 6011) that fail the Luhn check |
+| `ssn` | `NNN-NN-NNNN` with reserved area codes: 000, 666, 900–999 |
+| `sin` | `NNN NNN NNN` with valid first digit (1–7) but wrong Luhn check digit |
+| `iban` | IBAN-shaped strings (GB/DE/FR) with a deliberately wrong mod-97 check digit |
+| `email` | `user@domain.invalid` — uses IANA-reserved TLDs (`.invalid`, `.test`, `.example`, `.localhost`) |
+| `phone` | `+1-NPA-NXX-XXXX` with invalid NANP area codes (000, 555, 911, etc.) |
+| `ca_ramq` | RAMQ-shaped `XXXX YYMM DDSS` with invalid birth month codes (00, 13–50, 63–99) |
+
+---
 
 ### `evadex list-payloads`
 
@@ -753,8 +871,10 @@ The report is always written, even when there are no evasions (techniques and fi
 | Phase | Role | Status |
 |---|---|---|
 | Phase 1 | Adversarial fuzzer — evasion generators test known-sensitive values against the scanner | ✅ Done |
-| Phase 2 | Feedback generator — surfaces fix suggestions, regression tests, and structured reports when evasions succeed | ✅ This release |
-| Phase 3 | False-positive adversary — generates values that *look* sensitive but aren't, to test the scanner's precision | Planned |
+| Phase 2 | Feedback generator — surfaces fix suggestions, regression tests, and structured reports when evasions succeed | ✅ Done |
+| Phase 3 | False-positive adversary — generates values that *look* sensitive but aren't, to measure scanner precision | ✅ Done (`evadex falsepos`) |
+
+Together, Phase 1 measures **false negatives** (sensitive values the scanner misses) and Phase 3 measures **false positives** (non-sensitive values the scanner incorrectly flags). Both are needed for a complete picture of scanner accuracy.
 
 ---
 

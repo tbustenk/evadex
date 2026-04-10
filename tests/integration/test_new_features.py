@@ -140,14 +140,14 @@ def test_list_payloads_shows_all():
     assert result.exit_code == 0
     assert "Visa 16-digit" in result.output
     assert "US SSN" in result.output
-    assert "38 payload" in result.output
+    assert "54 payload" in result.output
 
 
 def test_list_payloads_filter_structured():
     runner = CliRunner()
     result = runner.invoke(main, ["list-payloads", "--type", "structured"])
     assert result.exit_code == 0
-    assert "31 payload" in result.output
+    assert "47 payload" in result.output
     assert "AWS Access Key" not in result.output
 
 

@@ -41,6 +41,7 @@ def load_builtins():
     import evadex.variants.regional_digits
     import evadex.variants.structural
     import evadex.variants.encoding
+    import evadex.variants.encoding_chains
     import evadex.variants.context_injection
     import evadex.variants.unicode_whitespace
     import evadex.variants.bidirectional

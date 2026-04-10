@@ -62,6 +62,28 @@ BUILTIN_PAYLOADS = [
     Payload("A1234-56789-01234",     PayloadCategory.CA_ON_DRIVERS,     "Ontario driver's licence"),
     Payload("1234567",               PayloadCategory.CA_BC_DRIVERS,     "British Columbia driver's licence"),
     Payload("AB123456",              PayloadCategory.CA_PASSPORT,       "Canadian passport"),
+
+    # --- Remaining provincial health cards ---
+    Payload("987654321",    PayloadCategory.CA_MB_HEALTH,  "Manitoba health card"),
+    Payload("234567890",    PayloadCategory.CA_SK_HEALTH,  "Saskatchewan health card"),
+    Payload("1234 567 890", PayloadCategory.CA_NS_HEALTH,  "Nova Scotia health card"),
+    Payload("1234567890",   PayloadCategory.CA_NB_HEALTH,  "New Brunswick health card"),
+    Payload("123456789012", PayloadCategory.CA_PEI_HEALTH, "PEI health card"),
+    Payload("9876543210",   PayloadCategory.CA_NL_HEALTH,  "Newfoundland health card"),
+
+    # --- Remaining provincial driver's licences ---
+    Payload("AB-123-456-789", PayloadCategory.CA_MB_DRIVERS, "Manitoba driver's licence"),
+    Payload("12345678",       PayloadCategory.CA_SK_DRIVERS, "Saskatchewan driver's licence"),
+    Payload("AB1234567",      PayloadCategory.CA_NS_DRIVERS, "Nova Scotia driver's licence"),
+    Payload("1234567",        PayloadCategory.CA_NB_DRIVERS, "New Brunswick driver's licence"),
+    Payload("123456",         PayloadCategory.CA_PEI_DRIVERS, "PEI driver's licence"),
+    Payload("A123456789",     PayloadCategory.CA_NL_DRIVERS, "Newfoundland driver's licence"),
+
+    # --- Canadian corporate identifiers ---
+    Payload("111222333",         PayloadCategory.CA_BUSINESS_NUMBER, "Canadian Business Number (BN)"),
+    Payload("111222333RT0001",   PayloadCategory.CA_GST_HST,         "Canadian GST/HST registration"),
+    Payload("12345-678",         PayloadCategory.CA_TRANSIT_NUMBER,  "Canadian transit/routing number"),
+    Payload("12345678",          PayloadCategory.CA_BANK_ACCOUNT,    "Canadian bank account"),
 ]
 
 
