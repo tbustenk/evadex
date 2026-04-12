@@ -36,6 +36,10 @@ Each variant is tested four ways by default: as plain text, embedded in a DOCX, 
 
 Payloads are classified as **structured** or **heuristic** — see [Structured vs heuristic categories](#structured-vs-heuristic-categories) below.
 
+137 payloads across 76 categories (129 structured, 8 heuristic). See [Coverage](#coverage) for a breakdown by region.
+
+#### North America
+
 | Label | Value | Category | Type |
 |---|---|---|---|
 | Visa 16-digit | `4532015112830366` | `credit_card` | structured |
@@ -46,45 +50,103 @@ Payloads are classified as **structured** or **heuristic** — see [Structured v
 | UnionPay 16-digit | `6250941006528599` | `credit_card` | structured |
 | Diners Club 14-digit | `30569309025904` | `credit_card` | structured |
 | US SSN | `123-45-6789` | `ssn` | structured |
+| US ITIN | `912-34-5678` | `us_itin` | structured |
+| US EIN | `12-3456789` | `us_ein` | structured |
+| US Medicare Beneficiary ID | `1EG4-TE5-MK72` | `us_mbi` | structured |
+| US Passport | `340000136` | `us_passport` | structured |
+| US state driver's licences (51) | one per state + DC | `us_dl` | structured |
 | Canada SIN | `046 454 286` | `sin` | structured |
-| US Passport number | `340000136` | `us_passport` | structured |
-| Australia TFN | `123 456 78` | `au_tfn` | structured |
-| Germany Steuer-IdNr | `86095742719` | `de_tax_id` | structured |
-| France INSEE (NIR) | `282097505604213` | `fr_insee` | structured |
-| UK IBAN | `GB82WEST12345698765432` | `iban` | structured |
-| Germany IBAN | `DE89370400440532013000` | `iban` | structured |
-| France IBAN | `FR7630006000011234567890189` | `iban` | structured |
-| Spain IBAN | `ES9121000418450200051332` | `iban` | structured |
-| SWIFT/BIC code | `DEUTDEDB` | `swift_bic` | structured |
-| ABA routing number | `021000021` | `aba_routing` | structured |
-| Bitcoin legacy address | `1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2` | `bitcoin` | structured |
-| Ethereum address | `0x742d35Cc6634C0532925a3b844Bc454e4438f44e` | `ethereum` | structured |
-| Email address | `test.user@example.com` | `email` | structured |
-| US phone number | `+1-555-867-5309` | `phone` | structured |
+| Canadian passport | `AB123456` | `ca_passport` | structured |
 | Quebec RAMQ health card | `BOUD 1234 5678` | `ca_ramq` | structured |
 | Ontario health card | `1234-567-890-AB` | `ca_ontario_health` | structured |
 | BC CareCard | `9123456789` | `ca_bc_carecard` | structured |
 | Alberta health card | `123456789` | `ca_ab_health` | structured |
-| Quebec driver's licence | `A12345678901234` | `ca_qc_drivers` | structured |
-| Ontario driver's licence | `A1234-56789-01234` | `ca_on_drivers` | structured |
-| BC driver's licence | `1234567` | `ca_bc_drivers` | structured |
-| Canadian passport | `AB123456` | `ca_passport` | structured |
 | Manitoba health card | `987654321` | `ca_mb_health` | structured |
 | Saskatchewan health card | `234567890` | `ca_sk_health` | structured |
 | Nova Scotia health card | `1234 567 890` | `ca_ns_health` | structured |
 | New Brunswick health card | `1234567890` | `ca_nb_health` | structured |
 | PEI health card | `123456789012` | `ca_pei_health` | structured |
 | Newfoundland health card | `9876543210` | `ca_nl_health` | structured |
+| Quebec driver's licence | `A12345678901234` | `ca_qc_drivers` | structured |
+| Ontario driver's licence | `A1234-56789-01234` | `ca_on_drivers` | structured |
+| BC driver's licence | `1234567` | `ca_bc_drivers` | structured |
 | Manitoba driver's licence | `AB-123-456-789` | `ca_mb_drivers` | structured |
 | Saskatchewan driver's licence | `12345678` | `ca_sk_drivers` | structured |
 | Nova Scotia driver's licence | `AB1234567` | `ca_ns_drivers` | structured |
 | New Brunswick driver's licence | `1234567` | `ca_nb_drivers` | structured |
 | PEI driver's licence | `123456` | `ca_pei_drivers` | structured |
 | Newfoundland driver's licence | `A123456789` | `ca_nl_drivers` | structured |
-| Canadian Business Number (BN) | `111222333` | `ca_business_number` | structured |
+| Canadian Business Number | `111222333` | `ca_business_number` | structured |
 | Canadian GST/HST registration | `111222333RT0001` | `ca_gst_hst` | structured |
 | Canadian transit/routing number | `12345-678` | `ca_transit_number` | structured |
 | Canadian bank account | `12345678` | `ca_bank_account` | structured |
+| Mexico CURP | `BADD110313HCMLNS09` | `mx_curp` | structured |
+
+#### Europe
+
+| Label | Value | Category | Type |
+|---|---|---|---|
+| UK IBAN | `GB82WEST12345698765432` | `iban` | structured |
+| Germany IBAN | `DE89370400440532013000` | `iban` | structured |
+| France IBAN | `FR7630006000011234567890189` | `iban` | structured |
+| Spain IBAN | `ES9121000418450200051332` | `iban` | structured |
+| SWIFT/BIC code | `DEUTDEDB` | `swift_bic` | structured |
+| ABA routing number | `021000021` | `aba_routing` | structured |
+| UK National Insurance Number | `AB123456C` | `uk_nin` | structured |
+| UK driving licence | `MORGA753116SM9IJ` | `uk_dl` | structured |
+| German Personalausweis | `L01X00T47` | `de_id` | structured |
+| Germany Steuer-IdNr | `86095742719` | `de_tax_id` | structured |
+| French CNI | `880692310285` | `fr_cni` | structured |
+| France INSEE (NIR) | `282097505604213` | `fr_insee` | structured |
+| Spanish DNI | `12345678Z` | `es_dni` | structured |
+| Italian Codice Fiscale | `RSSMRA85T10A562S` | `it_cf` | structured |
+| Dutch BSN | `111222333` | `nl_bsn` | structured |
+| Swedish Personnummer | `811228-9874` | `se_pin` | structured |
+| Norwegian Fødselsnummer | `01010112345` | `no_fnr` | structured |
+| Finnish Henkilötunnus | `131052-308T` | `fi_hetu` | structured |
+| Polish PESEL | `44051401458` | `pl_pesel` | structured |
+| Swiss AHV | `756.1234.5678.97` | `ch_ahv` | structured |
+
+#### Asia-Pacific
+
+| Label | Value | Category | Type |
+|---|---|---|---|
+| Australia TFN | `123 456 78` | `au_tfn` | structured |
+| Australian Medicare card | `2123456701` | `au_medicare` | structured |
+| Australian passport | `PA1234567` | `au_passport` | structured |
+| New Zealand IRD | `123456789` | `nz_ird` | structured |
+| Singapore NRIC | `S1234567D` | `sg_nric` | structured |
+| Hong Kong HKID | `A123456(3)` | `hk_hkid` | structured |
+| Japanese My Number | `123456789012` | `jp_my_number` | structured |
+| Indian Aadhaar | `2345 6789 0123` | `in_aadhaar` | structured |
+| Indian PAN | `ABCDE1234F` | `in_pan` | structured |
+
+#### Latin America
+
+| Label | Value | Category | Type |
+|---|---|---|---|
+| Brazilian CPF | `123.456.789-09` | `br_cpf` | structured |
+| Brazilian CNPJ | `11.222.333/0001-81` | `br_cnpj` | structured |
+| Argentine DNI | `12345678` | `ar_dni` | structured |
+| Chilean RUT | `12.345.678-9` | `cl_rut` | structured |
+
+#### Middle East & Africa
+
+| Label | Value | Category | Type |
+|---|---|---|---|
+| UAE Emirates ID | `784-1234-1234567-1` | `uae_eid` | structured |
+| Saudi National ID | `1234567890` | `sa_nid` | structured |
+| South African ID | `9202204720082` | `za_id` | structured |
+| Israeli Teudat Zehut | `123456782` | `il_id` | structured |
+
+#### Global
+
+| Label | Value | Category | Type |
+|---|---|---|---|
+| Bitcoin legacy address | `1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2` | `bitcoin` | structured |
+| Ethereum address | `0x742d35Cc6634C0532925a3b844Bc454e4438f44e` | `ethereum` | structured |
+| Email address | `test.user@example.com` | `email` | structured |
+| US phone number | `+1-555-867-5309` | `phone` | structured |
 | AWS Access Key ID | `AKIAIOSFODNN7EXAMPLE` | `aws_key` | heuristic |
 | GitHub classic token | `ghp_16C7e42F292c6912E7710c838347Ae178B4a` | `github_token` | heuristic |
 | Stripe test secret key | `sk_test_4eC39HqLyjWDarjtT7en6bh8Xy9mPqZ` | `stripe_key` | heuristic |
@@ -140,7 +202,7 @@ evadex classifies its built-in payload categories into two groups:
 
 **Structured** — formats with well-defined, mathematically or syntactically validatable patterns. DLP scanners typically enforce these patterns precisely (e.g., Luhn check on credit cards, fixed-length digit groups for SSN/SIN, checksum-verified IBAN). Evasion results in this group reflect meaningful signal: a variant that evades detection is a real gap in coverage.
 
-Categories: `credit_card`, `ssn`, `sin`, `iban`, `swift_bic`, `aba_routing`, `bitcoin`, `ethereum`, `us_passport`, `au_tfn`, `de_tax_id`, `fr_insee`, `email`, `phone`, `ca_ramq`, `ca_ontario_health`, `ca_bc_carecard`, `ca_ab_health`, `ca_qc_drivers`, `ca_on_drivers`, `ca_bc_drivers`, `ca_passport`
+Categories: `credit_card`, `ssn`, `sin`, `us_itin`, `us_ein`, `us_mbi`, `us_dl`, `us_passport`, `iban`, `swift_bic`, `aba_routing`, `bitcoin`, `ethereum`, `au_tfn`, `au_medicare`, `au_passport`, `de_tax_id`, `de_id`, `fr_insee`, `fr_cni`, `uk_nin`, `uk_dl`, `es_dni`, `it_cf`, `nl_bsn`, `se_pin`, `no_fnr`, `fi_hetu`, `pl_pesel`, `ch_ahv`, `nz_ird`, `sg_nric`, `hk_hkid`, `jp_my_number`, `in_aadhaar`, `in_pan`, `br_cpf`, `br_cnpj`, `mx_curp`, `ar_dni`, `cl_rut`, `uae_eid`, `sa_nid`, `za_id`, `il_id`, `email`, `phone`, `ca_ramq`, `ca_ontario_health`, `ca_bc_carecard`, `ca_ab_health`, `ca_qc_drivers`, `ca_on_drivers`, `ca_bc_drivers`, `ca_passport`, `ca_mb_health`, `ca_sk_health`, `ca_ns_health`, `ca_nb_health`, `ca_pei_health`, `ca_nl_health`, `ca_mb_drivers`, `ca_sk_drivers`, `ca_ns_drivers`, `ca_nb_drivers`, `ca_pei_drivers`, `ca_nl_drivers`, `ca_business_number`, `ca_gst_hst`, `ca_transit_number`, `ca_bank_account`
 
 **Heuristic** — formats where detection relies on fixed prefixes, high-entropy pattern matching, or loosely defined structure. DLP rules for these categories vary widely between scanners and configurations, and a "fail" result may simply reflect that the scanner never had a strong rule for that specific format variant — not that a real exfiltration path was found.
 
@@ -1018,6 +1080,53 @@ async def submit(self, payload, variant):
 | `duration_ms` | float | Time for this test case in milliseconds |
 | `error` | string \| null | Error message if adapter threw; `null` otherwise |
 | `raw_response` | object | Raw parsed response from the adapter. For `dlpscan-cli` this is `{"matches": [...]}`. May contain match objects that include the variant value — treat the output file accordingly. |
+
+---
+
+## Coverage
+
+evadex payload coverage relative to the dlpscan-rs pattern library (557 patterns across 126 categories).
+
+| Region | dlpscan-rs categories | evadex categories covered | Notes |
+|---|---|---|---|
+| North America — United States | 64 patterns (US + generic DL) | `ssn`, `us_itin`, `us_ein`, `us_mbi`, `us_passport`, `us_dl` (51 state examples) | All 50 states + DC represented in `us_dl` |
+| North America — Canada | 29 patterns | All 29 covered across provincial health/DL/corporate categories | Full coverage |
+| North America — Mexico | 7 patterns | `mx_curp` | CURP covered; RFC, Clave Elector, NSS, INE not yet added |
+| Europe — United Kingdom | 7 patterns | `iban`, `uk_nin`, `uk_dl` | NHS, UTR, Sort Code not yet added |
+| Europe — Germany | 6 patterns | `de_tax_id`, `de_id`, `iban` | Social insurance, DL not yet added |
+| Europe — France | 5 patterns | `fr_insee`, `fr_cni`, `iban` | DL not yet added |
+| Europe — Spain | 5 patterns | `es_dni`, `iban` | NIE, NSS not yet added |
+| Europe — Italy | 5 patterns | `it_cf` | DL, Partita IVA not yet added |
+| Europe — Netherlands | 4 patterns | `nl_bsn`, `iban` | DL not yet added |
+| Europe — Sweden | 4 patterns | `se_pin` | Org number, DL not yet added |
+| Europe — Norway | 4 patterns | `no_fnr` | D-Number, DL not yet added |
+| Europe — Poland | 6 patterns | `pl_pesel` | NIP, REGON, DL not yet added |
+| Europe — Switzerland | 4 patterns | `ch_ahv` | UID not yet added |
+| Europe — Finland | 3 patterns | `fi_hetu` | DL not yet added |
+| Europe — (other) | ~60 patterns across 14 countries | Not yet added | AT, BE, BG, HR, CY, CZ, DK, EE, GR, HU, IE, LV, LT, LU, MT, PT, RO, SK, SI, TR |
+| Asia-Pacific — Australia | 11 patterns | `au_tfn`, `au_medicare`, `au_passport` | State DLs (8 formats) not yet added |
+| Asia-Pacific — New Zealand | 4 patterns | `nz_ird` | NHI, DL not yet added |
+| Asia-Pacific — Singapore | 4 patterns | `sg_nric` | FIN, DL not yet added |
+| Asia-Pacific — Hong Kong | 1 pattern | `hk_hkid` | Full coverage |
+| Asia-Pacific — Japan | 6 patterns | `jp_my_number` | Passport, DL, residence card not yet added |
+| Asia-Pacific — India | 6 patterns | `in_aadhaar`, `in_pan` | Passport, DL, Voter ID not yet added |
+| Asia-Pacific — (other) | ~30 patterns across 8 countries | Not yet added | CN, ID, MY, BD, PH, KR, LK, TH, VN |
+| Latin America — Brazil | 6 patterns | `br_cpf`, `br_cnpj` | CNH, RG, Passport not yet added |
+| Latin America — Chile | 2 patterns | `cl_rut` | Passport not yet added |
+| Latin America — Argentina | 3 patterns | `ar_dni` | CUIL/CUIT not yet added |
+| Latin America — Mexico | 7 patterns | `mx_curp` | (see above) |
+| Latin America — (other) | ~30 patterns across 7 countries | Not yet added | CO, CR, EC, PY, PE, UY, VE |
+| Middle East — UAE | 3 patterns | `uae_eid` | Visa number not yet added |
+| Middle East — Saudi Arabia | 2 patterns | `sa_nid` | Passport not yet added |
+| Middle East — Israel | 2 patterns | `il_id` | Passport not yet added |
+| Middle East — (other) | ~16 patterns across 8 countries | Not yet added | BH, IR, IQ, JO, KW, LB, QA |
+| Africa — South Africa | 3 patterns | `za_id` | DL, Passport not yet added |
+| Africa — (other) | ~30 patterns across 8 countries | Not yet added | EG, ET, GH, KE, MA, NG, TZ, TN, UG |
+| Banking & Financial | IBAN, SWIFT, ABA, bank accounts | `iban`, `swift_bic`, `aba_routing`, `ca_transit_number`, `ca_bank_account` | Full core coverage |
+| Cryptocurrency | Bitcoin, Ethereum, others | `bitcoin`, `ethereum` | 5 other crypto types in dlpscan not yet added |
+| Secrets & tokens | JWT, AWS, GitHub, Stripe, Slack | all 5 covered | heuristic; excluded from default scan |
+
+**Summary:** evadex covers **76 of 126 dlpscan-rs categories** (~60%). All high-priority PCI/PII categories for North America are fully covered. European and APAC coverage is partial but growing.
 
 ---
 

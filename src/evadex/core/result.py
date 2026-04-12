@@ -52,6 +52,44 @@ class PayloadCategory(Enum):
     CA_GST_HST = "ca_gst_hst"
     CA_TRANSIT_NUMBER = "ca_transit_number"
     CA_BANK_ACCOUNT = "ca_bank_account"
+    # United States — additional identifiers
+    US_DL = "us_dl"
+    US_ITIN = "us_itin"
+    US_EIN = "us_ein"
+    US_MBI = "us_mbi"
+    # Europe — national IDs
+    UK_NIN = "uk_nin"
+    UK_DL = "uk_dl"
+    DE_ID = "de_id"
+    FR_CNI = "fr_cni"
+    ES_DNI = "es_dni"
+    IT_CF = "it_cf"
+    NL_BSN = "nl_bsn"
+    SE_PIN = "se_pin"
+    NO_FNR = "no_fnr"
+    FI_HETU = "fi_hetu"
+    PL_PESEL = "pl_pesel"
+    CH_AHV = "ch_ahv"
+    # Asia-Pacific
+    AU_MEDICARE = "au_medicare"
+    AU_PASSPORT = "au_passport"
+    NZ_IRD = "nz_ird"
+    SG_NRIC = "sg_nric"
+    HK_HKID = "hk_hkid"
+    JP_MY_NUMBER = "jp_my_number"
+    IN_AADHAAR = "in_aadhaar"
+    IN_PAN = "in_pan"
+    # Latin America
+    BR_CPF = "br_cpf"
+    BR_CNPJ = "br_cnpj"
+    MX_CURP = "mx_curp"
+    AR_DNI = "ar_dni"
+    CL_RUT = "cl_rut"
+    # Middle East & Africa
+    UAE_EID = "uae_eid"
+    SA_NID = "sa_nid"
+    ZA_ID = "za_id"
+    IL_ID = "il_id"
     UNKNOWN = "unknown"
 
 
@@ -105,7 +143,45 @@ CATEGORY_TYPES: dict[PayloadCategory, CategoryType] = {
     PayloadCategory.CA_GST_HST:        CategoryType.STRUCTURED,
     PayloadCategory.CA_TRANSIT_NUMBER: CategoryType.STRUCTURED,
     PayloadCategory.CA_BANK_ACCOUNT:   CategoryType.STRUCTURED,
-    PayloadCategory.UNKNOWN:        CategoryType.STRUCTURED,
+    # United States — additional identifiers
+    PayloadCategory.US_DL:    CategoryType.STRUCTURED,
+    PayloadCategory.US_ITIN:  CategoryType.STRUCTURED,
+    PayloadCategory.US_EIN:   CategoryType.STRUCTURED,
+    PayloadCategory.US_MBI:   CategoryType.STRUCTURED,
+    # Europe — national IDs
+    PayloadCategory.UK_NIN:   CategoryType.STRUCTURED,
+    PayloadCategory.UK_DL:    CategoryType.STRUCTURED,
+    PayloadCategory.DE_ID:    CategoryType.STRUCTURED,
+    PayloadCategory.FR_CNI:   CategoryType.STRUCTURED,
+    PayloadCategory.ES_DNI:   CategoryType.STRUCTURED,
+    PayloadCategory.IT_CF:    CategoryType.STRUCTURED,
+    PayloadCategory.NL_BSN:   CategoryType.STRUCTURED,
+    PayloadCategory.SE_PIN:   CategoryType.STRUCTURED,
+    PayloadCategory.NO_FNR:   CategoryType.STRUCTURED,
+    PayloadCategory.FI_HETU:  CategoryType.STRUCTURED,
+    PayloadCategory.PL_PESEL: CategoryType.STRUCTURED,
+    PayloadCategory.CH_AHV:   CategoryType.STRUCTURED,
+    # Asia-Pacific
+    PayloadCategory.AU_MEDICARE:    CategoryType.STRUCTURED,
+    PayloadCategory.AU_PASSPORT:    CategoryType.STRUCTURED,
+    PayloadCategory.NZ_IRD:         CategoryType.STRUCTURED,
+    PayloadCategory.SG_NRIC:        CategoryType.STRUCTURED,
+    PayloadCategory.HK_HKID:        CategoryType.STRUCTURED,
+    PayloadCategory.JP_MY_NUMBER:   CategoryType.STRUCTURED,
+    PayloadCategory.IN_AADHAAR:     CategoryType.STRUCTURED,
+    PayloadCategory.IN_PAN:         CategoryType.STRUCTURED,
+    # Latin America
+    PayloadCategory.BR_CPF:   CategoryType.STRUCTURED,
+    PayloadCategory.BR_CNPJ:  CategoryType.STRUCTURED,
+    PayloadCategory.MX_CURP:  CategoryType.STRUCTURED,
+    PayloadCategory.AR_DNI:   CategoryType.STRUCTURED,
+    PayloadCategory.CL_RUT:   CategoryType.STRUCTURED,
+    # Middle East & Africa
+    PayloadCategory.UAE_EID:  CategoryType.STRUCTURED,
+    PayloadCategory.SA_NID:   CategoryType.STRUCTURED,
+    PayloadCategory.ZA_ID:    CategoryType.STRUCTURED,
+    PayloadCategory.IL_ID:    CategoryType.STRUCTURED,
+    PayloadCategory.UNKNOWN:  CategoryType.STRUCTURED,
 }
 
 

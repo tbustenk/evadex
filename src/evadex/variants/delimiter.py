@@ -38,6 +38,44 @@ class DelimiterGenerator(BaseVariantGenerator):
         PayloadCategory.CA_GST_HST,
         PayloadCategory.CA_TRANSIT_NUMBER,
         PayloadCategory.CA_BANK_ACCOUNT,
+        # US additional
+        PayloadCategory.US_DL,
+        PayloadCategory.US_ITIN,
+        PayloadCategory.US_EIN,
+        PayloadCategory.US_MBI,
+        # Europe
+        PayloadCategory.UK_NIN,
+        PayloadCategory.UK_DL,
+        PayloadCategory.DE_ID,
+        PayloadCategory.FR_CNI,
+        PayloadCategory.ES_DNI,
+        PayloadCategory.IT_CF,
+        PayloadCategory.NL_BSN,
+        PayloadCategory.SE_PIN,
+        PayloadCategory.NO_FNR,
+        PayloadCategory.FI_HETU,
+        PayloadCategory.PL_PESEL,
+        PayloadCategory.CH_AHV,
+        # Asia-Pacific
+        PayloadCategory.AU_MEDICARE,
+        PayloadCategory.AU_PASSPORT,
+        PayloadCategory.NZ_IRD,
+        PayloadCategory.SG_NRIC,
+        PayloadCategory.HK_HKID,
+        PayloadCategory.JP_MY_NUMBER,
+        PayloadCategory.IN_AADHAAR,
+        PayloadCategory.IN_PAN,
+        # Latin America
+        PayloadCategory.BR_CPF,
+        PayloadCategory.BR_CNPJ,
+        PayloadCategory.MX_CURP,
+        PayloadCategory.AR_DNI,
+        PayloadCategory.CL_RUT,
+        # Middle East & Africa
+        PayloadCategory.UAE_EID,
+        PayloadCategory.SA_NID,
+        PayloadCategory.ZA_ID,
+        PayloadCategory.IL_ID,
     }
 
     def generate(self, value: str) -> Iterator[Variant]:
