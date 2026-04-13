@@ -1193,7 +1193,7 @@ Each row shows coverage at the **sub-pattern level** — e.g. "Credit Card Numbe
 |---|---:|---:|---|
 | Credit Card Numbers | 7 | **7/7** ✓ | Visa, Amex, Mastercard, Discover, JCB, UnionPay, Diners |
 | US Driver's Licences | 51 + 1 generic | **52/52** ✓ | All 50 states + DC + generic |
-| US — other identifiers | 12 | **10/12** | SSN, ITIN, EIN, MBI, Passport, Passport Card, NPI, DoD ID, KTN, DEA; NPI/DoD added this release |
+| US — other identifiers | 12 | **12/12** ✓ | SSN, ITIN, EIN, MBI, Passport, Passport Card, NPI, DoD ID, KTN, DEA, USA Routing Number, US Phone Number — completed this release |
 | North America — Canada | 29 | **29/29** ✓ | All provincial health/DL/corporate/BN/SIN; 3 DL payloads corrected this release |
 | North America — Mexico | 7 | **7/7** ✓ | CURP, RFC, Clave Elector, INE CIC, INE OCR, NSS, Passport — all added this release |
 | Europe — United Kingdom | 7 | **7/7** ✓ | NIN, DL, NHS, Passport, Phone, Sort Code, UTR — completed this release |
@@ -1266,7 +1266,7 @@ Each row shows coverage at the **sub-pattern level** — e.g. "Credit Card Numbe
 | Authentication Tokens | 1 | **1/1** ✓ | Session ID |
 | Biometric Identifiers | 2 | **2/2** ✓ | Template ID, Biometric Hash (via IDFA payload) |
 | VIN | 1 | **1/1** ✓ | Vehicle Identification Number |
-| Fedwire IMAD | 1 | **1/1** ✓ | Input Message Accountability Data |
+| Wire Transfer | 6 | **6/6** ✓ | Fedwire IMAD, CHIPS UID, Wire Reference Number, ACH Trace Number, ACH Batch Number, SEPA Reference — completed this release |
 
 ### Classification & governance labels
 
@@ -1281,7 +1281,7 @@ Each row shows coverage at the **sub-pattern level** — e.g. "Credit Card Numbe
 | URLs with Credentials | 2 | **2/2** ✓ | URL with Password, URL with Token — completed this release |
 | PCI Sensitive Data | 1 | **1/1** ✓ | Cardholder Name |
 
-**Summary:** evadex covers **482/557 sub-patterns** (87%) across all 126 dlpscan-rs categories with **547 seed payloads**. Of those 482: 414 structured categories confirmed detected by direct dlpscan-rs seed scan; 68 heuristic categories excluded from scanner verification per design (JWT, API keys, labels). The remaining 75 unrepresented sub-patterns are low-specificity numeric patterns (e.g. 6–9 digit sequences) where the same dlpscan regex fires on dozens of existing payloads — no distinct seed value is feasible without a context keyword. Seed-scan verified against dlpscan-rs — see `new_cat_verification.json` for per-category results.
+**Summary:** evadex covers **489/557 sub-patterns** (88%) across all 126 dlpscan-rs categories with **554 seed payloads**. Of those 489: 421 structured categories confirmed detected by direct dlpscan-rs seed scan; 68 heuristic categories excluded from scanner verification per design (JWT, API keys, labels). The remaining 68 unrepresented sub-patterns are low-specificity numeric patterns (e.g. 6–9 digit sequences) where the same dlpscan regex fires on dozens of existing payloads — no distinct seed value is feasible without a context keyword. Seed-scan verified against dlpscan-rs — see `new_cat_verification.json` for per-category results.
 
 ---
 

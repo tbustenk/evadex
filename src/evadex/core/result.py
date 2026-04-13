@@ -608,6 +608,16 @@ class PayloadCategory(Enum):
     SUP_SUPERVISORY_CTRL = "sup_supervisory_ctrl"
     URL_WITH_TOKEN = "url_with_token"
 
+    # ── Wire Transfer Data ────────────────────────────────────────────────────
+    ACH_BATCH = "ach_batch"
+    ACH_TRACE = "ach_trace"
+    CHIPS_UID = "chips_uid"
+    SEPA_REF = "sepa_ref"
+    WIRE_REF = "wire_ref"
+    # ── US additional identifiers (expansion) ────────────────────────────────
+    US_PHONE = "us_phone"
+    US_ROUTING = "us_routing"
+
     UNKNOWN = "unknown"
 
 
@@ -1130,6 +1140,15 @@ CATEGORY_TYPES: dict[PayloadCategory, CategoryType] = {
     PayloadCategory.SUP_SUPERVISORY_CONF: CategoryType.HEURISTIC,
     PayloadCategory.SUP_SUPERVISORY_CTRL: CategoryType.HEURISTIC,
     PayloadCategory.URL_WITH_TOKEN:      CategoryType.STRUCTURED,
+    # Wire Transfer Data
+    PayloadCategory.ACH_BATCH:           CategoryType.STRUCTURED,
+    PayloadCategory.ACH_TRACE:           CategoryType.STRUCTURED,
+    PayloadCategory.CHIPS_UID:           CategoryType.STRUCTURED,
+    PayloadCategory.SEPA_REF:            CategoryType.STRUCTURED,
+    PayloadCategory.WIRE_REF:            CategoryType.STRUCTURED,
+    # US additional identifiers
+    PayloadCategory.US_PHONE:            CategoryType.STRUCTURED,
+    PayloadCategory.US_ROUTING:          CategoryType.STRUCTURED,
     PayloadCategory.UNKNOWN:  CategoryType.STRUCTURED,
 }
 

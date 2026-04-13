@@ -215,6 +215,17 @@ BUILTIN_PAYLOADS = [
     Payload("1HGBH41JXMN109186",                                PayloadCategory.VIN,                 "Vehicle Identification Number (VIN)"),
     Payload("20240101AAAA12345678001234",                       PayloadCategory.FEDWIRE_IMAD,        "Fedwire IMAD (Input Message Accountability Data)"),
 
+    # ── Wire Transfer Data ────────────────────────────────────────────────────
+    Payload("123456ABCD",             PayloadCategory.CHIPS_UID,  "CHIPS UID (6 digits + 4 alphanumeric)"),
+    Payload("WIREREF1234567890ABCD",  PayloadCategory.WIRE_REF,   "Wire Reference Number (16-35 uppercase alphanumeric)"),
+    Payload("SEPAREF123456",          PayloadCategory.SEPA_REF,   "SEPA Reference (12-35 uppercase alphanumeric)"),
+    Payload("011234567890123",        PayloadCategory.ACH_TRACE,  "ACH Trace Number (15 digits, valid routing prefix)"),
+    Payload("1234567",               PayloadCategory.ACH_BATCH,  "ACH Batch Number (7 digits)"),
+
+    # ── US additional identifiers ─────────────────────────────────────────────
+    Payload("990000000",             PayloadCategory.US_ROUTING, "USA Routing Number (9-digit, non-ABA prefix)"),
+    Payload("(555) 867-5309",        PayloadCategory.US_PHONE,   "US Phone Number (local format without country code)"),
+
     # --- Africa ---
     Payload("28503251234567",      PayloadCategory.EG_NID,     "Egypt National ID"),
     Payload("EP1234567",           PayloadCategory.ET_PASSPORT, "Ethiopia passport number"),
