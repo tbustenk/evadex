@@ -269,12 +269,17 @@ def _print_summary(results, err_console):
 @click.option("--feedback-report", "feedback_report", default=None, metavar="PATH",
               help="Save a structured JSON feedback report to PATH. Contains per-technique "
                    "evasion counts, fix suggestions, and the generated regression test code.")
+@click.option("--require-context", "require_context", is_flag=True, default=False,
+              help="Pass --require-context to dlpscan-rs: only flag matches when surrounding "
+                   "keywords are present. Reduces false positives but may also reduce detection "
+                   "rate for variants lacking keyword context. Requires --cmd-style rust.")
 def scan(
     ctx,
     config_path, tool, input_value, fmt, output, url, api_key, timeout,
     strategies, concurrency, categories, variant_groups, include_heuristic,
     scanner_label, executable, cmd_style, min_detection_rate,
     save_baseline, compare_baseline, audit_log, feedback_report,
+    require_context,
 ):
     """Run DLP evasion tests."""
     load_builtins()
@@ -377,6 +382,8 @@ def scan(
         config["executable"] = executable
     if cmd_style:
         config["cmd_style"] = cmd_style
+    if require_context:
+        config["require_context"] = True
     try:
         adapter = get_adapter(tool, config)
     except KeyError as e:

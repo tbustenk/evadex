@@ -205,6 +205,50 @@ def generate_false_ramqs(count: int, seed: Optional[int] = None) -> list[str]:
     return results
 
 
+# ── Context-keyword wrapping ──────────────────────────────────────────────────
+
+# Per-category sentence that embeds the invalid value in realistic keyword context.
+# When --wrap-context is active, false positive values are submitted inside these
+# sentences so the scanner sees category-relevant surrounding text — mirroring how
+# sensitive data appears in real documents.
+CONTEXT_WRAP_TEMPLATES: dict[str, str] = {
+    "credit_card": (
+        "Please charge my credit card number {value} for the outstanding balance on this account."
+    ),
+    "ssn": (
+        "Employee Social Security Number: {value} — please handle with care and do not distribute."
+    ),
+    "sin": (
+        "Social Insurance Number (NAS/SIN): {value}. Required for T4 filing."
+    ),
+    "iban": (
+        "Please wire the funds to IBAN {value}. Bank reference: INV-2026-001."
+    ),
+    "email": (
+        "Contact the account holder at email address {value} to confirm the transaction."
+    ),
+    "phone": (
+        "Customer callback phone number: {value}. Please call between 9am and 5pm."
+    ),
+    "ca_ramq": (
+        "Numéro de carte d'assurance maladie RAMQ du patient : {value}. "
+        "Dossier médical confidentiel."
+    ),
+}
+
+
+def wrap_with_context(cat_name: str, value: str) -> str:
+    """Embed *value* in a realistic keyword-context sentence for *cat_name*.
+
+    Falls back to a generic sentence if no template exists for the category.
+    """
+    template = CONTEXT_WRAP_TEMPLATES.get(
+        cat_name,
+        "The following sensitive identifier was recorded: {value}.",
+    )
+    return template.replace("{value}", value)
+
+
 # ── Registry ──────────────────────────────────────────────────────────────────
 
 FALSEPOS_GENERATORS: dict[str, "Callable[[int, Optional[int]], list[str]]"] = {

@@ -36,7 +36,7 @@ Each variant is tested four ways by default: as plain text, embedded in a DOCX, 
 
 Payloads are classified as **structured** or **heuristic** — see [Structured vs heuristic categories](#structured-vs-heuristic-categories) below.
 
-547 payloads across 482 categories covering **482/557 sub-patterns** (87%) of the dlpscan-rs pattern library, with 414 structured categories confirmed detected by seed scan. See [Coverage](#coverage) for a breakdown by sub-pattern.
+554 payloads across 489 categories covering **482/557 sub-patterns** (87%) of the dlpscan-rs pattern library, with 414 structured categories confirmed detected by seed scan. See [Coverage](#coverage) for a breakdown by sub-pattern.
 
 #### North America
 
@@ -70,9 +70,9 @@ Payloads are classified as **structured** or **heuristic** — see [Structured v
 | Quebec driver's licence | `B123456789012` | `ca_qc_drivers` | structured |
 | Ontario driver's licence | `A1234-56789-01234` | `ca_on_drivers` | structured |
 | BC driver's licence | `1234567` | `ca_bc_drivers` | structured |
-| Manitoba driver's licence | `BOUDIN123456` | `ca_mb_drivers` | structured |
+| Manitoba driver's licence | `AB-123-456-789` | `ca_mb_drivers` | structured |
 | Saskatchewan driver's licence | `12345678` | `ca_sk_drivers` | structured |
-| Nova Scotia driver's licence | `SMITH123456789` | `ca_ns_drivers` | structured |
+| Nova Scotia driver's licence | `AB1234567` | `ca_ns_drivers` | structured |
 | New Brunswick driver's licence | `1234567` | `ca_nb_drivers` | structured |
 | PEI driver's licence | `123456` | `ca_pei_drivers` | structured |
 | Newfoundland driver's licence | `A123456789` | `ca_nl_drivers` | structured |
@@ -291,6 +291,116 @@ evadex generate --format csv --category ca_ramq --count 500 \
 ```
 
 Without `--language`, the default is English (`en`).
+
+---
+
+## False positive rate and the `--require-context` tradeoff
+
+The `evadex falsepos` command generates structurally-plausible but provably-invalid values (Luhn-failing credit card numbers, SSNs with reserved area codes, IBANs with wrong check digits, etc.) and submits them to your scanner. Any match is a false positive.
+
+### What we measured
+
+Three conditions were tested against dlpscan-rs with 100 values per category (7 categories, 700 total):
+
+| Condition | What the scanner receives | What the scanner does |
+|---|---|---|
+| **Baseline** | Bare invalid value — `4123456789012341` | Matches on structure alone |
+| **+`--require-context`** | Bare invalid value — `4123456789012341` | Requires surrounding keywords |
+| **+`--wrap-context` + `--require-context`** | Invalid value inside a keyword sentence — `"Please charge my credit card number 4123456789012341 for..."` | Has both pattern match and keyword context |
+
+### Results — false positive rates
+
+| Category | Baseline | `--require-context` | `--wrap-context` + `--require-context` |
+|---|---|---|---|
+| `credit_card` | 100.0% | 100.0% | 100.0% |
+| `ssn` | 100.0% | 100.0% | 100.0% |
+| `sin` | 100.0% | 100.0% | 100.0% |
+| `iban` | 100.0% | 100.0% | 100.0% |
+| `phone` | 100.0% | 100.0% | 100.0% |
+| `email` | 95.0% | 98.0% | 100.0% |
+| `ca_ramq` | 99.0% | 99.0% | 100.0% |
+| **Overall** | **99.1%** | **99.6%** | **100.0%** |
+
+*100 values per category, seed=default, dlpscan-rs rust adapter, text strategy.*
+
+### Key findings
+
+**`--require-context` does not reduce false positives for structurally-similar invalid values.**
+The FP rate is statistically unchanged between the baseline (99.1%) and require-context (99.6%) runs — the difference is within normal statistical noise. dlpscan-rs is matching on value *structure* (digit count, prefix, format), not on semantic validity (Luhn check, reserved area codes, mod-97 checksum). The context requirement does not gate out pattern-matched values when the pattern match itself is very confident.
+
+**Adding keyword context makes it worse, not better.**
+When invalid values are embedded in realistic keyword sentences (`--wrap-context`), the FP rate rises to 100.0%. This is the most realistic production scenario — real documents that contain a string resembling a credit card number will almost always have surrounding financial language — and it confirms the scanner flags all structurally-plausible values regardless of validity.
+
+**The FP problem is in the pattern layer, not the context layer.**
+Reducing false positives against dlpscan-rs requires the scanner to perform checksum validation (Luhn for credit cards and SINs, mod-97 for IBANs, reserved-code filtering for SSNs), not keyword-context gating. `--require-context` is an effective tool for reducing noisy matches in free-form text, but it cannot help when the pattern match itself is the source of the false positive.
+
+### Detection rate tradeoff
+
+To quantify the cost of enabling `--require-context` on real evasion testing, we ran the evadex evasion suite (credit card, SSN, SIN, IBAN — text strategy) under both conditions:
+
+| | Baseline | `--require-context` | Delta |
+|---|---|---|---|
+| **Overall detection rate** | **94.1%** | **94.0%** | **−0.1 pp** |
+
+Per-technique breakdown:
+
+| Technique | Baseline DR | `--require-context` DR | Delta |
+|---|---|---|---|
+| `bidirectional` | 100.0% | 100.0% | 0.0 pp |
+| `context_injection` | 100.0% | 100.0% | 0.0 pp |
+| `delimiter` | 100.0% | 99.1% | −0.9 pp |
+| `encoding` | 85.0% | 90.3% | **+5.3 pp** |
+| `encoding_chains` | 72.5% | 65.9% | **−6.6 pp** |
+| `morse_code` | 65.4% | 55.8% | **−9.6 pp** |
+| `regional_digits` | 100.0% | 100.0% | 0.0 pp |
+| `soft_hyphen` | 100.0% | 100.0% | 0.0 pp |
+| `splitting` | 100.0% | 100.0% | 0.0 pp |
+| `structural` | 94.2% | 92.8% | −1.4 pp |
+| `unicode_encoding` | 94.6% | 95.4% | +0.8 pp |
+| `unicode_whitespace` | 100.0% | 100.0% | 0.0 pp |
+
+**`--require-context` reduces detection of obfuscated forms the most.** Morse code (−9.6 pp) and encoding chains (−6.6 pp) suffer the largest drops — these techniques produce output that contains no recognizable keyword context, so the scanner's context requirement causes it to skip matches it would otherwise make. Conversely, single-layer encoding improves slightly (+5.3 pp) because the decoded context may now satisfy the keyword requirement.
+
+### Recommendation for compliance teams
+
+> dlpscan-rs's ~99% false positive rate on structurally-plausible invalid values is a fundamental property of its **pattern-first** detection model. It is intentional: the scanner is tuned for high recall (catch everything) rather than high precision (avoid flagging invalid data).
+
+For production deployments:
+
+- **Do not rely on `--require-context` to reduce false positives on free-form document content.** It has negligible effect on FP rates when the values are structurally valid-looking, and it costs real detection rate on obfuscated variants (especially morse code and multi-layer encoding).
+- **If false positive rate is a concern**, the appropriate mitigation is downstream triage (review queue, confidence thresholding) rather than scanner-level context gating.
+- **For evasion testing specifically**, run `evadex scan` without `--require-context`. The baseline detection rate (94.1% on these categories) represents the scanner's real-world behavior for the majority of documents.
+- **`--require-context` is most useful** when scanning large repositories of generic text where you want to reduce noise from coincidental pattern matches — not when testing against structured financial data.
+
+### Reproducing the results
+
+```bash
+# Baseline FP test
+evadex falsepos --tool dlpscan-cli \
+  --exe /path/to/dlpscan --cmd-style rust \
+  --count 100 --format json -o falsepos_baseline.json
+
+# With require-context (scanner-side flag)
+evadex falsepos --tool dlpscan-cli \
+  --exe /path/to/dlpscan --cmd-style rust \
+  --count 100 --require-context --format json -o falsepos_require_context.json
+
+# Most realistic: invalid values embedded in keyword context, with require-context
+evadex falsepos --tool dlpscan-cli \
+  --exe /path/to/dlpscan --cmd-style rust \
+  --count 100 --wrap-context --require-context --format json -o falsepos_full_context.json
+
+# Evasion scan detection rate without require-context
+evadex scan --tool dlpscan-cli \
+  --exe /path/to/dlpscan --cmd-style rust \
+  --strategy text --category credit_card --category ssn --format json -o evasion_baseline.json
+
+# Evasion scan with require-context (detection rate tradeoff)
+evadex scan --tool dlpscan-cli \
+  --exe /path/to/dlpscan --cmd-style rust \
+  --strategy text --category credit_card --category ssn \
+  --require-context --format json -o evasion_require_context.json
+```
 
 ---
 

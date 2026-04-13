@@ -21,7 +21,7 @@ from rich.console import Console
 
 from evadex.core.registry import load_builtins, get_adapter
 from evadex.core.result import Payload, PayloadCategory, Variant
-from evadex.falsepos.generators import FALSEPOS_GENERATORS
+from evadex.falsepos.generators import FALSEPOS_GENERATORS, wrap_with_context
 
 err_console = Console(stderr=True)
 
@@ -33,8 +33,14 @@ async def _scan_values(
     cat_name: str,
     values: list[str],
     concurrency: int,
+    wrap_context: bool = False,
 ) -> list[tuple[str, bool]]:
-    """Scan *values* through *adapter* and return (value, was_flagged) pairs."""
+    """Scan *values* through *adapter* and return (value, was_flagged) pairs.
+
+    When *wrap_context* is True, each value is embedded in a category-specific
+    keyword sentence before submission — the scanner sees realistic surrounding
+    text while the reported value remains the original invalid value.
+    """
     sem = asyncio.Semaphore(concurrency)
 
     # Resolve PayloadCategory for the dummy Payload (UNKNOWN if category
@@ -46,8 +52,9 @@ async def _scan_values(
 
     async def _one(v: str) -> tuple[str, bool]:
         async with sem:
-            p = Payload(v, dummy_cat, f"falsepos:{cat_name}")
-            var = Variant(v, "falsepos", "falsepos_value", "False positive test value", strategy="text")
+            submit_text = wrap_with_context(cat_name, v) if wrap_context else v
+            p = Payload(submit_text, dummy_cat, f"falsepos:{cat_name}")
+            var = Variant(submit_text, "falsepos", "falsepos_value", "False positive test value", strategy="text")
             try:
                 result = await adapter.submit(p, var)
                 return v, result.detected
@@ -83,6 +90,13 @@ async def _scan_values(
               help="Max concurrent scanner requests.")
 @click.option("--seed", default=None, type=int,
               help="RNG seed for reproducible false positive values.")
+@click.option("--require-context", "require_context", is_flag=True, default=False,
+              help="Pass --require-context to dlpscan-rs: only flag matches when surrounding "
+                   "keywords are present. Requires --cmd-style rust.")
+@click.option("--wrap-context", "wrap_context", is_flag=True, default=False,
+              help="Embed each invalid value in a realistic category-specific sentence before "
+                   "submitting. Simulates how sensitive data appears in real documents. "
+                   "Use with --require-context for the most realistic false positive measurement.")
 def falsepos(
     tool: str,
     categories: tuple[str, ...],
@@ -95,6 +109,8 @@ def falsepos(
     timeout: float,
     concurrency: int,
     seed: Optional[int],
+    require_context: bool,
+    wrap_context: bool,
 ) -> None:
     """Measure scanner false positive rate.
 
@@ -114,6 +130,14 @@ def falsepos(
 
       # Save JSON report
       evadex falsepos --tool dlpscan-cli --count 100 --format json -o fp_report.json
+
+      # With require-context (dlpscan-rs only — reduces FP rate significantly)
+      evadex falsepos --tool dlpscan-cli --exe ./dlpscan --cmd-style rust \\
+        --require-context --format json -o fp_require_context.json
+
+      # Most realistic: invalid values in keyword context, with require-context
+      evadex falsepos --tool dlpscan-cli --exe ./dlpscan --cmd-style rust \\
+        --wrap-context --require-context --format json -o fp_full_context.json
     """
     load_builtins()
 
@@ -125,6 +149,8 @@ def falsepos(
         config["executable"] = executable
     if cmd_style:
         config["cmd_style"] = cmd_style
+    if require_context:
+        config["require_context"] = True
     try:
         adapter = get_adapter(tool, config)
     except KeyError as e:
@@ -143,10 +169,19 @@ def falsepos(
         err_console.print(f"[red]Health check failed for adapter '{tool}'.{hint}[/red]")
         sys.exit(1)
 
-    # ── Scan each category ────────────────────────────────────────────────────
+    # ── Mode summary ─────────────────────────────────────────────────────────
+    mode_parts = []
+    if require_context:
+        mode_parts.append("require-context")
+    if wrap_context:
+        mode_parts.append("wrap-context")
+    mode_label = ", ".join(mode_parts) if mode_parts else "baseline (no context)"
     err_console.print(
-        f"[dim]Running false positive test against [bold]{tool}[/bold]...[/dim]"
+        f"[dim]Running false positive test against [bold]{tool}[/bold]  "
+        f"mode: {mode_label}[/dim]"
     )
+
+    # ── Scan each category ────────────────────────────────────────────────────
 
     by_category: dict[str, dict] = {}
     total_tested = 0
@@ -157,7 +192,7 @@ def falsepos(
         values = gen_fn(count, seed=seed)
 
         scan_pairs = asyncio.run(
-            _scan_values(adapter, cat_name, values, concurrency)
+            _scan_values(adapter, cat_name, values, concurrency, wrap_context=wrap_context)
         )
 
         flagged_values = [v for v, detected in scan_pairs if detected]
@@ -191,6 +226,9 @@ def falsepos(
     report = {
         "tool": tool,
         "count_per_category": count,
+        "require_context": require_context,
+        "wrap_context": wrap_context,
+        "mode": mode_label,
         "total_tested": total_tested,
         "total_flagged": total_flagged,
         "overall_false_positive_rate": overall_rate,

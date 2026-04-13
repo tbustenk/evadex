@@ -54,8 +54,13 @@ class DlpscanCliAdapter(BaseAdapter):
         return self._run_on_tempfile(data, f".{fmt}")
 
     def _build_command(self, path: str) -> list:
+        require_context = self.config.extra.get("require_context", False)
         if self._cmd_style == "rust":
-            return [self._exe, "--format", "json", "scan", path]
+            cmd = [self._exe, "--format", "json"]
+            if require_context:
+                cmd.append("--require-context")
+            cmd += ["scan", path]
+            return cmd
         return [self._exe, "-f", "json", path]
 
     def _extract_matches(self, parsed: object) -> list:

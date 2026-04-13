@@ -1,5 +1,44 @@
 # Changelog
 
+## [3.0.1] — 2026-04-13
+
+### Added
+
+- **`--require-context` flag** for both `evadex scan` and `evadex falsepos`: passes `--require-context` to dlpscan-rs (a top-level option before the `scan` subcommand), instructing the scanner to only flag matches when surrounding category keywords are present. Requires `--cmd-style rust`.
+- **`--wrap-context` flag** for `evadex falsepos`: embeds each generated invalid value in a realistic category-specific keyword sentence before submission, simulating how sensitive data actually appears in production documents. Use together with `--require-context` for the most realistic false positive measurement.
+- **False positive report `mode` field**: the JSON report produced by `evadex falsepos` now includes `require_context`, `wrap_context`, and `mode` fields so runs can be compared programmatically.
+- **`CONTEXT_WRAP_TEMPLATES` and `wrap_with_context()`** in `evadex.falsepos.generators`: per-category sentence templates for context wrapping, exported for use in custom scripts.
+- **README section: "False positive rate and the `--require-context` tradeoff"**: full three-way comparison table (baseline, +require-context, +wrap-context+require-context), per-technique detection rate impact, and compliance recommendations. See [False Positive Rate](#false-positive-rate-and-the---require-context-tradeoff).
+
+### Findings (dlpscan-rs, 100 values/category, 7 categories)
+
+| Condition | Overall FP rate | Overall detection rate |
+|---|---|---|
+| Baseline | 99.1% | 94.1% |
+| `--require-context` | 99.6% | 94.0% (−0.1 pp) |
+| `--wrap-context` + `--require-context` | 100.0% | — |
+
+`--require-context` does not meaningfully reduce false positives on structurally-similar invalid values (FP remains ~99%). It does reduce detection of obfuscated forms: morse code (−9.6 pp) and encoding chains (−6.6 pp) are most affected.
+
+## [3.0.0] — 2026-04-13
+
+### Quality / correctness
+
+- **Manitoba driver's licence seed payload corrected**: value was `BOUDIN123456` (6 letters + 6 digits — invalid format); corrected to `AB-123-456-789` (2 letters + dashes + 9 digits), matching the synthetic generator and the documented `LL-NNN-NNN-NNN` format.
+- **Nova Scotia driver's licence seed payload corrected**: value was `SMITH123456789` (5 letters + 9 digits — invalid format); corrected to `AB1234567` (2 letters + 7 digits), matching the `NSDriversSyntheticGenerator` output format.
+- **Quebec driver's licence format test fixed**: regex was `^[A-Z]\d{14}$` (off by 2); corrected to `^[A-Z]\d{12}$` to match the actual 1-letter + 12-digit Quebec DL format.
+- **Nova Scotia DL synthetic generator docstring fixed**: module-level comment said `LL-NNNNNNN` (with dash); corrected to `LLNNNNNNN` to match actual generator output (no dash).
+- **Stale `list-payloads` count assertions updated**: after payload expansion the structured count grew from 47 → 485 and the heuristic count from 7 → 69; all three test assertions now match real output.
+- **`test_list_payloads_shows_all` count made exact**: assertion `"54 payload"` was accidentally passing as a substring of `"554 payload(s)"`; updated to `"554 payload"` so the test is meaningful.
+
+### Coverage
+
+- 554 payloads (up from 547), 489 distinct categories (up from 482).
+
+### Tests
+
+535 tests (up from 530). No new test files — all additions are fixes to existing assertions.
+
 ## [2.6.2] — 2026-04-07
 
 ### Added

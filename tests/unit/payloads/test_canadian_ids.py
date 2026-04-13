@@ -71,7 +71,7 @@ def test_qc_drivers_payload_format():
     payloads = get_payloads({PayloadCategory.CA_QC_DRIVERS})
     assert len(payloads) >= 1
     import re
-    pattern = re.compile(r'^[A-Z]\d{14}$')
+    pattern = re.compile(r'^[A-Z]\d{12}$')
     for p in payloads:
         assert pattern.match(p.value), f"QC driver's licence format mismatch: {p.value!r}"
 

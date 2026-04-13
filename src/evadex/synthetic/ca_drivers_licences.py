@@ -3,7 +3,7 @@
 Each generator produces structurally valid values for:
   Manitoba (MB)         — LL-NNN-NNN-NNN (2 letters + 3×3 digit groups)
   Saskatchewan (SK)     — 8 digits
-  Nova Scotia (NS)      — LL-NNNNNNN (2 letters + 7 digits)
+  Nova Scotia (NS)      — LLNNNNNNN (2 letters + 7 digits)
   New Brunswick (NB)    — 7 digits
   PEI                   — 6 digits
   Newfoundland (NL)     — L-NNNNNNNNN (1 letter + 9 digits)
