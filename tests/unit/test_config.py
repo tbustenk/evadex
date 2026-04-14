@@ -200,6 +200,27 @@ def test_include_heuristic_not_bool(tmp_path):
         load_config(cfg_file)
 
 
+# ── require_context config key ──────────────────────────────────────────────
+
+def test_require_context_true_is_accepted(tmp_path):
+    cfg_file = _write_yaml(tmp_path, "require_context: true\n")
+    cfg = load_config(cfg_file)
+    assert cfg.require_context is True
+
+
+def test_require_context_false_is_accepted(tmp_path):
+    cfg_file = _write_yaml(tmp_path, "require_context: false\n")
+    cfg = load_config(cfg_file)
+    assert cfg.require_context is False
+
+
+def test_require_context_wrong_type_raises(tmp_path):
+    import click
+    cfg_file = _write_yaml(tmp_path, "require_context: yes_please\n")
+    with pytest.raises(click.UsageError, match="require_context"):
+        load_config(cfg_file)
+
+
 # ── audit_log config key ─────────────────────────────────────────────────────
 
 def test_audit_log_string_is_accepted(tmp_path):
@@ -243,5 +264,5 @@ def test_default_config_yaml_is_valid(tmp_path):
     cfg_file.write_text(DEFAULT_CONFIG_YAML, encoding="utf-8")
     cfg = load_config(cfg_file)
     assert cfg.tool == "dlpscan-cli"
-    assert cfg.concurrency == 5
+    assert cfg.concurrency == 20
     assert cfg.format == "json"

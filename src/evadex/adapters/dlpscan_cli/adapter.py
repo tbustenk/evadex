@@ -1,12 +1,13 @@
 import asyncio
 import json
-import subprocess
+import random
 import tempfile
 import os
 from evadex.adapters.base import BaseAdapter
 from evadex.adapters.dlpscan.file_builder import FileBuilder
 from evadex.core.registry import register_adapter
 from evadex.core.result import Payload, Variant, ScanResult
+from evadex.generate.filler import get_keyword_sentence
 
 # cmd_style="python"  →  dlpscan -f json <file>         → bare list of matches
 # cmd_style="rust"    →  dlpscan --format json scan <file> → list of file objects with nested matches
@@ -20,38 +21,48 @@ class DlpscanCliAdapter(BaseAdapter):
         super().__init__(config)
         self._exe = self.config.extra.get("executable", "dlpscan")
         self._cmd_style = self.config.extra.get("cmd_style", "python")
+        self._wrap_context = self.config.extra.get("wrap_context", False)
 
     async def health_check(self) -> bool:
         try:
-            result = subprocess.run(
-                [self._exe, "--help"],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                timeout=10,
+            proc = await asyncio.create_subprocess_exec(
+                self._exe, "--help",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
-            return result.returncode == 0
-        except (FileNotFoundError, subprocess.TimeoutExpired):
+            try:
+                await asyncio.wait_for(proc.wait(), timeout=10.0)
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
+                return False
+            return proc.returncode == 0
+        except (FileNotFoundError, OSError):
             return False
 
     async def submit(self, payload: Payload, variant: Variant) -> ScanResult:
         strategy = variant.strategy
-        loop = asyncio.get_running_loop()
 
         if strategy == "text":
-            matches = await loop.run_in_executor(None, self._scan_text, variant.value)
+            text = variant.value
+            if self._wrap_context:
+                # Embed the variant value in a realistic keyword sentence so that
+                # dlpscan-rs context requirements are satisfied.  The original
+                # variant.value is preserved in the result for reporting.
+                text = get_keyword_sentence(random.Random(), payload.category, text)
+            matches = await self._scan_text_async(text)
         else:
             data, _ = FileBuilder.build(variant.value, strategy)
-            matches = await loop.run_in_executor(None, self._scan_bytes, data, strategy)
+            matches = await self._scan_bytes_async(data, strategy)
 
         detected = len(matches) > 0
         return ScanResult(payload=payload, variant=variant, detected=detected, raw_response={"matches": matches})
 
-    def _scan_text(self, text: str) -> list:
-        return self._run_on_tempfile(text.encode("utf-8"), ".txt")
+    async def _scan_text_async(self, text: str) -> list:
+        return await self._run_on_tempfile_async(text.encode("utf-8"), ".txt")
 
-    def _scan_bytes(self, data: bytes, fmt: str) -> list:
-        return self._run_on_tempfile(data, f".{fmt}")
+    async def _scan_bytes_async(self, data: bytes, fmt: str) -> list:
+        return await self._run_on_tempfile_async(data, f".{fmt}")
 
     def _build_command(self, path: str) -> list:
         require_context = self.config.extra.get("require_context", False)
@@ -88,11 +99,10 @@ class DlpscanCliAdapter(BaseAdapter):
         # Python: parsed is already the flat list of matches
         return parsed
 
-    def _run_on_tempfile(self, data: bytes, suffix: str) -> list:
+    async def _run_on_tempfile_async(self, data: bytes, suffix: str) -> list:
         # mode=0o600 restricts the temp file to the owner only, preventing other
         # processes from reading sensitive payload values before cleanup.
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False, mode="w+b") as f:
-            # Restrict permissions to owner-only immediately after creation
             try:
                 os.chmod(f.name, 0o600)
             except OSError:
@@ -100,17 +110,29 @@ class DlpscanCliAdapter(BaseAdapter):
             f.write(data)
             path = f.name
         try:
-            result = subprocess.run(
-                self._build_command(path),
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                timeout=self.config.timeout,
+            cmd = self._build_command(path)
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
-            if result.returncode != 0:
-                raise RuntimeError(f"dlpscan exited {result.returncode}: {result.stderr.strip()}")
             try:
-                parsed = json.loads(result.stdout or "[]")
+                stdout, stderr = await asyncio.wait_for(
+                    proc.communicate(), timeout=self.config.timeout
+                )
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
+                raise RuntimeError(f"dlpscan timed out after {self.config.timeout}s")
+
+            if proc.returncode != 0:
+                raise RuntimeError(
+                    f"dlpscan exited {proc.returncode}: "
+                    f"{stderr.decode('utf-8', errors='replace').strip()}"
+                )
+            stdout_text = stdout.decode("utf-8", errors="replace")
+            try:
+                parsed = json.loads(stdout_text or "[]")
             except json.JSONDecodeError as e:
                 raise RuntimeError(f"Invalid JSON from dlpscan: {e}") from e
             return self._extract_matches(parsed)

@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.0.2] — 2026-04-13
+
+### Fixed
+
+- **README intro stat corrected**: opening paragraph stated "482/557 sub-patterns (87%)" — updated to "489/557 sub-patterns (88%)" and "414 structured" → "421 structured" to match the accurate Coverage section summary added in 3.0.0.
+- **CLI reference tables completed**: `--require-context` was missing from the `evadex scan` flag table; `--require-context` and `--wrap-context` were both missing from the `evadex falsepos` flag table. All three rows are now present with accurate descriptions.
+- **`require_context` added to `evadex.yaml` config**: `require_context` can now be set in `evadex.yaml` (`require_context: true/false`). The `evadex init` template includes it as a commented-out example. Previously the flag was CLI-only with no config-file equivalent.
+- **Encoding chain fix suggestions made specific**: `rot13_of_base64` and `url_of_base64` were falling through to the generic `"Investigate the technique"` fallback in the feedback report. Added concrete decode-chain instructions with code examples for all seven `encoding_chains` generator techniques.
+
+### Tests
+
+540 tests (up from 535). Added unit tests for `require_context` config loading and an integration test for config-to-adapter propagation.
+
 ## [3.0.1] — 2026-04-13
 
 ### Added

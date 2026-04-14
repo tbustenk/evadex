@@ -12,7 +12,7 @@ class Engine:
         self,
         adapter: BaseAdapter,
         generators: list[BaseVariantGenerator] | None = None,
-        concurrency: int = 5,
+        concurrency: int = 20,
         strategies: list[str] | None = None,
         on_result: Optional[Callable[[ScanResult, int, int], None]] = None,
     ):
@@ -34,61 +34,79 @@ class Engine:
     async def run_async(self, payloads: list[Payload]) -> AsyncIterator[ScanResult]:
         generators = self.generators if self.generators is not None else all_generators()
         sem = asyncio.Semaphore(self.concurrency)
-        tasks = []
-
-        for payload in payloads:
-            for gen in generators:
-                # Check applicable_categories
-                if hasattr(gen, 'applicable_categories') and gen.applicable_categories is not None:
-                    if payload.category not in gen.applicable_categories:
-                        continue
-                for variant in gen.generate(payload.value):
-                    for strategy in self.strategies:
-                        tasks.append((payload, variant, strategy))
-
-        total = len(tasks)
-        coros = [self._run_one(sem, payload, variant, strategy) for payload, variant, strategy in tasks]
 
         await self.adapter.setup()
+        pending: set[asyncio.Task] = set()
         completed = 0
+        total_submitted = 0
+
+        async def _submit_one(payload: Payload, variant: Variant, strategy: str) -> ScanResult:
+            v = Variant(
+                value=variant.value,
+                generator=variant.generator,
+                technique=variant.technique,
+                transform_name=variant.transform_name,
+                strategy=strategy,
+            )
+            async with sem:
+                start = time.perf_counter()
+                try:
+                    result = await self.adapter.submit(payload, v)
+                    result.duration_ms = (time.perf_counter() - start) * 1000
+                    return result
+                except (KeyboardInterrupt, SystemExit):
+                    raise
+                except Exception as e:
+                    return ScanResult(
+                        payload=payload,
+                        variant=v,
+                        detected=False,
+                        error=str(e),
+                        duration_ms=(time.perf_counter() - start) * 1000,
+                    )
+
         try:
-            for coro in asyncio.as_completed(coros):
-                result = await coro
-                completed += 1
-                if self.on_result:
-                    try:
-                        self.on_result(result, completed, total)
-                    except Exception:
-                        pass
-                yield result
+            # Stream: submit tasks as variants are generated so subprocess calls
+            # start immediately rather than waiting for all variants to be built.
+            for payload in payloads:
+                for gen in generators:
+                    if hasattr(gen, 'applicable_categories') and gen.applicable_categories is not None:
+                        if payload.category not in gen.applicable_categories:
+                            continue
+                    for variant in gen.generate(payload.value):
+                        for strategy in self.strategies:
+                            task = asyncio.create_task(_submit_one(payload, variant, strategy))
+                            pending.add(task)
+                            total_submitted += 1
+                            # Drain any tasks that already completed while we were generating
+                            done = {t for t in pending if t.done()}
+                            for t in done:
+                                pending.discard(t)
+                                completed += 1
+                                result = t.result()
+                                if self.on_result:
+                                    try:
+                                        self.on_result(result, completed, total_submitted)
+                                    except Exception:
+                                        pass
+                                yield result
+
+            # Drain remaining in-flight tasks
+            while pending:
+                done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+                for t in done:
+                    completed += 1
+                    result = t.result()
+                    if self.on_result:
+                        try:
+                            self.on_result(result, completed, total_submitted)
+                        except Exception:
+                            pass
+                    yield result
+
+        except BaseException:
+            for t in pending:
+                t.cancel()
+            raise
         finally:
             await self.adapter.teardown()
-
-    async def _run_one(
-        self, sem: asyncio.Semaphore, payload: Payload, variant, strategy: str
-    ) -> ScanResult:
-        # Clone variant with strategy
-        v = Variant(
-            value=variant.value,
-            generator=variant.generator,
-            technique=variant.technique,
-            transform_name=variant.transform_name,
-            strategy=strategy,
-        )
-        async with sem:
-            start = time.perf_counter()
-            try:
-                result = await self.adapter.submit(payload, v)
-                result.duration_ms = (time.perf_counter() - start) * 1000
-                return result
-            except (KeyboardInterrupt, SystemExit):
-                # Re-raise signals and hard exits — do not swallow them
-                raise
-            except Exception as e:
-                return ScanResult(
-                    payload=payload,
-                    variant=v,
-                    detected=False,
-                    error=str(e),
-                    duration_ms=(time.perf_counter() - start) * 1000,
-                )

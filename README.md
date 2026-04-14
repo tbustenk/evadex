@@ -36,7 +36,7 @@ Each variant is tested four ways by default: as plain text, embedded in a DOCX, 
 
 Payloads are classified as **structured** or **heuristic** — see [Structured vs heuristic categories](#structured-vs-heuristic-categories) below.
 
-554 payloads across 489 categories covering **482/557 sub-patterns** (87%) of the dlpscan-rs pattern library, with 414 structured categories confirmed detected by seed scan. See [Coverage](#coverage) for a breakdown by sub-pattern.
+554 payloads across 489 categories covering **489/557 sub-patterns** (88%) of the dlpscan-rs pattern library, with 421 structured categories confirmed detected by seed scan. See [Coverage](#coverage) for a breakdown by sub-pattern.
 
 #### North America
 
@@ -455,10 +455,29 @@ These lockfiles are generated with `pip-compile --generate-hashes` and updated w
 
 ## Quick start
 
-Run the full built-in suite against dlpscan (text strategy):
+By default evadex runs the **banking tier** — ~80 payloads optimised for Canadian banking and RBC's compliance surface. No flags required:
 
 ```bash
 evadex scan --tool dlpscan-cli --strategy text
+```
+
+### Tiers
+
+| Tier | Payloads | Est. runtime (text strategy) | When to use |
+|---|---|---|---|
+| **`banking`** *(default)* | ~80 Canadian banking focused | ~5 min | Daily checks, quick patches, RBC production testing |
+| `core` | ~150 broader PII and financial | ~10 min | Weekly benchmarks, broader compliance checks |
+| `regional` | ~350 international coverage | ~20 min | Pre-release validation, international deployments |
+| `full` | All 554 payloads | ~30–40 min | Major releases, compliance audits, onboarding new scanners |
+
+```bash
+# default — banking tier
+evadex scan --tool dlpscan-cli --strategy text
+
+# explicit tiers
+evadex scan --tool dlpscan-cli --strategy text --tier core
+evadex scan --tool dlpscan-cli --strategy text --tier regional
+evadex scan --tool dlpscan-cli --strategy text --tier full
 ```
 
 Test a single value:
@@ -504,12 +523,13 @@ min_detection_rate: 85
 scanner_label: production
 exe: null
 cmd_style: python
-categories:
-  - credit_card
-  - ssn
-  - iban
+# tier: banking   # banking (default) | core | regional | full
+# categories:     # explicit category list — overrides tier when set
+#   - credit_card
+#   - ssn
+#   - iban
 include_heuristic: false
-concurrency: 5
+concurrency: 20
 timeout: 30.0
 output: results.json
 format: json
@@ -542,9 +562,10 @@ evadex scan --config evadex.yaml --scanner-label staging
 | `scanner_label` | string | `--scanner-label` | Label recorded in JSON `meta.scanner` |
 | `exe` | string or null | `--exe` | Path to scanner executable |
 | `cmd_style` | `python` or `rust` | `--cmd-style` | Command format for dlpscan-cli |
-| `categories` | list of strings | `--category` | Payload categories to test |
+| `tier` | string | `--tier` | Payload tier: `banking` (default), `core`, `regional`, `full`. Ignored when `categories` is set. |
+| `categories` | list of strings | `--category` | Payload categories to test (overrides `tier`) |
 | `include_heuristic` | boolean | `--include-heuristic` | Include heuristic categories |
-| `concurrency` | integer | `--concurrency` | Max concurrent requests |
+| `concurrency` | integer | `--concurrency` | Max concurrent requests (default: 20) |
 | `timeout` | number | `--timeout` | Request timeout in seconds |
 | `output` | string or null | `--output` | Output file path (null = stdout) |
 | `format` | `json` or `html` | `--format` | Output format |
@@ -668,11 +689,12 @@ evadex scan [OPTIONS]
 | `--format`, `-f` | `json` | Output format: `json` or `html` |
 | `--output`, `-o` | stdout | Write report to file instead of stdout |
 | `--strategy` | all four | Submission strategy: `text`, `docx`, `pdf`, `xlsx`. Repeat the flag for multiple. Omit to run all four. |
-| `--concurrency` | `5` | Max concurrent requests |
+| `--tier` | `banking` | Payload tier: `banking` (default), `core`, `regional`, `full`. Ignored when `--category` is specified. |
+| `--concurrency` | `20` | Max concurrent requests |
 | `--timeout` | `30.0` | Request timeout in seconds |
 | `--url` | `http://localhost:8080` | Base URL (for HTTP-based adapters: `dlpscan`, `presidio`) |
 | `--api-key` | *(env: `EVADEX_API_KEY`)* | API key passed as `Authorization: Bearer`. Use the environment variable in preference to the CLI flag to avoid exposure in shell history and process listings. |
-| `--category` | *(all structured)* | Filter built-in payloads by category. Repeat for multiple. Values: `credit_card`, `ssn`, `sin`, `iban`, `swift_bic`, `aba_routing`, `bitcoin`, `ethereum`, `us_passport`, `au_tfn`, `de_tax_id`, `fr_insee`, `email`, `phone`, `aws_key`, `jwt`, `github_token`, `stripe_key`, `slack_token`, `classification` |
+| `--category` | *(overrides --tier)* | Filter built-in payloads by category. Repeat for multiple. When set, `--tier` is ignored. |
 | `--variant-group` | *(all)* | Limit to specific generator(s). Repeat for multiple. Values: `unicode_encoding`, `delimiter`, `splitting`, `leetspeak`, `regional_digits`, `structural`, `encoding`, `context_injection`, `unicode_whitespace`, `bidirectional`, `soft_hyphen`, `morse_code` |
 | `--include-heuristic` | off | Also run heuristic categories (`aws_key`, `jwt`, `github_token`, `stripe_key`, `slack_token`, `classification`). A warning is printed when enabled — see [Structured vs heuristic categories](#structured-vs-heuristic-categories). |
 | `--scanner-label` | *(empty)* | Label recorded in the JSON `meta.scanner` field. Use to tag a specific scanner version, e.g. `python-1.3.0` or `rust-2.0.0`. Useful when comparing results across scanner builds. |
@@ -683,28 +705,35 @@ evadex scan [OPTIONS]
 | `--compare-baseline` | *(off)* | Compare this run against a previously saved baseline and print a regression summary to stderr. |
 | `--audit-log` | *(off)* | Append a one-line JSON audit record for this run to a file. Parent directories are created if they do not exist. Can also be set via `audit_log` in `evadex.yaml`. |
 | `--feedback-report` | *(off)* | Save a structured JSON feedback report to PATH. Contains per-technique evasion counts with example variant values, actionable fix suggestions, and the generated regression test code as a string field. Always written when specified, even if there are no evasions. |
+| `--require-context` | off | Pass `--require-context` to dlpscan-rs: only flag matches when surrounding keywords are present. Reduces false positives but may reduce detection rate for obfuscated variants lacking keyword context. Requires `--cmd-style rust`. Can also be set via `require_context` in `evadex.yaml`. |
+| `--wrap-context` | **auto (rust)** | Embed every variant value in a realistic keyword sentence before submission. **Automatically enabled when `--cmd-style rust` is used** — dlpscan-rs requires surrounding context keywords to flag most matches; submitting a bare value produces artificially low detection rates. Pass `--no-wrap-context` to suppress. Can also be set via `wrap_context` in `evadex.yaml`. |
+| `--no-wrap-context` | off | Explicitly disable context wrapping even when `--cmd-style rust` is active. |
+
+> **Note for dlpscan-rs users:** dlpscan-rs requires surrounding context keywords (e.g. "credit card", "SSN", "IBAN") to be present near a matched value before it will flag it. Submitting a bare value like `4532015112830366` without context will produce a false *no-match* — the scanner can see the number but will not fire without contextual evidence. `evadex scan` auto-enables `--wrap-context` when `--cmd-style rust` is used so every variant is embedded in a realistic business sentence. Use `--no-wrap-context` only if you are deliberately testing bare-value behaviour or your dlpscan-rs build is configured with context matching disabled.
 
 ### `evadex generate`
 
 Generate test documents filled with synthetic sensitive data for DLP scanner testing. Values are embedded in realistic business sentences, tables, and paragraphs. Evasion variants use the same obfuscation techniques as `evadex scan`.
 
 ```
-evadex generate --format FORMAT --output PATH [OPTIONS]
+evadex generate (--format FORMAT | --formats FMT,FMT,...) --output PATH [OPTIONS]
 ```
 
 | Flag | Default | Description |
 |---|---|---|
-| `--format` | *(required)* | Output file format: `xlsx`, `docx`, `pdf`, `csv`, `txt` |
-| `--output` | *(required)* | Output file path |
-| `--category` | *(all structured)* | Payload category to include. Repeat for multiple. Omit for all structured categories. |
+| `--format` | *(one of format/formats required)* | Single output format: `xlsx`, `docx`, `pdf`, `csv`, `txt` |
+| `--formats` | *(one of format/formats required)* | Comma-separated list of formats. Output is a path stem; extensions are appended. `--formats xlsx,docx,pdf --output dir/test` → `test.xlsx`, `test.docx`, `test.pdf` |
+| `--output` | *(required)* | Output file path (with `--format`) or path stem (with `--formats`) |
+| `--tier` | `banking` | Payload tier when `--category` is not set: `banking` (default), `core`, `regional`, `full` |
+| `--category` | *(overrides --tier)* | Payload category to include. Repeat for multiple. |
 | `--count` | `100` | Number of test values to generate **per category** |
 | `--evasion-rate` | `0.5` | Fraction of values that are evasion variants (0.0–1.0) |
 | `--keyword-rate` | `0.5` | Fraction of values wrapped in keyword context sentences (0.0–1.0) |
 | `--technique` | *(all)* | Limit evasion variants to specific technique names. Repeat for multiple. |
+| `--language` | `en` | Language for keyword context sentences: `en` (English) or `fr-CA` (Canadian French) |
 | `--random` | off | Randomise categories, evasion rate, and keyword rate |
 | `--seed` | *(none)* | Integer seed for reproducible output |
 | `--include-heuristic` | off | Also include heuristic categories (AWS keys, tokens, JWT, etc.) |
-| `--language` | `en` | Language for keyword context sentences: `en` (English) or `fr-CA` (Canadian French) |
 
 **Format details:**
 
@@ -717,6 +746,18 @@ evadex generate --format FORMAT --output PATH [OPTIONS]
 **Examples:**
 
 ```bash
+# Banking tier (default) — all three formats in one pass
+evadex generate --formats xlsx,docx,pdf --tier banking --count 100 \
+  --evasion-rate 0.3 --output reports/banking_en
+
+# Canadian French — banking tier
+evadex generate --formats xlsx,docx,pdf --tier banking --count 100 \
+  --evasion-rate 0.3 --language fr-CA --output reports/banking_frca
+
+# Large CSV for bulk testing
+evadex generate --format csv --tier banking --count 500 \
+  --evasion-rate 0.5 --output reports/banking_large.csv
+
 # 100 credit cards, 40% evasion variants → XLSX
 evadex generate --format xlsx --category credit_card --count 100 \
   --evasion-rate 0.4 --output test_cards.xlsx
@@ -725,11 +766,6 @@ evadex generate --format xlsx --category credit_card --count 100 \
 evadex generate --format docx \
   --category credit_card --category ssn --category iban \
   --count 50 --evasion-rate 0.5 --output test_mixed.docx
-
-# Specific evasion techniques only → PDF
-evadex generate --format pdf --count 200 --evasion-rate 0.6 \
-  --technique homoglyph_substitution --technique zero_width_zwsp \
-  --output test_homoglyph.pdf
 
 # Reproducible random document
 evadex generate --format xlsx --random --count 500 --seed 42 --output random.xlsx
@@ -822,6 +858,8 @@ evadex falsepos [OPTIONS]
 | `--timeout` | `30.0` | Request timeout in seconds |
 | `--concurrency` | `5` | Max concurrent scanner requests |
 | `--seed` | *(random)* | Integer seed for reproducible false positive values |
+| `--require-context` | off | Pass `--require-context` to dlpscan-rs: only flag matches when surrounding keywords are present. Requires `--cmd-style rust`. See [False positive rate and the `--require-context` tradeoff](#false-positive-rate-and-the---require-context-tradeoff) for measured impact. |
+| `--wrap-context` | off | Embed each invalid value in a realistic category-specific sentence before submitting. Simulates how sensitive data appears in real documents. Use with `--require-context` for the most realistic false positive measurement. |
 
 **Examples:**
 

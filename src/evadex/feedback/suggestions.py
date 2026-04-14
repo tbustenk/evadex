@@ -96,6 +96,46 @@ _TECHNIQUE_FIXES: dict[str, tuple[str, str]] = {
         "Sensitive values bypassed detection after double base64 encoding",
         "Apply base64 decode twice before pattern matching to handle double-encoded values",
     ),
+    "rot13_of_base64": (
+        "Sensitive values bypassed detection after ROT13 applied to a base64-encoded value"
+        " (decode ROT13 first, then base64 to recover the original)",
+        "Add a two-stage decode pass: apply ROT13 first, then base64-decode the result."
+        " Implement as: base64.b64decode(codecs.decode(value, 'rot_13'))",
+    ),
+    "url_of_base64": (
+        "Sensitive values bypassed detection after URL-encoding applied to a base64-encoded value"
+        " (percent-decode first, then base64 to recover the original)",
+        "Add a two-stage decode pass: URL-decode (urllib.parse.unquote) first, then base64-decode"
+        " the result. Apply in the normalisation pipeline before pattern matching.",
+    ),
+    "base64_of_rot13": (
+        "Sensitive values bypassed detection after base64 encoding applied to a ROT13-encoded value"
+        " (base64-decode first, then ROT13 to recover the original)",
+        "Add a two-stage decode pass: base64-decode first, then apply ROT13."
+        " Implement as: codecs.decode(base64.b64decode(value).decode('ascii'), 'rot_13')",
+    ),
+    "base64_of_hex": (
+        "Sensitive values bypassed detection after base64 encoding applied to a hex-encoded value"
+        " (base64-decode first, then hex-decode to recover the original)",
+        "Add a two-stage decode pass: base64-decode first, then hex-decode the result."
+        " Implement as: bytes.fromhex(base64.b64decode(value).decode('ascii'))",
+    ),
+    "hex_of_base64": (
+        "Sensitive values bypassed detection after hex encoding applied to a base64-encoded value"
+        " (hex-decode first, then base64-decode to recover the original)",
+        "Add a two-stage decode pass: hex-decode first, then base64-decode the result."
+        " Implement as: base64.b64decode(bytes.fromhex(value))",
+    ),
+    "base64_of_base64": (
+        "Sensitive values bypassed detection after two rounds of base64 encoding",
+        "Apply base64 decode twice before pattern matching to handle double-encoded values",
+    ),
+    "base64_of_rot13_of_hex": (
+        "Sensitive values bypassed detection after a triple encoding chain:"
+        " hex → ROT13 → base64 (decode all three in reverse order to recover the original)",
+        "Add a three-stage decode pass: base64-decode, then ROT13, then hex-decode."
+        " Implement as: bytes.fromhex(codecs.decode(base64.b64decode(value).decode(), 'rot_13'))",
+    ),
     "base32_standard": (
         "Sensitive values bypassed detection after base32 encoding",
         "Add a base32 decode pass to the normalisation pipeline",

@@ -8,6 +8,8 @@ from evadex.cli.commands.list_payloads import list_payloads
 from evadex.cli.commands.list_techniques import list_techniques
 from evadex.cli.commands.init import init_cmd
 from evadex.cli.commands.falsepos import falsepos
+from evadex.cli.commands.history import history
+from evadex.cli.commands.trend import trend
 
 # Ensure stdout/stderr use UTF-8 on Windows so that Rich tables with Unicode
 # box-drawing characters and special symbols render without codec errors.
@@ -31,3 +33,5 @@ main.add_command(list_payloads)
 main.add_command(list_techniques)
 main.add_command(init_cmd)
 main.add_command(falsepos)
+main.add_command(history)
+main.add_command(trend)

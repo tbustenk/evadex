@@ -16,10 +16,12 @@ VALID_CATEGORIES = {
     "email", "phone", "aws_key", "jwt", "github_token", "stripe_key",
     "slack_token", "classification", "unknown",
 }
+VALID_TIERS = {"banking", "core", "regional", "full"}
 KNOWN_KEYS = {
     "tool", "strategy", "min_detection_rate", "scanner_label", "exe",
     "cmd_style", "categories", "include_heuristic", "concurrency",
-    "timeout", "output", "format", "audit_log",
+    "timeout", "output", "format", "audit_log", "require_context",
+    "wrap_context", "tier",
 }
 
 DEFAULT_CONFIG_YAML = """\
@@ -33,16 +35,18 @@ min_detection_rate: 85
 scanner_label: production
 exe: null
 cmd_style: python
-categories:
-  - credit_card
-  - ssn
-  - iban
+# tier: banking   # banking (default) | core | regional | full
+# categories:     # explicit category list — overrides tier when set
+#   - credit_card
+#   - ssn
+#   - iban
 include_heuristic: false
-concurrency: 5
+concurrency: 20
 timeout: 30.0
 output: results.json
 format: json
 # audit_log: evadex_audit.jsonl
+# require_context: false  # Pass --require-context to dlpscan-rs (requires cmd_style: rust)
 """
 
 
@@ -61,6 +65,9 @@ class EvadexConfig:
     output: Optional[str] = None
     format: Optional[str] = None
     audit_log: Optional[str] = None
+    require_context: Optional[bool] = None
+    wrap_context: Optional[bool] = None
+    tier: Optional[str] = None
 
 
 def find_config() -> Optional[Path]:
@@ -242,5 +249,31 @@ def load_config(path: "str | Path") -> EvadexConfig:
                 f"Config 'audit_log' must be a string or null, got: {type(val).__name__}"
             )
         cfg.audit_log = val
+
+    if "require_context" in raw:
+        val = raw["require_context"]
+        if not isinstance(val, bool):
+            raise click.UsageError(
+                f"Config 'require_context' must be true or false, got: {val!r}"
+            )
+        cfg.require_context = val
+
+    if "wrap_context" in raw:
+        val = raw["wrap_context"]
+        if not isinstance(val, bool):
+            raise click.UsageError(
+                f"Config 'wrap_context' must be true or false, got: {val!r}"
+            )
+        cfg.wrap_context = val
+
+    if "tier" in raw:
+        val = raw["tier"]
+        if val is not None:
+            if not isinstance(val, str) or val not in VALID_TIERS:
+                raise click.UsageError(
+                    f"Config 'tier' must be one of: {', '.join(sorted(VALID_TIERS))}, "
+                    f"got: {val!r}"
+                )
+            cfg.tier = val
 
     return cfg

@@ -19,6 +19,10 @@ _TEMPLATES: dict[PayloadCategory, list[str]] = {
         "Chargeback dispute filed for transaction on card {v}.",
         "PCI audit log entry: card {v} tokenised to ref TK-882910.",
         "3DS authentication completed for card {v}, txn ref 4421-B.",
+        "Virtual card {v} issued to employee for travel expenses.",
+        "Statement line: MERCHANT-XYZ, card ending {v}, USD 42.50.",
+        "Card limit increase approved for cardholder with card number {v}.",
+        "Cross-border transaction flagged: card {v} used in 3 countries in 24 hours.",
     ],
     PayloadCategory.SSN: [
         "Employee SSN on file: {v}.",
@@ -31,6 +35,9 @@ _TEMPLATES: dict[PayloadCategory, list[str]] = {
         "Payroll record — SSN {v}: gross $5,200.00, net $3,890.00.",
         "Form 1099-NEC issued to contractor SSN {v}.",
         "FATCA filing: US person SSN {v} reported to IRS.",
+        "Loan application submitted: applicant SSN {v}, credit score 742.",
+        "Account ownership verified: SSN {v} matches KYC documentation.",
+        "Mortgage underwriting file: borrower SSN {v}, DTI 36%.",
     ],
     PayloadCategory.SIN: [
         "Canadian employee SIN on record: {v}.",
@@ -49,6 +56,9 @@ _TEMPLATES: dict[PayloadCategory, list[str]] = {
         "Direct debit mandate: IBAN {v} authorised for standing order GBP 450/month.",
         "SWIFT MT103 message: beneficiary account {v}.",
         "Reconciliation: incoming SEPA from IBAN {v}, EUR 3,200.00.",
+        "Payee details updated: account IBAN {v}, reference PAYROLL-2024-04.",
+        "IBAN validation passed: {v} — account open and eligible for credit.",
+        "Settlement account: {v} — net EUR 145,000.00 due end of day.",
     ],
     PayloadCategory.SWIFT_BIC: [
         "SWIFT code for beneficiary bank: {v}.",
@@ -145,6 +155,9 @@ _TEMPLATES: dict[PayloadCategory, list[str]] = {
         "Reply-To: {v}",
         "GDPR data subject request received from {v}.",
         "Two-factor authentication code emailed to {v}.",
+        "Online banking login: username {v}, last login 2024-03-14 09:22 UTC.",
+        "Wire transfer confirmation emailed to {v} — amount CAD 15,000.00.",
+        "AML alert sent to compliance officer at {v}.",
     ],
     PayloadCategory.PHONE: [
         "Customer contact number: {v}.",
@@ -152,6 +165,8 @@ _TEMPLATES: dict[PayloadCategory, list[str]] = {
         "Call {v} to verify account ownership.",
         "Outbound marketing call placed to {v} — DNC checked.",
         "Emergency contact on record: {v}.",
+        "Telephone banking PIN reset confirmed: customer reached at {v}.",
+        "Fraud callback initiated: outbound call to {v} at 14:32 EST.",
     ],
     # Canadian regional IDs
     PayloadCategory.CA_RAMQ: [
@@ -213,12 +228,17 @@ _TEMPLATES_FR_CA: dict[PayloadCategory, list[str]] = {
         "Référence de facturation : carte {v} débitée de 249,99 $ le 2024-03-14.",
         "Mon numéro de carte est le {v}, veuillez procéder au paiement.",
         "Numéro de carte bancaire : {v} — coordonnées de paiement confidentielles.",
+        "Carte virtuelle {v} émise pour les frais de déplacement de l'employé.",
+        "Relevé bancaire : transaction carte {v}, 42,50 $ USD.",
+        "Contestation de transaction : carte {v}, litige soumis au département fraude.",
     ],
     PayloadCategory.SSN: [
         "Numéro de sécurité sociale de l'employé : {v}.",
         "Déclaration fiscale pour le NAS {v} soumise électroniquement.",
         "Vérification d'identité réussie : numéro {v} confirmé.",
         "Dossier de paie — numéro {v} : brut 5 200 $, net 3 890 $.",
+        "Demande de prêt : numéro d'assurance sociale du demandeur {v}.",
+        "Vérification KYC : numéro {v} correspond aux documents d'identité.",
     ],
     PayloadCategory.SIN: [
         "Numéro d'assurance sociale de l'employé canadien : {v}.",

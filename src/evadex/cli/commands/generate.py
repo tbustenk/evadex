@@ -8,6 +8,7 @@ import click
 from rich.console import Console
 
 from evadex.core.result import PayloadCategory
+from evadex.payloads.tiers import get_tier_categories, VALID_TIERS
 
 err_console = Console(stderr=True)
 
@@ -16,14 +17,37 @@ _CATEGORY_CHOICES = click.Choice(
     [c.value for c in PayloadCategory if c != PayloadCategory.UNKNOWN],
     case_sensitive=False,
 )
+_TIER_CHOICES = click.Choice(sorted(VALID_TIERS), case_sensitive=False)
+
+_VALID_BATCH_FORMATS = {"xlsx", "docx", "pdf", "csv", "txt"}
 
 
 @click.command("generate")
 @click.option(
     "--format", "fmt",
-    required=True,
+    default=None,
     type=_FORMAT_CHOICES,
-    help="Output file format.",
+    help="Output file format (single format). Use --formats for multiple.",
+)
+@click.option(
+    "--formats", "batch_formats",
+    default=None,
+    metavar="FMT,FMT,...",
+    help=(
+        "Comma-separated list of formats to generate in one pass.  "
+        "Output is the path stem; extensions are appended automatically.  "
+        "Example: --formats xlsx,docx,pdf --output reports/test  "
+        "→ test.xlsx, test.docx, test.pdf"
+    ),
+)
+@click.option(
+    "--tier", "tier",
+    default=None,
+    type=_TIER_CHOICES,
+    help=(
+        "Payload tier to use when --category is not specified.  "
+        "One of: banking (default), core, regional, full."
+    ),
 )
 @click.option(
     "--category", "categories",
@@ -32,7 +56,7 @@ _CATEGORY_CHOICES = click.Choice(
     metavar="CATEGORY",
     help=(
         "Payload category to include.  Repeat for multiple categories. "
-        "Omit to include all structured categories."
+        "Overrides --tier when set."
     ),
 )
 @click.option(
@@ -83,7 +107,10 @@ _CATEGORY_CHOICES = click.Choice(
     required=True,
     type=click.Path(),
     metavar="PATH",
-    help="Output file path (must match --format extension).",
+    help=(
+        "Output file path.  With --format, must match the format extension.  "
+        "With --formats, treated as a stem — extensions are appended."
+    ),
 )
 @click.option(
     "--include-heuristic",
@@ -99,7 +126,9 @@ _CATEGORY_CHOICES = click.Choice(
     help="Language for keyword context sentences: 'en' (English) or 'fr-CA' (Canadian French).",
 )
 def generate(
-    fmt: str,
+    fmt: str | None,
+    batch_formats: str | None,
+    tier: str | None,
     categories: tuple[str, ...],
     count: int,
     evasion_rate: float,
@@ -120,10 +149,32 @@ def generate(
     Examples:
       evadex generate --format csv  --category credit_card --count 200 --output cards.csv
       evadex generate --format xlsx --category ssn --category iban --count 50  --output test.xlsx
+      evadex generate --formats xlsx,docx,pdf --tier banking --count 100 --output reports/banking
       evadex generate --format docx --evasion-rate 0.6 --technique homoglyph_substitution --output doc.docx
       evadex generate --format txt  --random --count 100 --seed 42 --output test.txt
     """
-    # ── Validate output path ───────────────────────────────────────────────
+    # ── Validate format args ───────────────────────────────────────────────────
+    if not fmt and not batch_formats:
+        raise click.UsageError("Provide --format or --formats.")
+    if fmt and batch_formats:
+        raise click.UsageError("--format and --formats are mutually exclusive.")
+
+    # Parse --formats into a list
+    formats: list[str]
+    if batch_formats:
+        formats = [f.strip().lower() for f in batch_formats.split(",") if f.strip()]
+        bad = [f for f in formats if f not in _VALID_BATCH_FORMATS]
+        if bad:
+            raise click.UsageError(
+                f"Unknown format(s) in --formats: {', '.join(bad)}. "
+                f"Valid: {', '.join(sorted(_VALID_BATCH_FORMATS))}"
+            )
+        if not formats:
+            raise click.UsageError("--formats must contain at least one format.")
+    else:
+        formats = [fmt]  # type: ignore[list-item]
+
+    # ── Validate output path ───────────────────────────────────────────────────
     out = Path(output)
     if not out.parent.exists():
         err_console.print(
@@ -131,14 +182,40 @@ def generate(
         )
         sys.exit(1)
 
-    # ── Build config ───────────────────────────────────────────────────────
+    # For --formats, output is a stem (no extension check required).
+    # For single --format, we tolerate any path (existing behaviour).
+
+    # ── Resolve categories ─────────────────────────────────────────────────────
     from evadex.generate.generator import GenerateConfig, generate_entries
 
-    cats = [PayloadCategory(c) for c in categories] if categories else None
+    if categories:
+        cats = [PayloadCategory(c) for c in categories]
+    else:
+        effective_tier = tier or "banking"
+        tier_cats = get_tier_categories(effective_tier)
+        # tier_cats is None for full tier → generate_entries gets cats=None → all structured
+        cats = list(tier_cats) if tier_cats is not None else None
+        if not tier:
+            err_console.print(
+                f"[dim]Tier: banking (default) — use --tier full for all categories[/dim]"
+            )
+        else:
+            err_console.print(f"[dim]Tier: {effective_tier}[/dim]")
+
     techs = list(techniques) if techniques else None
 
+    # ── Generate entries once (shared across all formats) ─────────────────────
+    err_console.print(
+        f"[bold]evadex generate[/bold] — "
+        f"format=[cyan]{', '.join(formats)}[/cyan]  "
+        f"count=[cyan]{count}[/cyan]  evasion-rate=[cyan]{evasion_rate}[/cyan]"
+    )
+    if seed is not None:
+        err_console.print(f"  seed: [dim]{seed}[/dim]")
+
+    # Build config with a placeholder fmt (overridden per-format during writing)
     config = GenerateConfig(
-        fmt=fmt,
+        fmt=formats[0],
         categories=cats,
         count=count,
         evasion_rate=evasion_rate,
@@ -150,12 +227,6 @@ def generate(
         include_heuristic=include_heuristic,
         language=language,
     )
-
-    # ── Generate entries ───────────────────────────────────────────────────
-    err_console.print(f"[bold]evadex generate[/bold] — format=[cyan]{fmt}[/cyan]  "
-                      f"count=[cyan]{count}[/cyan]  evasion-rate=[cyan]{evasion_rate}[/cyan]")
-    if seed is not None:
-        err_console.print(f"  seed: [dim]{seed}[/dim]")
 
     entries = generate_entries(config)
     if not entries:
@@ -169,14 +240,21 @@ def generate(
         f"{len(entries) - evasion_count} plain)[/dim]"
     )
 
-    # ── Write output ───────────────────────────────────────────────────────
+    # ── Write output for each format ──────────────────────────────────────────
     from evadex.generate.writers import get_writer
 
-    writer = get_writer(fmt)
-    try:
-        writer(entries, output)
-    except OSError as exc:
-        err_console.print(f"[red]Cannot write '{output}': {exc.strerror}[/red]")
-        sys.exit(1)
+    for write_fmt in formats:
+        # Determine output path: stem + extension for --formats, original path for --format
+        if batch_formats:
+            out_path = str(out.with_suffix(f".{write_fmt}"))
+        else:
+            out_path = output
 
-    err_console.print(f"[green]✓ Written:[/green] {output}")
+        writer = get_writer(write_fmt)
+        try:
+            writer(entries, out_path)
+        except OSError as exc:
+            err_console.print(f"[red]Cannot write '{out_path}': {exc.strerror}[/red]")
+            sys.exit(1)
+
+        err_console.print(f"[green]✓ Written:[/green] {out_path}")

@@ -293,3 +293,37 @@ def test_config_invalid_min_detection_rate_exits(tmp_path):
         "scan", "--config", str(cfg_file), "--input", "4532015112830366",
     ])
     assert result.exit_code != 0
+
+
+def test_require_context_from_config_propagates(tmp_path):
+    """require_context: true in evadex.yaml is applied to the adapter config."""
+    cfg_file = tmp_path / "evadex.yaml"
+    cfg_file.write_text("require_context: true\nstrategy: text\ncmd_style: rust\n", encoding="utf-8")
+    captured_config = {}
+
+    def fake_adapter(tool, config):
+        captured_config.update(config)
+        from evadex.adapters.dlpscan_cli.adapter import DlpscanCliAdapter
+        return DlpscanCliAdapter(config)
+
+    runner = CliRunner()
+    with patch("evadex.cli.commands.scan.get_adapter", side_effect=fake_adapter), \
+         patch("evadex.cli.commands.scan.Engine") as MockEngine, \
+         patch.object(DlpscanCliAdapter, "health_check", new_callable=AsyncMock, return_value=True):
+        MockEngine.return_value.run.return_value = [_mock_result()]
+        result = runner.invoke(main, [
+            "scan", "--config", str(cfg_file), "--input", "4532015112830366",
+        ], catch_exceptions=False)
+    assert result.exit_code == 0, result.output
+    assert captured_config.get("require_context") is True
+
+
+def test_require_context_config_invalid_type_exits(tmp_path):
+    """require_context must be a boolean in evadex.yaml."""
+    cfg_file = tmp_path / "evadex.yaml"
+    cfg_file.write_text("require_context: yes_please\nstrategy: text\n", encoding="utf-8")
+    runner = CliRunner()
+    result = runner.invoke(main, [
+        "scan", "--config", str(cfg_file), "--input", "4532015112830366",
+    ])
+    assert result.exit_code != 0

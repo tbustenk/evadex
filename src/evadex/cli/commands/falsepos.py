@@ -235,6 +235,26 @@ def falsepos(
         "by_category": by_category,
     }
 
+    # ── Archive: save timestamped copy and append to audit.jsonl ─────────────
+    from evadex.archive import (
+        archive_falsepos, append_results_audit,
+        build_falsepos_audit_entry, get_commit_hash,
+    )
+    _scanner_label = f"{tool}:{mode_label}" if mode_label != "baseline (no context)" else tool
+    _archive_path = archive_falsepos(report, scanner_label=_scanner_label)
+    _commit = get_commit_hash()
+    _audit_entry = build_falsepos_audit_entry(
+        tool=tool,
+        categories=active_cats,
+        total_tested=total_tested,
+        total_flagged=total_flagged,
+        fp_rate=overall_rate,
+        archive_file=str(_archive_path),
+        commit_hash=_commit,
+        scanner_label=_scanner_label,
+    )
+    append_results_audit(_audit_entry)
+
     # ── Output ────────────────────────────────────────────────────────────────
     if fmt == "json" or output:
         rendered = json.dumps(report, indent=2)

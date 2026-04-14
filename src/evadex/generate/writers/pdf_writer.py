@@ -44,7 +44,19 @@ _SECTION_TITLES: dict[PayloadCategory, str] = {
 
 
 def _safe(text: str) -> str:
-    """Encode to Latin-1 with replacement to keep within PDF built-in font range."""
+    """Map common non-Latin-1 punctuation to ASCII equivalents, then encode to
+    Latin-1 to stay within the built-in Helvetica font range."""
+    text = (
+        text
+        .replace("\u2014", "--")   # em-dash
+        .replace("\u2013", "-")    # en-dash
+        .replace("\u2018", "'")    # left single quotation mark
+        .replace("\u2019", "'")    # right single quotation mark / apostrophe
+        .replace("\u201c", '"')    # left double quotation mark
+        .replace("\u201d", '"')    # right double quotation mark
+        .replace("\u2500", "-")    # box-drawing horizontal line (used in txt headers)
+        .replace("\u2026", "...")  # ellipsis
+    )
     return text.encode("latin-1", errors="replace").decode("latin-1")
 
 

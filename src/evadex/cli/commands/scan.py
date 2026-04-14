@@ -12,6 +12,7 @@ from evadex.core.registry import load_builtins, get_adapter, get_generator
 from evadex.core.engine import Engine
 from evadex.core.result import Payload, PayloadCategory, SeverityLevel
 from evadex.payloads.builtins import get_payloads, detect_category, HEURISTIC_CATEGORIES
+from evadex.payloads.tiers import get_tier_categories, VALID_TIERS
 from evadex.reporters.json_reporter import JsonReporter
 from evadex.reporters.html_reporter import HtmlReporter
 
@@ -19,6 +20,7 @@ err_console = Console(stderr=True)
 
 STRATEGY_CHOICES = click.Choice(["text", "docx", "pdf", "xlsx"])
 CATEGORY_CHOICES = click.Choice([c.value for c in PayloadCategory])
+TIER_CHOICES = click.Choice(sorted(VALID_TIERS), case_sensitive=False)
 
 
 _GENERATOR_LABELS: dict[str, str] = {
@@ -240,7 +242,7 @@ def _print_summary(results, err_console):
               help="Request timeout in seconds")
 @click.option("--strategy", "strategies", multiple=True, type=STRATEGY_CHOICES,
               help="Submission strategies to use (default: all). Repeat for multiple.")
-@click.option("--concurrency", default=5, show_default=True, type=int,
+@click.option("--concurrency", default=20, show_default=True, type=int,
               help="Max concurrent requests")
 @click.option("--category", "categories", multiple=True, type=CATEGORY_CHOICES,
               help="Filter built-in payloads by category. Repeat for multiple.")
@@ -248,6 +250,11 @@ def _print_summary(results, err_console):
               help="Limit to specific generator names. Repeat for multiple.")
 @click.option("--include-heuristic", "include_heuristic", is_flag=True, default=False,
               help="Also run heuristic categories (JWT, AWS key). See README for limitations.")
+@click.option("--tier", "tier", default=None, type=TIER_CHOICES, show_default=False,
+              help=(
+                  "Payload tier to run. One of: banking (default), core, regional, full. "
+                  "Ignored when --category is also specified."
+              ))
 @click.option("--scanner-label", "scanner_label", default="", show_default=False,
               help="Label for this scanner in JSON output (e.g. 'python-1.3.0' or 'rust-2.0.0')")
 @click.option("--exe", "executable", default=None, show_default=False,
@@ -273,13 +280,21 @@ def _print_summary(results, err_console):
               help="Pass --require-context to dlpscan-rs: only flag matches when surrounding "
                    "keywords are present. Reduces false positives but may also reduce detection "
                    "rate for variants lacking keyword context. Requires --cmd-style rust.")
+@click.option("--wrap-context", "wrap_context", is_flag=True, default=False,
+              help="Embed every variant value in a realistic keyword sentence before submission. "
+                   "dlpscan-rs requires surrounding context words to flag matches — submitting a "
+                   "bare value produces misleading (artificially low) detection rates. "
+                   "Automatically enabled when --cmd-style rust is used. "
+                   "Pass --no-wrap-context to disable.")
+@click.option("--no-wrap-context", "no_wrap_context", is_flag=True, default=False,
+              help="Explicitly disable context wrapping even when --cmd-style rust is active.")
 def scan(
     ctx,
     config_path, tool, input_value, fmt, output, url, api_key, timeout,
     strategies, concurrency, categories, variant_groups, include_heuristic,
-    scanner_label, executable, cmd_style, min_detection_rate,
+    tier, scanner_label, executable, cmd_style, min_detection_rate,
     save_baseline, compare_baseline, audit_log, feedback_report,
-    require_context,
+    require_context, wrap_context, no_wrap_context,
 ):
     """Run DLP evasion tests."""
     load_builtins()
@@ -338,6 +353,24 @@ def scan(
             min_detection_rate = cfg.min_detection_rate
         if _is_default("audit_log") and cfg.audit_log is not None:
             audit_log = cfg.audit_log
+        if _is_default("require_context") and cfg.require_context is not None:
+            require_context = cfg.require_context
+        if not wrap_context and not no_wrap_context and cfg.wrap_context is not None:
+            wrap_context = cfg.wrap_context
+        if _is_default("tier") and cfg.tier is not None:
+            tier = cfg.tier
+
+    # ── Auto-enable wrap_context for dlpscan-rs ───────────────────────────────
+    # dlpscan-rs requires surrounding context keywords to fire most rules.
+    # Submitting a bare value (no sentence context) produces artificially low
+    # detection rates that do not reflect real-world scanner behaviour.
+    # When --cmd-style rust is active and the user has not explicitly opted out
+    # with --no-wrap-context, enable context wrapping automatically.
+    effective_cmd_style = cmd_style or "python"
+    if not no_wrap_context and not wrap_context and effective_cmd_style == "rust":
+        wrap_context = True
+    if no_wrap_context:
+        wrap_context = False
 
     # ── Heuristic warning ─────────────────────────────────────────────────────
     if include_heuristic:
@@ -360,16 +393,31 @@ def scan(
             label=f"Custom ({category.value})",
         )]
     else:
-        filter_cats = {PayloadCategory(c) for c in categories} if categories else None
-        if filter_cats and not include_heuristic:
-            heuristic_requested = filter_cats & HEURISTIC_CATEGORIES
-            if heuristic_requested:
-                names = ", ".join(c.value for c in heuristic_requested)
+        if categories:
+            # Explicit --category always wins over --tier
+            filter_cats = {PayloadCategory(c) for c in categories}
+            if not include_heuristic:
+                heuristic_requested = filter_cats & HEURISTIC_CATEGORIES
+                if heuristic_requested:
+                    names = ", ".join(c.value for c in heuristic_requested)
+                    err_console.print(
+                        f"[red]Error: category '{names}' is heuristic. "
+                        f"Add --include-heuristic to include it.[/red]"
+                    )
+                    sys.exit(1)
+        else:
+            # No explicit category: resolve from tier (default: banking)
+            effective_tier = tier or "banking"
+            tier_cats = get_tier_categories(effective_tier)
+            filter_cats = tier_cats  # None for full tier → no category filter
+            if effective_tier != (tier or "banking"):
+                pass  # already resolved above
+            if effective_tier == "banking" and not tier:
                 err_console.print(
-                    f"[red]Error: category '{names}' is heuristic. "
-                    f"Add --include-heuristic to include it.[/red]"
+                    f"[dim]Tier: banking (default) — use --tier full for all payloads[/dim]"
                 )
-                sys.exit(1)
+            elif tier:
+                err_console.print(f"[dim]Tier: {effective_tier}[/dim]")
         payloads = get_payloads(filter_cats, include_heuristic=include_heuristic)
 
     if not payloads:
@@ -384,6 +432,8 @@ def scan(
         config["cmd_style"] = cmd_style
     if require_context:
         config["require_context"] = True
+    if wrap_context:
+        config["wrap_context"] = True
     try:
         adapter = get_adapter(tool, config)
     except KeyError as e:
@@ -457,6 +507,28 @@ def scan(
     # Report
     reporter = HtmlReporter() if fmt == "html" else JsonReporter(scanner_label=scanner_label)
     rendered = reporter.render(results)
+
+    # ── Archive: save timestamped copy and append to audit.jsonl ─────────────
+    if fmt == "json":
+        from evadex.archive import (
+            archive_scan, append_results_audit,
+            build_scan_audit_entry, get_commit_hash,
+        )
+        _archive_path = archive_scan(rendered, scanner_label)
+        _commit = get_commit_hash()
+        _audit_entry = build_scan_audit_entry(
+            scanner_label=scanner_label,
+            tool=tool,
+            categories=list(categories) if categories else [],
+            strategies=active_strategies,
+            total=total,
+            passes=passes,
+            fails=fails,
+            pass_rate=pass_rate,
+            archive_file=str(_archive_path),
+            commit_hash=_commit,
+        )
+        append_results_audit(_audit_entry)
 
     if output:
         try:
