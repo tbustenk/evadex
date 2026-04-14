@@ -1,5 +1,46 @@
 # Changelog
 
+## [3.3.1] — 2026-04-14
+
+### Fixed
+
+- **Dead code removed in `scan.py`**: the branch `if effective_tier != (tier or "banking"): pass` was always `False` (because `effective_tier` is assigned as `tier or "banking"`) — removed entirely.
+- **`has_keywords` field inconsistency in `generator.py`**: `GeneratedEntry.has_keywords` was computed by calling `rng.random()` a second time, independent of the decision that determined `embedded_text`. This meant `has_keywords` could disagree with the actual embedded text content and consumed an extra RNG step that shifted reproducibility for subsequent entries. Now a single decision flag `kw` drives both fields.
+- **`run_async` return type annotation**: corrected from `AsyncIterator[ScanResult]` to `AsyncGenerator[ScanResult, None]` — `async def` with `yield` is an `AsyncGenerator`, not an `AsyncIterator` (the former is a subtype of the latter but the annotation was imprecise).
+- **README `--input` description updated**: the CLI reference table entry for `--input` still described the old "all built-ins" default behaviour. Updated to reflect the 3.3.0 banking tier default.
+- **Editable install now required after 3.3.0**: the package was previously installed as a flat copy in `site-packages`. After 3.3.0 source edits, the CLI resolved to the stale installed copy (showing `--concurrency [default: 5]` from the old build). The correct install command is `pip install -e .` from the repo root.
+
+### Tests
+
+454 unit tests — no change in test count; all pass.
+
+## [3.3.0] — 2026-04-14
+
+### Added
+
+- **Banking default tier** (`--tier` flag on `evadex scan` and `evadex generate`): the default scan now runs the **banking tier** (~80 payloads) instead of all structured built-ins. Four tiers are available:
+  | Tier | Payloads | Est. runtime (text) | When to use |
+  |---|---|---|---|
+  | `banking` *(default)* | ~80 Canadian banking focused | ~5 min | Daily checks, RBC production testing |
+  | `core` | ~150 broader PII and financial | ~10 min | Weekly benchmarks |
+  | `regional` | ~350 international coverage | ~20 min | Pre-release validation |
+  | `full` | All 554 payloads | ~30–40 min | Major releases, compliance audits |
+  Explicit `--category` always overrides `--tier`. Config key `tier` supported in `evadex.yaml`.
+- **`--formats` batch flag on `evadex generate`**: generate multiple file formats in a single pass. Output is a path stem; extensions are appended automatically. Example: `--formats xlsx,docx,pdf --output reports/banking` → `banking.xlsx`, `banking.docx`, `banking.pdf`.
+- **`--tier` flag on `evadex generate`**: select the payload tier for generated test documents, matching `evadex scan` tier semantics.
+- **`src/evadex/payloads/tiers.py`** (new module): `BANKING_TIER`, `CORE_TIER`, `REGIONAL_TIER` as composable `frozenset[PayloadCategory]` sets; `FULL_TIER = None` as sentinel for no-filter; `get_tier_categories(tier)` lookup function; `VALID_TIERS` constant.
+
+### Changed
+
+- **`--concurrency` default raised from 5 to 20**: the previous default (5) was conservative to the point of leaving most hardware underutilised. Benchmarks show 20 concurrent subprocess calls is the practical ceiling for `asyncio.create_subprocess_exec` on Windows before OS process-creation becomes the bottleneck. A higher value (50) gives negligible additional speedup (~1 s) on the same hardware.
+- **`dlpscan-cli` adapter now uses `asyncio.create_subprocess_exec`** instead of `subprocess.run` offloaded to a thread-pool executor. All blocking subprocess calls — health check, text scan, file scan — are now truly non-blocking. This removes the artificial serialisation imposed by `run_in_executor` and lets the concurrency semaphore gate actual I/O rather than thread slots.
+- **Engine streaming**: tasks are now created and drained progressively as variants are generated (`asyncio.create_task` + polling for `.done()` tasks in the generation loop) rather than collecting all tasks upfront. The first results appear faster and the progress bar starts updating as soon as the first subprocess returns.
+- **`DEFAULT_CONFIG_YAML` concurrency** updated from `5` to `20`; `tier` added as a commented example line; `categories` changed to commented examples.
+
+### Tests
+
+454 unit tests (up from 540 total in 3.0.2; unit subset re-baselined after suite refactor).
+
 ## [3.0.2] — 2026-04-13
 
 ### Fixed

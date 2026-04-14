@@ -200,10 +200,13 @@ def generate_entries(config: GenerateConfig) -> list[GeneratedEntry]:
             # skip keyword wrapping to avoid double-nesting.
             if gen_name == "context_injection":
                 embedded = variant_value
+                kw = True
             elif rng.random() < keyword_rate:
                 embedded = get_keyword_sentence(rng, cat, variant_value, config.language)
+                kw = True
             else:
                 embedded = variant_value
+                kw = False
 
             entries.append(GeneratedEntry(
                 category=cat,
@@ -212,7 +215,7 @@ def generate_entries(config: GenerateConfig) -> list[GeneratedEntry]:
                 technique=technique,
                 generator_name=gen_name,
                 transform_name=transform,
-                has_keywords=(gen_name == "context_injection" or rng.random() < keyword_rate),
+                has_keywords=kw,
                 embedded_text=embedded,
             ))
 

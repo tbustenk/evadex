@@ -410,8 +410,6 @@ def scan(
             effective_tier = tier or "banking"
             tier_cats = get_tier_categories(effective_tier)
             filter_cats = tier_cats  # None for full tier → no category filter
-            if effective_tier != (tier or "banking"):
-                pass  # already resolved above
             if effective_tier == "banking" and not tier:
                 err_console.print(
                     f"[dim]Tier: banking (default) — use --tier full for all payloads[/dim]"

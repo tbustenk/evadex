@@ -685,7 +685,7 @@ evadex scan [OPTIONS]
 |---|---|---|
 | `--config` | *(auto-discovered)* | Path to `evadex.yaml` config file. Auto-discovered from current directory if present. CLI flags always override config values. |
 | `--tool`, `-t` | `dlpscan-cli` | Adapter to use. Built-in adapters: `dlpscan-cli`, `dlpscan`, `presidio`. |
-| `--input`, `-i` | *(all built-ins)* | Single value to test. If omitted, runs all 211 structured built-in payloads (add `--include-heuristic` for all 225). Category is auto-detected (Luhn check, regex patterns for SSN/IBAN/AWS/JWT/email/phone). |
+| `--input`, `-i` | *(banking tier)* | Single value to test. If omitted, runs the banking tier (~80 payloads). Use `--tier` to change. Category is auto-detected (Luhn check, regex patterns for SSN/IBAN/AWS/JWT/email/phone). |
 | `--format`, `-f` | `json` | Output format: `json` or `html` |
 | `--output`, `-o` | stdout | Write report to file instead of stdout |
 | `--strategy` | all four | Submission strategy: `text`, `docx`, `pdf`, `xlsx`. Repeat the flag for multiple. Omit to run all four. |

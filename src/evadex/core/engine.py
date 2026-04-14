@@ -1,6 +1,6 @@
 import asyncio
 import time
-from typing import AsyncIterator, Callable, Optional
+from typing import AsyncGenerator, AsyncIterator, Callable, Optional
 from evadex.core.result import Payload, Variant, ScanResult
 from evadex.adapters.base import BaseAdapter
 from evadex.variants.base import BaseVariantGenerator
@@ -31,7 +31,7 @@ class Engine:
             results.append(r)
         return results
 
-    async def run_async(self, payloads: list[Payload]) -> AsyncIterator[ScanResult]:
+    async def run_async(self, payloads: list[Payload]) -> AsyncGenerator[ScanResult, None]:
         generators = self.generators if self.generators is not None else all_generators()
         sem = asyncio.Semaphore(self.concurrency)
 
