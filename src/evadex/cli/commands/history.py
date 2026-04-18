@@ -70,7 +70,22 @@ def _fmt_date(ts: str) -> str:
               help="Filter by entry type.")
 @click.option("--results-dir", default="results", show_default=True,
               help="Path to results directory (must contain audit.jsonl).")
-def history(last: int, entry_type: Optional[str], results_dir: str) -> None:
+@click.option("--push-c2", "push_c2", is_flag=True, default=False,
+              help="Backfill every audit entry to Siphon-C2 in one batched POST to "
+                   "/v1/evadex/history. Use when first connecting evadex to a fresh "
+                   "C2 instance. Never alters the audit log.")
+@click.option("--c2-url", "c2_url", default=None, envvar="EVADEX_C2_URL",
+              help="Siphon-C2 URL. Required when --push-c2 is set. Falls back to EVADEX_C2_URL.")
+@click.option("--c2-key", "c2_key", default=None, envvar="EVADEX_C2_KEY",
+              help="API key sent as 'x-api-key' to Siphon-C2. Falls back to EVADEX_C2_KEY.")
+def history(
+    last: int,
+    entry_type: Optional[str],
+    results_dir: str,
+    push_c2: bool,
+    c2_url: Optional[str],
+    c2_key: Optional[str],
+) -> None:
     """Show history of past scan and false positive runs.
 
     \b
@@ -79,6 +94,7 @@ def history(last: int, entry_type: Optional[str], results_dir: str) -> None:
       evadex history --last 10
       evadex history --type scan
       evadex history --type falsepos
+      evadex history --push-c2 --c2-url http://localhost:9090 --c2-key mykey
     """
     audit_path = Path(results_dir) / "audit.jsonl"
     entries = _load_audit(audit_path)
@@ -91,6 +107,28 @@ def history(last: int, entry_type: Optional[str], results_dir: str) -> None:
             "to point to a different results directory."
         )
         sys.exit(0)
+
+    # --push-c2: batch-backfill everything to Siphon-C2 before any filtering /
+    # truncation happens. The dashboard wants the full history, not just the
+    # --last slice shown on stdout.
+    if push_c2:
+        from evadex.reporters.c2_reporter import push_history_batch, resolve_c2_config
+        _c2_url, _c2_key = resolve_c2_config(c2_url, c2_key)
+        if not _c2_url:
+            err_console.print(
+                "[red]--push-c2 requires --c2-url (or the EVADEX_C2_URL env var).[/red]"
+            )
+            sys.exit(1)
+        ok = push_history_batch(_c2_url, _c2_key, entries=entries)
+        if ok:
+            err_console.print(
+                f"[dim]Pushed {len(entries)} audit entr"
+                f"{'y' if len(entries) == 1 else 'ies'} to {_c2_url}[/dim]"
+            )
+        else:
+            # push_history_batch already printed a warning; don't exit non-zero
+            # (graceful-degradation contract) unless the URL itself was missing.
+            pass
 
     if entry_type:
         entries = [e for e in entries if e.get("type") == entry_type]

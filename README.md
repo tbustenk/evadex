@@ -583,6 +583,8 @@ evadex scan --config evadex.yaml --scanner-label staging
 | `output` | string or null | `--output` | Output file path (null = stdout) |
 | `format` | `json` or `html` | `--format` | Output format |
 | `audit_log` | string or null | `--audit-log` | Append-only audit log file (see [Audit log](#audit-log)) |
+| `c2_url` | string or null | `--c2-url` | Siphon-C2 admin-dashboard URL to push results to. See [Siphon-C2 integration](#siphon-c2-integration). |
+| `c2_key` | string or null | `--c2-key` | API key sent as `x-api-key` to Siphon-C2. Same format as Siphon's core API key. |
 
 ### Validation
 
@@ -1442,6 +1444,59 @@ async def submit(self, payload, variant):
 ```
 
 `FileBuilder.build(text, fmt)` returns `(bytes, mime_type)` entirely in memory — no disk writes.
+
+---
+
+## Siphon-C2 integration
+
+Siphon-C2 is the admin web UI and management plane described in the dlpscan-rs architecture docs — it aggregates operational metrics plus test results so detection quality is visible alongside live scanning. evadex can push its scan, false-positive, comparison, and history reports to C2 in one line of extra flags.
+
+**Setup.** Point evadex at your C2 deployment via either flags, environment variables, or `evadex.yaml`:
+
+```bash
+# CLI flags
+evadex scan --tool siphon --tier banking \
+  --c2-url http://c2.internal:9090 --c2-key $C2_API_KEY
+
+# Environment variables (picked up by scan / falsepos / compare / history)
+export EVADEX_C2_URL=http://c2.internal:9090
+export EVADEX_C2_KEY=$C2_API_KEY
+evadex scan --tool siphon --tier banking
+```
+
+Or in `evadex.yaml`:
+
+```yaml
+c2_url: http://c2.internal:9090
+c2_key: ${C2_API_KEY}
+```
+
+**Endpoints pushed to:**
+
+| Command | C2 endpoint | Payload |
+|---|---|---|
+| `evadex scan` | `POST /v1/evadex/scan` | counts, pass rate, per-category/per-technique breakdown, top 50 failing variants |
+| `evadex falsepos` | `POST /v1/evadex/falsepos` | per-category FP rate + flagged-value list |
+| `evadex compare` | `POST /v1/evadex/compare` | full comparison dict (overall delta, per-technique diffs, confidence changes) |
+| `evadex history --push-c2` | `POST /v1/evadex/history` | batched audit-log entries for dashboard backfill |
+
+Every push is authenticated via an `x-api-key` header — the same format the core Siphon HTTP API uses — so C2 can reuse one key-management surface. Requests also carry a `User-Agent: evadex/<version>` header and an `evadex_version` field so C2 can surface client-version mix on the dashboard.
+
+**Backfill on first connect:**
+
+```bash
+# One-shot push of every historical audit-log entry to a fresh C2
+evadex history --push-c2 --c2-url http://c2.internal:9090 --c2-key $C2_API_KEY
+```
+
+**Graceful degradation.** Siphon-C2 is explicitly documented as *not critical path* — evadex honours that contract:
+
+- A failed push (network error, 4xx/5xx, timeout, auth failure) prints a single-line warning to stderr and continues.
+- The scan / falsepos / compare exit code is never affected by a C2 push failure.
+- The `--min-detection-rate` CI/CD gate still fires based on the actual scan result.
+- The on-disk output file (`--output`), audit log, regression tests, and baseline comparison all complete normally regardless of C2 reachability.
+
+The only exception is `evadex history --push-c2` without `--c2-url` / `EVADEX_C2_URL` set — that's a user error (no target URL to push to) and exits non-zero.
 
 ---
 

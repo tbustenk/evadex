@@ -189,7 +189,12 @@ def build_comparison(data_a: dict, data_b: dict) -> dict:
               help="Override label for first file (defaults to scanner field in JSON)")
 @click.option("--label-b", default=None,
               help="Override label for second file (defaults to scanner field in JSON)")
-def compare(file_a, file_b, fmt, output, label_a, label_b):
+@click.option("--c2-url", "c2_url", default=None, envvar="EVADEX_C2_URL",
+              help="Siphon-C2 management-plane URL. The comparison is pushed to "
+                   "POST /v1/evadex/compare. Failures log a warning; never fail the run.")
+@click.option("--c2-key", "c2_key", default=None, envvar="EVADEX_C2_KEY",
+              help="API key sent as 'x-api-key' to Siphon-C2. Falls back to EVADEX_C2_KEY.")
+def compare(file_a, file_b, fmt, output, label_a, label_b, c2_url, c2_key):
     """Compare two evadex scan result JSON files and report differences."""
     data_a = _load(file_a)
     data_b = _load(file_b)
@@ -220,3 +225,9 @@ def compare(file_a, file_b, fmt, output, label_a, label_b):
         sys.stdout.buffer.write(rendered.encode("utf-8"))
         sys.stdout.buffer.write(b"\n")
         sys.stdout.buffer.flush()
+
+    # ── Siphon-C2 push ────────────────────────────────────────────────────────
+    from evadex.reporters.c2_reporter import push_comparison, resolve_c2_config
+    _c2_url, _c2_key = resolve_c2_config(c2_url, c2_key)
+    if _c2_url:
+        push_comparison(_c2_url, _c2_key, comparison=comparison)

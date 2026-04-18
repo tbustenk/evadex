@@ -97,6 +97,11 @@ async def _scan_values(
               help="Embed each invalid value in a realistic category-specific sentence before "
                    "submitting. Simulates how sensitive data appears in real documents. "
                    "Use with --require-context for the most realistic false positive measurement.")
+@click.option("--c2-url", "c2_url", default=None, envvar="EVADEX_C2_URL",
+              help="Siphon-C2 management-plane URL. The false-positive report is pushed "
+                   "to POST /v1/evadex/falsepos. Failures log a warning; never fail the run.")
+@click.option("--c2-key", "c2_key", default=None, envvar="EVADEX_C2_KEY",
+              help="API key sent as 'x-api-key' to Siphon-C2. Falls back to EVADEX_C2_KEY.")
 def falsepos(
     tool: str,
     categories: tuple[str, ...],
@@ -111,6 +116,8 @@ def falsepos(
     seed: Optional[int],
     require_context: bool,
     wrap_context: bool,
+    c2_url: Optional[str],
+    c2_key: Optional[str],
 ) -> None:
     """Measure scanner false positive rate.
 
@@ -254,6 +261,12 @@ def falsepos(
         scanner_label=_scanner_label,
     )
     append_results_audit(_audit_entry)
+
+    # ── Siphon-C2 push ────────────────────────────────────────────────────────
+    from evadex.reporters.c2_reporter import push_falsepos_report, resolve_c2_config
+    _c2_url, _c2_key = resolve_c2_config(c2_url, c2_key)
+    if _c2_url:
+        push_falsepos_report(_c2_url, _c2_key, report=report)
 
     # ── Output ────────────────────────────────────────────────────────────────
     if fmt == "json" or output:

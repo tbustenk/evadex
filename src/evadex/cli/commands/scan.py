@@ -288,6 +288,13 @@ def _print_summary(results, err_console):
                    "Pass --no-wrap-context to disable.")
 @click.option("--no-wrap-context", "no_wrap_context", is_flag=True, default=False,
               help="Explicitly disable context wrapping even when --cmd-style rust is active.")
+@click.option("--c2-url", "c2_url", default=None, envvar="EVADEX_C2_URL",
+              help="Siphon-C2 management-plane URL (e.g. http://c2.internal:9090). "
+                   "Scan results are pushed to POST /v1/evadex/scan. A failure or "
+                   "unreachable C2 is logged as a warning but never fails the scan.")
+@click.option("--c2-key", "c2_key", default=None, envvar="EVADEX_C2_KEY",
+              help="API key sent as 'x-api-key' to Siphon-C2 (same format as the "
+                   "core Siphon API). Falls back to EVADEX_C2_KEY env var.")
 def scan(
     ctx,
     config_path, tool, input_value, fmt, output, url, api_key, timeout,
@@ -295,6 +302,7 @@ def scan(
     tier, scanner_label, executable, cmd_style, min_detection_rate,
     save_baseline, compare_baseline, audit_log, feedback_report,
     require_context, wrap_context, no_wrap_context,
+    c2_url, c2_key,
 ):
     """Run DLP evasion tests."""
     load_builtins()
@@ -359,6 +367,10 @@ def scan(
             wrap_context = cfg.wrap_context
         if _is_default("tier") and cfg.tier is not None:
             tier = cfg.tier
+        if _is_default("c2_url") and cfg.c2_url is not None:
+            c2_url = cfg.c2_url
+        if _is_default("c2_key") and cfg.c2_key is not None:
+            c2_key = cfg.c2_key
 
     # ── Auto-enable wrap_context for dlpscan-rs ───────────────────────────────
     # dlpscan-rs requires surrounding context keywords to fire most rules.
@@ -659,6 +671,36 @@ def scan(
                 1 if (min_detection_rate is not None and pass_rate < min_detection_rate)
                 else 0
             ),
+        )
+
+    # Siphon-C2 push. Uses the already-rendered JSON so we don't re-serialise
+    # and so the C2 payload exactly matches what was written to --output.
+    # Never blocks or fails the scan (c2_reporter swallows errors) — the
+    # management plane is explicitly "not critical path" per the Siphon
+    # architecture docs.
+    from evadex.reporters.c2_reporter import push_scan_results, resolve_c2_config
+    _c2_url, _c2_key = resolve_c2_config(c2_url, c2_key)
+    if _c2_url:
+        try:
+            _rendered_json = json.loads(rendered) if fmt == "json" else None
+        except (ValueError, TypeError):
+            _rendered_json = None
+        _meta = (_rendered_json or {}).get("meta", {}) if isinstance(_rendered_json, dict) else {}
+        _fail_findings = [
+            r for r in (_rendered_json or {}).get("results", [])
+            if isinstance(r, dict) and r.get("severity") == "fail"
+        ][:50] if isinstance(_rendered_json, dict) else []
+        push_scan_results(
+            _c2_url, _c2_key,
+            scanner_label=scanner_label,
+            tool=tool,
+            categories=list(categories) if categories else [],
+            strategies=active_strategies,
+            total=total, passes=passes, fails=fails, errors=errors,
+            pass_rate=pass_rate,
+            by_category=_meta.get("summary_by_category") or {},
+            by_technique=_meta.get("summary_by_generator") or {},
+            fail_findings=_fail_findings,
         )
 
     # --min-detection-rate: CI/CD gate (checked last so report is always written first)

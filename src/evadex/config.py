@@ -22,6 +22,8 @@ KNOWN_KEYS = {
     "cmd_style", "categories", "include_heuristic", "concurrency",
     "timeout", "output", "format", "audit_log", "require_context",
     "wrap_context", "tier",
+    # Siphon-C2 management-plane integration
+    "c2_url", "c2_key",
 }
 
 DEFAULT_CONFIG_YAML = """\
@@ -47,6 +49,12 @@ output: results.json
 format: json
 # audit_log: evadex_audit.jsonl
 # require_context: false  # Pass --require-context to dlpscan-rs (requires cmd_style: rust)
+
+# Siphon-C2 management-plane integration — push scan / falsepos / compare
+# results to an admin dashboard. Safe to leave disabled (commented out);
+# C2 push never blocks or fails a scan even when the URL is unreachable.
+# c2_url: http://localhost:9090
+# c2_key: CHANGEME   # sent as x-api-key header (same auth as Siphon's API)
 """
 
 
@@ -68,6 +76,11 @@ class EvadexConfig:
     require_context: Optional[bool] = None
     wrap_context: Optional[bool] = None
     tier: Optional[str] = None
+    # Siphon-C2 management-plane push. URL enables the integration;
+    # key authenticates via the same `x-api-key` header Siphon's HTTP API
+    # uses. Both may also come from EVADEX_C2_URL / EVADEX_C2_KEY.
+    c2_url: Optional[str] = None
+    c2_key: Optional[str] = None
 
 
 def find_config() -> Optional[Path]:
@@ -275,5 +288,14 @@ def load_config(path: "str | Path") -> EvadexConfig:
                     f"got: {val!r}"
                 )
             cfg.tier = val
+
+    for key in ("c2_url", "c2_key"):
+        if key in raw:
+            val = raw[key]
+            if val is not None and not isinstance(val, str):
+                raise click.UsageError(
+                    f"Config {key!r} must be a string or null, got: {type(val).__name__}"
+                )
+            setattr(cfg, key, val)
 
     return cfg
