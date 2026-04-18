@@ -57,7 +57,10 @@ def write_sql(entries: list[GeneratedEntry], path: str) -> None:
         last = rng.choice(last_names)
         dept = rng.choice(departments)
         col_name = _CATEGORY_COLUMN.get(e.category, "sensitive_val")
-        val = _sql_escape(e.variant_value)
+        # Context-injection variants embed value in a sentence — use plain
+        # value for the structured column, sentence goes in notes.
+        raw_val = e.plain_value if e.generator_name == "context_injection" else e.variant_value
+        val = _sql_escape(raw_val)
         notes = _sql_escape(e.embedded_text)
 
         # Use category-specific column name in the INSERT

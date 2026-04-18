@@ -45,17 +45,28 @@ def write_json(entries: list[GeneratedEntry], path: str) -> None:
         first = rng.choice(first_names)
         last = rng.choice(last_names)
 
+        # For structured JSON, always put the raw value in the typed field.
+        # Context-injection variants embed values in sentences — those
+        # belong in a separate "notes" field, not in a structured column.
+        value_for_field = e.variant_value
+        if e.generator_name == "context_injection":
+            value_for_field = e.plain_value
+
         record: dict = {
             "customer_id": f"CUST-{i:06d}",
             "name": f"{first} {last}",
             "email": f"{first.lower()}.{last.lower()}@example.com",
-            field_name: e.variant_value,
+            field_name: value_for_field,
         }
 
         # Add 2-3 random filler fields
         fillers = rng.sample(_FILLER_FIELDS, rng.randint(2, min(3, len(_FILLER_FIELDS))))
         for field, values in fillers:
             record[field] = rng.choice(values)
+
+        # Context-injection embeds the sentence in notes for realism
+        if e.generator_name == "context_injection":
+            record["notes"] = e.variant_value
 
         if e.technique:
             record["_evasion_technique"] = e.technique

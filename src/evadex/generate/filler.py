@@ -23,6 +23,8 @@ _TEMPLATES: dict[PayloadCategory, list[str]] = {
         "Statement line: MERCHANT-XYZ, card ending {v}, USD 42.50.",
         "Card limit increase approved for cardholder with card number {v}.",
         "Cross-border transaction flagged: card {v} used in 3 countries in 24 hours.",
+        "Visa card no {v} authorised for primary account holder.",
+        "PAN {v} mapped to primary account number in tokenisation vault.",
     ],
     PayloadCategory.SSN: [
         "Employee SSN on file: {v}.",
@@ -38,6 +40,7 @@ _TEMPLATES: dict[PayloadCategory, list[str]] = {
         "Loan application submitted: applicant SSN {v}, credit score 742.",
         "Account ownership verified: SSN {v} matches KYC documentation.",
         "Mortgage underwriting file: borrower SSN {v}, DTI 36%.",
+        "Social security no {v} — applicant verification pending.",
     ],
     PayloadCategory.SIN: [
         "Canadian employee SIN on record: {v}.",
@@ -46,6 +49,8 @@ _TEMPLATES: dict[PayloadCategory, list[str]] = {
         "Benefits claim filed under SIN {v} — EI application #88921.",
         "ROE issued for SIN {v}: insurable hours 1,820.",
         "RRSP contribution reported under SIN {v}: $14,500.",
+        "Social insurance number {v} verified against CRA database.",
+        "Social insurance no {v} — employee payroll enrolment.",
     ],
     PayloadCategory.IBAN: [
         "Wire transfer destination: IBAN {v}.",
@@ -59,6 +64,7 @@ _TEMPLATES: dict[PayloadCategory, list[str]] = {
         "Payee details updated: account IBAN {v}, reference PAYROLL-2024-04.",
         "IBAN validation passed: {v} — account open and eligible for credit.",
         "Settlement account: {v} — net EUR 145,000.00 due end of day.",
+        "International bank account number {v} on file for the compte bancaire.",
     ],
     PayloadCategory.SWIFT_BIC: [
         "SWIFT code for beneficiary bank: {v}.",
@@ -66,6 +72,7 @@ _TEMPLATES: dict[PayloadCategory, list[str]] = {
         "International wire instruction: BIC {v}, ref TXN-884421.",
         "SWIFT gpi tracker: payment via {v} cleared in 4 hours.",
         "Nostro account held at {v}, balance USD 2.1M.",
+        "Bank identifier code {v} verified for correspondent routing.",
     ],
     PayloadCategory.ABA_ROUTING: [
         "ACH routing number: {v}.",
@@ -73,6 +80,8 @@ _TEMPLATES: dict[PayloadCategory, list[str]] = {
         "Bank routing {v}, account 000123456789 — payroll ACH.",
         "ACH return filed: routing {v}, reason code R02.",
         "Wire routing: ABA {v} — Wells Fargo San Francisco.",
+        "ABA routing {v} — transit routing for domestic wire.",
+        "Routing no {v} confirmed for numéro de transit bancaire.",
     ],
     PayloadCategory.BITCOIN: [
         "Bitcoin payment address: {v}.",
@@ -93,46 +102,53 @@ _TEMPLATES: dict[PayloadCategory, list[str]] = {
         "Travel document scanned at border control: US Passport {v}.",
         "Visa application attached to passport {v}.",
         "KYC verification: US Passport {v}, issued 2019-08-14.",
+        "Passport number {v} — no de passeport filed with CBSA.",
     ],
     PayloadCategory.AU_TFN: [
         "Australian Tax File Number: {v}.",
         "TFN {v} registered with the Australian Taxation Office.",
         "PAYG withholding report: TFN {v}, gross $82,000.",
         "Superannuation rollover: TFN {v}, fund USI 12345678.",
+        "ATO tax file number {v} — lodged for assessment.",
     ],
     PayloadCategory.DE_TAX_ID: [
         "German Steuer-Identifikationsnummer: {v}.",
         "Tax identification number {v} — Finanzamt Berlin-Mitte.",
         "Einkommensteuererklärung 2023: IdNr {v}.",
         "ELSTER submission: Steuernummer {v}, VZ 2023.",
+        "Steueridentifikationsnummer {v} — Steuer-ID filed with Finanzamt.",
     ],
     PayloadCategory.FR_INSEE: [
         "Numéro de sécurité sociale (NIR): {v}.",
         "INSEE {v} enregistré à la CPAM de Paris.",
         "Formulaire CERFA: NIR assuré {v}.",
         "Déclaration DADS-U: NIR salarié {v}.",
+        "Numéro de sécurité sociale {v} — securite sociale file.",
     ],
     PayloadCategory.AWS_KEY: [
         "AWS_ACCESS_KEY_ID={v}",
         "IAM access key {v} used for S3 PutObject operation.",
         "Key {v} provisioned for CI/CD pipeline — rotate every 90 days.",
         "CloudTrail event: key {v} called sts:AssumeRole.",
+        "AWS key {v} — access key rotated per security policy.",
     ],
     PayloadCategory.GITHUB_TOKEN: [
         "GITHUB_TOKEN={v}",
         "GitHub Actions secret: PAT {v} scoped to repo read.",
         "CI pipeline authenticated with token {v}.",
         "Token {v} used for GitHub Packages publish.",
+        "GitHub personal access token {v} — fine-grained, expires 2025-12-31.",
     ],
     PayloadCategory.STRIPE_KEY: [
         "STRIPE_SECRET_KEY={v}",
         "Stripe API key configured: {v}.",
         "Payment gateway initialised with key {v} — test mode.",
         "Webhook signature validated using key {v}.",
+        "Stripe secret key {v} — Stripe key for payment processing.",
     ],
     PayloadCategory.SLACK_TOKEN: [
         "SLACK_BOT_TOKEN={v}",
-        "Slack bot authenticated with token {v}.",
+        "Slack bot token {v} authenticated successfully.",
         "Incoming webhook token: {v}.",
         "Slack app token {v} scoped to channels:read.",
     ],
@@ -140,7 +156,8 @@ _TEMPLATES: dict[PayloadCategory, list[str]] = {
         "Authorization: Bearer {v}",
         "Session token issued: {v}",
         "API gateway forwarded JWT: {v}",
-        "Refresh token exchanged for access token: {v}",
+        "Refresh token exchanged for auth token: {v}",
+        "JSON Web Token {v} — signed with RS256.",
     ],
     PayloadCategory.CLASSIFICATION: [
         "Document classification: {v}.",
@@ -158,6 +175,7 @@ _TEMPLATES: dict[PayloadCategory, list[str]] = {
         "Online banking login: username {v}, last login 2024-03-14 09:22 UTC.",
         "Wire transfer confirmation emailed to {v} — amount CAD 15,000.00.",
         "AML alert sent to compliance officer at {v}.",
+        "E-mail address {v} registered as primary email address for account.",
     ],
     PayloadCategory.PHONE: [
         "Customer contact number: {v}.",
@@ -167,6 +185,7 @@ _TEMPLATES: dict[PayloadCategory, list[str]] = {
         "Emergency contact on record: {v}.",
         "Telephone banking PIN reset confirmed: customer reached at {v}.",
         "Fraud callback initiated: outbound call to {v} at 14:32 EST.",
+        "Mobile phone {v} registered for two-factor authentication.",
     ],
     # Canadian regional IDs
     PayloadCategory.CA_RAMQ: [
@@ -174,10 +193,11 @@ _TEMPLATES: dict[PayloadCategory, list[str]] = {
         "RAMQ health card on file: {v} — Quebec provincial coverage.",
         "Patient record: RAMQ {v}, registered with Régie de l'assurance maladie.",
         "Carte Soleil number {v} verified for provincial healthcare coverage.",
+        "Quebec health card {v} — regie assurance maladie du Québec.",
     ],
     PayloadCategory.CA_ONTARIO_HEALTH: [
         "Ontario health card number: {v}.",
-        "OHIP card on file: {v} — Ontario provincial health insurance.",
+        "OHIP card on file: {v} — Ontario health insurance plan.",
         "Patient registration: Ontario health card {v}, version code on file.",
         "Health card {v} verified against OHIP registry.",
     ],
@@ -186,6 +206,7 @@ _TEMPLATES: dict[PayloadCategory, list[str]] = {
         "British Columbia personal health number: {v}.",
         "BC Services Card PHN {v} registered with MSP.",
         "Patient record: BC CareCard {v}, active coverage confirmed.",
+        "BC health card {v} — BC PHN enrolled in medical services plan (BC MSP).",
     ],
     PayloadCategory.CA_AB_HEALTH: [
         "Alberta health card number: {v}.",
@@ -216,7 +237,7 @@ _TEMPLATES: dict[PayloadCategory, list[str]] = {
         "Numéro de passeport canadien : {v}.",
         "Travel document: Canadian passport {v}, expires 2029.",
         "KYC verification: Canadian passport {v}, issued by IRCC.",
-        "Border crossing record: Canadian passport {v} scanned at CBSA.",
+        "Border crossing record: Canada passport {v} scanned at CBSA.",
     ],
 }
 
@@ -231,6 +252,8 @@ _TEMPLATES_FR_CA: dict[PayloadCategory, list[str]] = {
         "Carte virtuelle {v} émise pour les frais de déplacement de l'employé.",
         "Relevé bancaire : transaction carte {v}, 42,50 $ USD.",
         "Contestation de transaction : carte {v}, litige soumis au département fraude.",
+        "Carte de crédit {v} — no de carte associé au compte principal.",
+        "Carte de credit {v} — paiement autorisé.",
     ],
     PayloadCategory.SSN: [
         "Numéro de sécurité sociale de l'employé : {v}.",
@@ -246,7 +269,7 @@ _TEMPLATES_FR_CA: dict[PayloadCategory, list[str]] = {
         "Référence ARC : NAS {v}, solde dû 1 234,00 $.",
         "Demande de prestations déposée sous le NAS {v} — dossier AE #88921.",
         "Mon NAS est le {v} — veuillez traiter ce formulaire.",
-        "Assurance sociale numéro {v} inscrit au registre de l'employeur.",
+        "No d'assurance sociale {v} — registre de l'employeur.",
     ],
     PayloadCategory.IBAN: [
         "Numéro de compte bénéficiaire (IBAN) : {v}.",
@@ -254,16 +277,19 @@ _TEMPLATES_FR_CA: dict[PayloadCategory, list[str]] = {
         "Coordonnées bancaires — IBAN {v}, BIC : DEUTDEDB.",
         "Relevé bancaire : virement entrant de {v}, 3 200,00 EUR.",
         "Numéro de compte pour le virement SEPA : {v}.",
+        "Numéro de compte bancaire international {v} — IBAN vérifié.",
     ],
     PayloadCategory.SWIFT_BIC: [
         "Code SWIFT de la banque bénéficiaire : {v}.",
         "Instruction de virement international : BIC {v}, réf TXN-884421.",
         "Virement via correspondant bancaire {v}.",
+        "Code d'identification bancaire {v} — correspondant vérifié.",
     ],
     PayloadCategory.ABA_ROUTING: [
         "Numéro de routage ACH : {v}.",
         "Dépôt direct configuré avec le numéro de routage {v}.",
         "Routage bancaire {v}, compte 000123456789 — paie ACH.",
+        "Numero de transit {v} — routage configuré.",
     ],
     PayloadCategory.BITCOIN: [
         "Adresse de paiement Bitcoin : {v}.",
@@ -291,6 +317,7 @@ _TEMPLATES_FR_CA: dict[PayloadCategory, list[str]] = {
         "Numéro de sécurité sociale (NIR) : {v}.",
         "INSEE {v} enregistré à la CPAM de Paris.",
         "Formulaire CERFA : NIR assuré {v}.",
+        "Numero de securite sociale {v} — dossier CPAM.",
     ],
     PayloadCategory.AWS_KEY: [
         "Clé d'accès AWS : {v}.",

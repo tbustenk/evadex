@@ -45,7 +45,10 @@ def write_xml(entries: list[GeneratedEntry], path: str) -> None:
         amount = f"{rng.uniform(100, 50000):.2f}"
         ccy = rng.choice(currencies)
         name = rng.choice(names)
-        val = escape(e.variant_value)
+        # Context-injection variants embed value in a sentence — use plain
+        # value for structured XML elements (IBAN, BIC, card).
+        raw_val = e.plain_value if e.generator_name == "context_injection" else e.variant_value
+        val = escape(raw_val)
 
         lines.append(f'{_indent(2)}<PmtInf>')
         lines.append(f'{_indent(3)}<PmtInfId>PMT-{i:06d}</PmtInfId>')
