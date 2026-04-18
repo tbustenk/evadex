@@ -1200,6 +1200,11 @@ class ScanResult:
     raw_response: dict = field(default_factory=dict)
     error: Optional[str] = None
     duration_ms: float = 0.0
+    confidence: Optional[float] = None
+    bin_brand: Optional[str] = None
+    bin_country: Optional[str] = None
+    entropy_classification: Optional[str] = None
+    validator: Optional[str] = None
 
     @property
     def severity(self) -> SeverityLevel:
@@ -1208,7 +1213,7 @@ class ScanResult:
         return SeverityLevel.PASS if self.detected else SeverityLevel.FAIL
 
     def to_dict(self):
-        return {
+        out = {
             "payload": self.payload.to_dict(),
             "variant": self.variant.to_dict(),
             "detected": self.detected,
@@ -1217,3 +1222,9 @@ class ScanResult:
             "error": self.error,
             "raw_response": self.raw_response,
         }
+        for key in ("confidence", "bin_brand", "bin_country",
+                    "entropy_classification", "validator"):
+            val = getattr(self, key)
+            if val is not None:
+                out[key] = val
+        return out

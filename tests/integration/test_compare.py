@@ -224,3 +224,47 @@ def test_compare_cli_empty_json_file_exits_cleanly(tmp_path):
     assert "Invalid JSON" in result.output or "JSON" in result.output
     assert "JSONDecodeError" not in result.output
     assert "Traceback" not in result.output
+
+
+# ── Confidence diff handling (Siphon adapter) ────────────────────────────────
+
+def _result_with_confidence(detected: bool, confidence: float) -> dict:
+    r = _result(detected)
+    r["confidence"] = confidence
+    return r
+
+
+def test_confidence_delta_surfaced_when_severity_unchanged():
+    """Same pass/pass severity but confidence moved → appears in diffs with delta."""
+    a = _make_scan_data("siphon-v1", [_result_with_confidence(True, 0.85)])
+    b = _make_scan_data("siphon-v2", [_result_with_confidence(True, 0.55)])
+    comp = build_comparison(a, b)
+    assert len(comp["diffs"]) == 1
+    d = comp["diffs"][0]
+    assert d["a_severity"] == "pass"
+    assert d["b_severity"] == "pass"
+    assert d["a_confidence"] == 0.85
+    assert d["b_confidence"] == 0.55
+    assert d["confidence_delta"] == -0.3
+
+
+def test_small_confidence_jitter_ignored():
+    """Tiny confidence deltas (<0.01) don't produce a diff when severity is unchanged."""
+    a = _make_scan_data("siphon-v1", [_result_with_confidence(True, 0.900)])
+    b = _make_scan_data("siphon-v2", [_result_with_confidence(True, 0.9001)])
+    comp = build_comparison(a, b)
+    assert comp["diffs"] == []
+
+
+def test_confidence_attached_to_severity_change_diff():
+    """Severity-change diffs carry confidence fields too when available."""
+    a = _make_scan_data("siphon-v1", [_result_with_confidence(True, 0.9)])
+    b = _make_scan_data("siphon-v2", [_result_with_confidence(False, 0.1)])
+    comp = build_comparison(a, b)
+    assert len(comp["diffs"]) == 1
+    d = comp["diffs"][0]
+    assert d["a_severity"] == "pass"
+    assert d["b_severity"] == "fail"
+    assert d["a_confidence"] == 0.9
+    assert d["b_confidence"] == 0.1
+    assert d["confidence_delta"] == -0.8

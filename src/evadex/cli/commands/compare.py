@@ -122,16 +122,28 @@ def build_comparison(data_a: dict, data_b: dict) -> dict:
             })
     by_technique.sort(key=lambda x: x["delta"])
 
-    # Per-variant diffs
+    # Per-variant diffs. Two classes of diff:
+    #   1. severity changed (pass↔fail↔error)
+    #   2. same severity but confidence score moved — surfaced by Siphon adapter
     diffs = []
     for key in sorted(all_keys):
         r_a = idx_a.get(key)
         r_b = idx_b.get(key)
         sev_a = r_a["severity"] if r_a else "absent"
         sev_b = r_b["severity"] if r_b else "absent"
-        if sev_a != sev_b:
+        conf_a = r_a.get("confidence") if r_a else None
+        conf_b = r_b.get("confidence") if r_b else None
+
+        severity_changed = sev_a != sev_b
+        confidence_changed = (
+            isinstance(conf_a, (int, float))
+            and isinstance(conf_b, (int, float))
+            and round(abs(conf_b - conf_a), 4) >= 0.01
+        )
+
+        if severity_changed or confidence_changed:
             ref = r_a or r_b
-            diffs.append({
+            entry = {
                 "payload_label":  ref["payload"]["label"],
                 "category":       ref["payload"]["category"],
                 "generator":      ref["variant"]["generator"],
@@ -140,7 +152,14 @@ def build_comparison(data_a: dict, data_b: dict) -> dict:
                 "strategy":       ref["variant"]["strategy"],
                 "a_severity":     sev_a,
                 "b_severity":     sev_b,
-            })
+            }
+            if conf_a is not None:
+                entry["a_confidence"] = round(float(conf_a), 4)
+            if conf_b is not None:
+                entry["b_confidence"] = round(float(conf_b), 4)
+            if confidence_changed:
+                entry["confidence_delta"] = round(float(conf_b) - float(conf_a), 4)
+            diffs.append(entry)
 
     return {
         "label_a":  meta_a.get("scanner") or "file_a",

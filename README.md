@@ -556,7 +556,7 @@ evadex scan --config evadex.yaml --scanner-label staging
 
 | Key | Type | CLI equivalent | Description |
 |---|---|---|---|
-| `tool` | string | `--tool` | Adapter name (`dlpscan-cli`, `dlpscan`, `presidio`) |
+| `tool` | string | `--tool` | Adapter name (`dlpscan-cli`, `dlpscan`, `siphon`, `presidio`) |
 | `strategy` | string or list | `--strategy` | Submission strategy: `text`, `docx`, `pdf`, `xlsx`. Use a list for multiple. |
 | `min_detection_rate` | number | `--min-detection-rate` | CI/CD gate threshold (0–100) |
 | `scanner_label` | string | `--scanner-label` | Label recorded in JSON `meta.scanner` |
@@ -684,7 +684,7 @@ evadex scan [OPTIONS]
 | Flag | Default | Description |
 |---|---|---|
 | `--config` | *(auto-discovered)* | Path to `evadex.yaml` config file. Auto-discovered from current directory if present. CLI flags always override config values. |
-| `--tool`, `-t` | `dlpscan-cli` | Adapter to use. Built-in adapters: `dlpscan-cli`, `dlpscan`, `presidio`. |
+| `--tool`, `-t` | `dlpscan-cli` | Adapter to use. Built-in adapters: `dlpscan-cli`, `dlpscan`, `siphon`, `presidio`. |
 | `--input`, `-i` | *(banking tier)* | Single value to test. If omitted, runs the banking tier (~80 payloads). Use `--tier` to change. Category is auto-detected (Luhn check, regex patterns for SSN/IBAN/AWS/JWT/email/phone). |
 | `--format`, `-f` | `json` | Output format: `json` or `html` |
 | `--output`, `-o` | stdout | Write report to file instead of stdout |
@@ -692,7 +692,7 @@ evadex scan [OPTIONS]
 | `--tier` | `banking` | Payload tier: `banking` (default), `core`, `regional`, `full`. Ignored when `--category` is specified. |
 | `--concurrency` | `20` | Max concurrent requests |
 | `--timeout` | `30.0` | Request timeout in seconds |
-| `--url` | `http://localhost:8080` | Base URL (for HTTP-based adapters: `dlpscan`, `presidio`) |
+| `--url` | `http://localhost:8080` | Base URL (for HTTP-based adapters: `dlpscan`, `siphon`, `presidio`) |
 | `--api-key` | *(env: `EVADEX_API_KEY`)* | API key passed as `Authorization: Bearer`. Use the environment variable in preference to the CLI flag to avoid exposure in shell history and process listings. |
 | `--category` | *(overrides --tier)* | Filter built-in payloads by category. Repeat for multiple. When set, `--tier` is ignored. |
 | `--variant-group` | *(all)* | Limit to specific generator(s). Repeat for multiple. Values: `unicode_encoding`, `delimiter`, `splitting`, `leetspeak`, `regional_digits`, `structural`, `encoding`, `context_injection`, `unicode_whitespace`, `bidirectional`, `soft_hyphen`, `morse_code` |
@@ -1267,6 +1267,53 @@ Generic HTTP adapter for any DLP tool that exposes a REST API. Sends plain text 
 ```bash
 evadex scan --tool dlpscan --url http://my-dlpscan-server:8080 --api-key my-key
 ```
+
+### Built-in: `siphon`
+
+Native adapter for [dlpscan-rs / Siphon](https://github.com/oxide11/dlpscan) via its HTTP API. Use this in production environments where the CLI isn't available — for example, when Siphon runs as a sidecar or dedicated DLP service. Talks to `POST /v1/scan` and parses Siphon's full response (findings, confidence scores, and — when present — BIN brand/country, entropy classification, and validator name).
+
+**Start the Siphon API server:**
+
+```bash
+# Bind to localhost:8000 with an API key. Use `0.0.0.0` to expose to other hosts.
+DLPSCAN_API_HOST=127.0.0.1 \
+DLPSCAN_API_PORT=8000 \
+DLPSCAN_API_KEY=$SIPHON_API_KEY \
+dlpscan serve
+```
+
+**Run evadex against it:**
+
+```bash
+# --api-key is sent via the `x-api-key` header; EVADEX_API_KEY works too.
+evadex scan --tool siphon \
+  --url http://localhost:8000 \
+  --api-key $SIPHON_API_KEY
+```
+
+**Adapter extras** (via `evadex.yaml`):
+
+```yaml
+tool: siphon
+url: http://localhost:8000
+api_key: ${EVADEX_API_KEY}
+presets: [pci_dss, pii]      # compliance presets to enable
+categories: []               # optional category allowlist
+min_confidence: 0.5          # confidence floor forwarded to Siphon
+require_context: false       # require surrounding keywords to flag a match
+```
+
+When the Siphon adapter reports a match, the result also carries Siphon-specific detail in the JSON output:
+
+| Field | Description |
+|---|---|
+| `confidence` | Recognizer confidence from 0.0 – 1.0 |
+| `bin_brand` | Card-network brand (Visa, Mastercard, …) for credit card findings |
+| `bin_country` | Issuing country from the BIN lookup |
+| `entropy_classification` | High-entropy heuristic label (e.g. `api_key`) |
+| `validator` | Which validator accepted the match (`luhn`, `mod97`, …) |
+
+`evadex compare` surfaces confidence score changes between two Siphon runs alongside severity transitions, so per-variant regressions are visible even when the pass/fail outcome is unchanged.
 
 ### Adding a custom adapter
 
