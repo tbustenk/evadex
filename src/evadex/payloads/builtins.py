@@ -49,6 +49,29 @@ BUILTIN_PAYLOADS = [
     Payload("TOP SECRET",  PayloadCategory.CLASSIFICATION, "Top Secret classification label"),
     Payload("HIPAA",       PayloadCategory.CLASSIFICATION, "HIPAA privacy label"),
 
+    # --- High-entropy secrets (heuristic; targets Siphon's EntropyMode) ------
+    # Bare high-entropy tokens — caught only by EntropyMode::All.
+    Payload("xK9mP2nL4qR7vT1wY6uI0oE3sA5dF8hJ",
+            PayloadCategory.RANDOM_API_KEY,
+            "Random 32-char alphanumeric API key"),
+    Payload("eyJhbGciOiJIUzI1NiJ9.dGVzdHBheWxvYWRyYW5kb20xMjM0NTY3ODkw.abc123XYZdef456UVWghi789RSTjkl",
+            PayloadCategory.RANDOM_TOKEN,
+            "Random 48-char base64url token"),
+    Payload("a3f8c2e1d4b7a9f0e2c5d8b1a4f7c0e3d6b9a2f5c8e1d4b7a0f3c6e9d2b5a8c1",
+            PayloadCategory.RANDOM_SECRET,
+            "Random 64-char hex secret"),
+    Payload("dXNlcm5hbWU6c3VwZXJfc2VjcmV0X3Bhc3N3b3JkXzEyMzQ1Ng==",
+            PayloadCategory.ENCODED_CREDENTIAL,
+            "Base64-encoded user:password credential"),
+    # Assignment form — caught by EntropyMode::Assignment and ::All.
+    Payload("DATABASE_PASSWORD=xK9mP2nL4qR7vT1wY6uI0oE3sA5dF8hJ",
+            PayloadCategory.ASSIGNMENT_SECRET,
+            "High-entropy value in KEY=VALUE format"),
+    # Context-gated — caught by EntropyMode::Gated, ::Assignment (if formatted), and ::All.
+    Payload("api_key: xK9mP2nL4qR7vT1wY6uI0oE3sA5dF8hJ",
+            PayloadCategory.GATED_SECRET,
+            "High-entropy value adjacent to 'api_key' keyword"),
+
     # --- Contact ---
     Payload("test.user@example.com", PayloadCategory.EMAIL, "Email address"),
     Payload("+1-555-867-5309",       PayloadCategory.PHONE, "US phone number"),
@@ -921,6 +944,28 @@ HEURISTIC_CATEGORIES = {
     PayloadCategory.PRIVACY_LABEL,
     PayloadCategory.ATTORNEY_CLIENT,
     PayloadCategory.SUPERVISORY_INFO,
+    # Entropy-based secret categories — detection is a heuristic over
+    # Shannon entropy, so they're gated out of the default tier like other
+    # heuristic categories and only run with --include-heuristic or the
+    # entropy command.
+    PayloadCategory.RANDOM_API_KEY,
+    PayloadCategory.RANDOM_TOKEN,
+    PayloadCategory.RANDOM_SECRET,
+    PayloadCategory.ENCODED_CREDENTIAL,
+    PayloadCategory.ASSIGNMENT_SECRET,
+    PayloadCategory.GATED_SECRET,
+}
+
+# Subset of HEURISTIC_CATEGORIES that represent high-entropy secret payloads.
+# Exposed so the `evadex entropy` command can select them without leaking
+# knowledge of its own internals into the entropy CLI module.
+ENTROPY_CATEGORIES = {
+    PayloadCategory.RANDOM_API_KEY,
+    PayloadCategory.RANDOM_TOKEN,
+    PayloadCategory.RANDOM_SECRET,
+    PayloadCategory.ENCODED_CREDENTIAL,
+    PayloadCategory.ASSIGNMENT_SECRET,
+    PayloadCategory.GATED_SECRET,
 }
 
 

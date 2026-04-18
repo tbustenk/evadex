@@ -205,6 +205,71 @@ def generate_false_ramqs(count: int, seed: Optional[int] = None) -> list[str]:
     return results
 
 
+# ── Entropy false positives ───────────────────────────────────────────────────
+# Strings that LOOK high-entropy at a glance but are not secrets. A scanner
+# configured with an entropy mode will flag these if its char-entropy and
+# length heuristics aren't tight enough.
+
+_COMMON_HASH_LOOKALIKES = [
+    "d41d8cd98f00b204e9800998ecf8427e",  # MD5 of empty string — extremely common constant
+    "da39a3ee5e6b4b0d3255bfef95601890afd80709",  # SHA-1 of empty string
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",  # SHA-256 empty
+    "098f6bcd4621d373cade4e832627b4f6",  # MD5 of "test"
+    "5d41402abc4b2a76b9719d911017c592",  # MD5 of "hello"
+]
+
+_COMMON_BASE64_LOOKALIKES = [
+    "SGVsbG8gV29ybGQ=",          # "Hello World"
+    "dGVzdA==",                  # "test"
+    "dGhpcyBpcyBub3QgYSBzZWNyZXQ=",  # "this is not a secret"
+    "TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ=",  # "Lorem ipsum dolor sit amet"
+    "Zm9vYmFyYmF6cXV4cXVpeHF1dXg=",  # "foobarbazquxquixquux"
+]
+
+
+def generate_false_entropy_values(count: int, seed: Optional[int] = None) -> list[str]:
+    """High-looking-but-not-secret strings that trip entropy-based scanners.
+
+    Produces a mix of four recognisable non-secret patterns. A scanner that
+    flags any of these is confusing structure for sensitivity — exactly the
+    class of false positive entropy gating is supposed to prevent.
+
+    - Character repetition (low entropy but long):
+        ``aaaaaabbbbbbccccccdddddd``
+    - UUIDs (canonical 8-4-4-4-12 hex-with-dashes; not secrets):
+        ``550e8400-e29b-41d4-a716-446655440000``
+    - Common hashes (empty-string MD5/SHA, hashes of the word "test", etc.)
+    - Base64 of well-known text (``"Hello World"``, ``"test"``, lorem ipsum).
+    """
+    rng = random.Random(seed)
+    results: list[str] = []
+
+    kinds = ["repetition", "uuid", "hash", "base64"]
+
+    while len(results) < count:
+        kind = rng.choice(kinds)
+        if kind == "repetition":
+            # Long, visibly non-random runs — per-char entropy is low but length
+            # looks secret-like. Typical bad-heuristic trip wire.
+            chars = rng.sample(string.ascii_lowercase, k=4)
+            n = rng.randint(4, 8)
+            results.append("".join(c * n for c in chars))
+        elif kind == "uuid":
+            parts = [
+                "".join(rng.choices("0123456789abcdef", k=k))
+                for k in (8, 4, 4, 4, 12)
+            ]
+            # UUIDv4 variant bits (not strictly required for the FP test, but
+            # produces a structurally valid-looking UUID).
+            results.append("-".join(parts))
+        elif kind == "hash":
+            results.append(rng.choice(_COMMON_HASH_LOOKALIKES))
+        else:  # base64
+            results.append(rng.choice(_COMMON_BASE64_LOOKALIKES))
+
+    return results[:count]
+
+
 # ── Context-keyword wrapping ──────────────────────────────────────────────────
 
 # Per-category sentence that embeds the invalid value in realistic keyword context.
@@ -234,6 +299,12 @@ CONTEXT_WRAP_TEMPLATES: dict[str, str] = {
         "Numéro de carte d'assurance maladie RAMQ du patient : {value}. "
         "Dossier médical confidentiel."
     ),
+    # For entropy FPs, wrap in an assignment-plus-keyword context that
+    # stresses BOTH gated and assignment modes. If the scanner flags this,
+    # it's trusting entropy + context alone to infer sensitivity.
+    "entropy": (
+        "api_key={value}  # build-time identifier, not a secret"
+    ),
 }
 
 
@@ -252,11 +323,15 @@ def wrap_with_context(cat_name: str, value: str) -> str:
 # ── Registry ──────────────────────────────────────────────────────────────────
 
 FALSEPOS_GENERATORS: dict[str, "Callable[[int, Optional[int]], list[str]]"] = {
-    "credit_card": generate_false_credit_cards,
-    "ssn":         generate_false_ssns,
-    "sin":         generate_false_sins,
-    "iban":        generate_false_ibans,
-    "email":       generate_false_emails,
-    "phone":       generate_false_phones,
-    "ca_ramq":     generate_false_ramqs,
+    "credit_card":    generate_false_credit_cards,
+    "ssn":            generate_false_ssns,
+    "sin":            generate_false_sins,
+    "iban":           generate_false_ibans,
+    "email":          generate_false_emails,
+    "phone":          generate_false_phones,
+    "ca_ramq":        generate_false_ramqs,
+    # Entropy FPs — UUIDs, empty-string hashes, common base64, char runs.
+    # Any detection under an entropy mode is a false positive: these are
+    # decidedly not secrets despite looking structurally secret-like.
+    "entropy":        generate_false_entropy_values,
 }

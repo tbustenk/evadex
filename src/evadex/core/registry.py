@@ -47,6 +47,7 @@ def load_builtins():
     import evadex.variants.bidirectional
     import evadex.variants.soft_hyphen
     import evadex.variants.morse_code
+    import evadex.variants.entropy_evasion
     # Import adapters
     import evadex.adapters.dlpscan.adapter
     import evadex.adapters.dlpscan_cli.adapter

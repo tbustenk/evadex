@@ -156,8 +156,8 @@ def test_falsepos_all_categories_run():
     assert result.exit_code == 0, result.output
     json_start = result.output.index("{")
     data = json.loads(result.output[json_start:])
-    assert len(data["by_category"]) == 7
-    assert data["total_tested"] == 7 * 3
+    assert len(data["by_category"]) == 8
+    assert data["total_tested"] == 8 * 3
 
 
 def test_falsepos_report_structure():

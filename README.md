@@ -252,8 +252,14 @@ Payloads are classified as **structured** or **heuristic** — see [Structured v
 | Privacy/compliance label | `PCI-DSS` | `privacy_label` | heuristic |
 | Attorney-client privilege marker | `Attorney-Client Privileged` | `attorney_client` | heuristic |
 | Confidential supervisory info | `Confidential Supervisory Information` | `supervisory_info` | heuristic |
+| Random 32-char API key | `xK9mP2nL4qR7vT1w…` | `random_api_key` | heuristic (entropy) |
+| Random 48-char base64url token | `eyJhbGciOiJIUzI1NiJ9.dGVzdHBheWxvYWQ…` | `random_token` | heuristic (entropy) |
+| Random 64-char hex secret | `a3f8c2e1d4b7a9f0…` | `random_secret` | heuristic (entropy) |
+| Base64-encoded credential | `dXNlcm5hbWU6…` | `encoded_credential` | heuristic (entropy) |
+| Assignment-form secret | `DATABASE_PASSWORD=xK9mP2nL4qR7vT1w…` | `assignment_secret` | heuristic (entropy) |
+| Gated secret | `api_key: xK9mP2nL4qR7vT1w…` | `gated_secret` | heuristic (entropy) |
 
-Heuristic payloads are excluded from the default scan. Use `--include-heuristic` to include them.
+Heuristic payloads are excluded from the default scan. Use `--include-heuristic` to include them. The `entropy`-labeled categories also have their own dedicated test harness: see [`evadex entropy`](#entropy-mode-testing).
 
 ---
 
@@ -740,7 +746,7 @@ evadex generate (--format FORMAT | --formats FMT,FMT,...) --output PATH [OPTIONS
 | `--technique-group` | *(all)* | Limit evasion variants to a specific generator family. Repeat for multiple. Example: `--technique-group unicode_encoding` |
 | `--technique-mix` | *(off)* | Exact proportion per technique group, comma-separated. Proportions must sum to 1.0. Example: `--technique-mix unicode_encoding:0.4,encoding:0.3,splitting:0.3` |
 | `--evasion-per-category` | *(uses --evasion-rate)* | Override evasion rate for a specific category. Repeat for multiple. Example: `--evasion-per-category credit_card:0.7 --evasion-per-category sin:0.2` |
-| `--template` | `generic` | Document template controlling structure and tone: `generic`, `invoice`, `statement`, `hr_record`, `audit_report`, `source_code`, `config_file`, `chat_log`, `medical_record` |
+| `--template` | `generic` | Document template controlling structure and tone: `generic`, `invoice`, `statement`, `hr_record`, `audit_report`, `source_code`, `config_file`, `chat_log`, `medical_record`, `env_file`, `secrets_file`, `code_with_secrets` (entropy-focused: `.env` / YAML secrets / bare-value source code — pair with entropy categories) |
 | `--noise-level` | `medium` | Ratio of filler text to sensitive values: `low` (mostly values), `medium` (balanced), `high` (lots of business text) |
 
 **Format details:**
@@ -1314,6 +1320,33 @@ When the Siphon adapter reports a match, the result also carries Siphon-specific
 | `validator` | Which validator accepted the match (`luhn`, `mod97`, …) |
 
 `evadex compare` surfaces confidence score changes between two Siphon runs alongside severity transitions, so per-variant regressions are visible even when the pass/fail outcome is unchanged.
+
+#### Entropy-mode testing
+
+Siphon's scanner has three high-entropy-token detection modes, each gating the 4.5 bits/char threshold differently:
+
+| Mode | Gate | When to use |
+|---|---|---|
+| `gated` | Keyword (`secret`, `key`, `token`, `api_key`, `password`, `bearer`, …) within 80 chars | Default — highest precision, lowest recall |
+| `assignment` | Token preceded by an assignment (`KEY=`, `"key":`, `export KEY=`) within 60 chars | Catches `.env` and config-file leaks |
+| `all` | Any high-entropy token ≥16 chars passes | Highest recall, noisy — source-code audits |
+| `off` | Disabled | Default for Siphon — entropy adds latency |
+
+Siphon's token floor is 16 characters and the Shannon threshold is 4.5 bits/char, so pure-hex secrets (max entropy ~4.0 bits/char) pass through **any** mode untouched — a real gap to be aware of.
+
+`evadex entropy` targets all three modes at once:
+
+```bash
+# Sanity-check every mode against a Siphon instance
+evadex entropy --tool siphon --url http://localhost:8000 --api-key $EVADEX_API_KEY
+
+# Score coverage against a specific configured mode
+evadex entropy --tool siphon --mode gated        # only gated contexts expected to hit
+evadex entropy --tool siphon --mode assignment
+evadex entropy --tool siphon --mode all
+```
+
+The command submits each high-entropy payload in three contexts — **bare** (value alone), **gated** (value next to `api_key:`), and **assignment** (`SECRET_TOKEN=value`) — and reports which context each category was caught in. It also runs the `entropy_evasion` generator and lists which evasion techniques defeated detection (split, comment-injection, concatenation, low-entropy mixing, double encoding, space breaking).
 
 ### Adding a custom adapter
 

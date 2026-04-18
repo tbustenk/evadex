@@ -21,7 +21,8 @@ _CATEGORY_CHOICES = click.Choice(
 _TIER_CHOICES = click.Choice(sorted(VALID_TIERS), case_sensitive=False)
 _TEMPLATE_CHOICES = click.Choice(
     ["generic", "invoice", "statement", "hr_record", "audit_report",
-     "source_code", "config_file", "chat_log", "medical_record"],
+     "source_code", "config_file", "chat_log", "medical_record",
+     "env_file", "secrets_file", "code_with_secrets"],
     case_sensitive=False,
 )
 
@@ -221,7 +222,8 @@ def _parse_key_float_pair(value: str) -> tuple[str, float]:
     help=(
         "Document template controlling structure and tone.  "
         "Options: generic, invoice, statement, hr_record, audit_report, "
-        "source_code, config_file, chat_log, medical_record."
+        "source_code, config_file, chat_log, medical_record, "
+        "env_file, secrets_file, code_with_secrets."
     ),
 )
 @click.option(

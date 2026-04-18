@@ -561,6 +561,131 @@ def format_medical_record(
 
 # ── Public API ───────────────────────────────────────────────────────────────
 
+def format_env_file(
+    entries: list[GeneratedEntry],
+    rng: random.Random,
+    noise_level: str = "medium",
+    density: str = "medium",
+) -> list[str]:
+    """``.env``-style file where every entry becomes a KEY=VALUE line.
+
+    Targets Siphon's ``EntropyMode::Assignment`` detection: the assignment
+    regex matches ``KEY=`` before each value so every high-entropy payload
+    is in assignment context.
+    """
+    lines = [
+        "# Environment configuration for evadex test corpus",
+        "# Generated for DLP scanner entropy-mode evaluation",
+        "",
+        "NODE_ENV=production",
+        "LOG_LEVEL=info",
+        "PORT=8080",
+        "",
+    ]
+
+    by_cat: dict[PayloadCategory, list[GeneratedEntry]] = defaultdict(list)
+    for e in entries:
+        by_cat[e.category].append(e)
+
+    for cat in sorted(by_cat.keys(), key=lambda c: c.value):
+        for i, e in enumerate(by_cat[cat]):
+            var_name = cat.value.upper() + (f"_{i}" if i > 0 else "")
+            comment = f"  # evasion: {e.technique}" if e.technique else ""
+            lines.append(f"{var_name}={e.variant_value}{comment}")
+
+    if noise_level != "low":
+        lines += [
+            "",
+            "# Feature flags",
+            "FEATURE_FLAG_BETA=true",
+            "FEATURE_FLAG_CACHING=true",
+            "MAX_CONNECTIONS=100",
+            "",
+        ]
+
+    return lines
+
+
+def format_secrets_file(
+    entries: list[GeneratedEntry],
+    rng: random.Random,
+    noise_level: str = "medium",
+    density: str = "medium",
+) -> list[str]:
+    """YAML-style secrets file mixing a keyword header with high-entropy values.
+
+    Targets Siphon's ``EntropyMode::Gated`` mode: every value sits under a
+    keyword like ``api_key:`` or ``secret:`` so the 80-char gating window
+    catches it.
+    """
+    keywords = [
+        "api_key", "secret_key", "access_token", "private_key",
+        "password", "bearer_token", "signing_key", "encryption_key",
+    ]
+
+    lines = [
+        "# Secrets manifest — for scanner evaluation only",
+        "version: 1",
+        "secrets:",
+    ]
+
+    by_cat: dict[PayloadCategory, list[GeneratedEntry]] = defaultdict(list)
+    for e in entries:
+        by_cat[e.category].append(e)
+
+    for cat in sorted(by_cat.keys(), key=lambda c: c.value):
+        for i, e in enumerate(by_cat[cat]):
+            kw = rng.choice(keywords)
+            name = f"{cat.value}_{i}" if i > 0 else cat.value
+            comment = f"  # evasion: {e.technique}" if e.technique else ""
+            lines.append(f"  - name: {name}")
+            lines.append(f"    {kw}: {e.variant_value}{comment}")
+            lines.append(f"    environment: production")
+
+    return lines
+
+
+def format_code_with_secrets(
+    entries: list[GeneratedEntry],
+    rng: random.Random,
+    noise_level: str = "medium",
+    density: str = "medium",
+) -> list[str]:
+    """Source code with high-entropy values hardcoded bare — no keyword, no assignment.
+
+    Values are emitted as positional arguments to function calls so that
+    only ``EntropyMode::All`` (flag everything high-entropy) catches them.
+    Complements ``source_code`` which puts them in assignment context.
+    """
+    lines = [
+        "#!/usr/bin/env python3",
+        '"""Entropy-focused bare-value placement — exercises EntropyMode::All."""',
+        "",
+        "import hashlib",
+        "",
+        "def _verify(token, nonce, signature):",
+        "    return hashlib.sha256(token.encode()).hexdigest() == signature",
+        "",
+    ]
+
+    by_cat: dict[PayloadCategory, list[GeneratedEntry]] = defaultdict(list)
+    for e in entries:
+        by_cat[e.category].append(e)
+
+    for cat in sorted(by_cat.keys(), key=lambda c: c.value):
+        cat_entries = by_cat[cat]
+        lines.append(f"# {cat.value.replace('_', ' ').title()}")
+        for e in cat_entries:
+            # Bare value — no assignment, no keyword nearby. Function call
+            # hides the value as a positional literal so only EntropyMode::All
+            # (or a keyword Siphon happens to treat as context) catches it.
+            comment = f"  # evasion: {e.technique}" if e.technique else ""
+            lines.append(f'_verify("{e.variant_value}", "nonce_abc", "sig_xyz"){comment}')
+        lines.append("")
+
+    return lines
+
+
 _FORMATTERS = {
     "generic": format_generic,
     "invoice": format_invoice,
@@ -571,6 +696,9 @@ _FORMATTERS = {
     "config_file": format_config_file,
     "chat_log": format_chat_log,
     "medical_record": format_medical_record,
+    "env_file": format_env_file,
+    "secrets_file": format_secrets_file,
+    "code_with_secrets": format_code_with_secrets,
 }
 
 

@@ -618,6 +618,14 @@ class PayloadCategory(Enum):
     US_PHONE = "us_phone"
     US_ROUTING = "us_routing"
 
+    # ── High-entropy secrets (heuristic, for Siphon's entropy modes) ────────
+    RANDOM_API_KEY = "random_api_key"
+    RANDOM_TOKEN = "random_token"
+    RANDOM_SECRET = "random_secret"
+    ENCODED_CREDENTIAL = "encoded_credential"
+    ASSIGNMENT_SECRET = "assignment_secret"
+    GATED_SECRET = "gated_secret"
+
     UNKNOWN = "unknown"
 
 
@@ -1149,6 +1157,13 @@ CATEGORY_TYPES: dict[PayloadCategory, CategoryType] = {
     # US additional identifiers
     PayloadCategory.US_PHONE:            CategoryType.STRUCTURED,
     PayloadCategory.US_ROUTING:          CategoryType.STRUCTURED,
+    # High-entropy secrets — detection is a heuristic over Shannon entropy, not a pattern
+    PayloadCategory.RANDOM_API_KEY:      CategoryType.HEURISTIC,
+    PayloadCategory.RANDOM_TOKEN:        CategoryType.HEURISTIC,
+    PayloadCategory.RANDOM_SECRET:       CategoryType.HEURISTIC,
+    PayloadCategory.ENCODED_CREDENTIAL:  CategoryType.HEURISTIC,
+    PayloadCategory.ASSIGNMENT_SECRET:   CategoryType.HEURISTIC,
+    PayloadCategory.GATED_SECRET:        CategoryType.HEURISTIC,
     PayloadCategory.UNKNOWN:  CategoryType.STRUCTURED,
 }
 

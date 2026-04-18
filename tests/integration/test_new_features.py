@@ -140,7 +140,7 @@ def test_list_payloads_shows_all():
     assert result.exit_code == 0
     assert "Visa 16-digit" in result.output
     assert "US SSN" in result.output
-    assert "554 payload" in result.output
+    assert "560 payload" in result.output
 
 
 def test_list_payloads_filter_structured():
@@ -157,7 +157,7 @@ def test_list_payloads_filter_heuristic():
     assert result.exit_code == 0
     assert "AWS Access Key" in result.output
     assert "Visa 16-digit" not in result.output
-    assert "69 payload" in result.output
+    assert "75 payload" in result.output
 
 
 # ── list-techniques ───────────────────────────────────────────────────────────
