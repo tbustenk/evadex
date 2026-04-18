@@ -79,11 +79,15 @@ def _add_table_section(doc: Document, entries: list[GeneratedEntry], cat: Payloa
 
 
 def write_docx(entries: list[GeneratedEntry], path: str) -> None:
+    from evadex.generate.writers import (
+        _active_template, _active_noise_level, _active_density, _active_seed,
+    )
+
     doc = Document()
 
     # ── Cover / title ──────────────────────────────────────────────────────
-    title = doc.add_heading("DLP Test Document", 0)
-    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    heading = doc.add_heading("DLP Test Document", 0)
+    heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     today = datetime.date.today().isoformat()
     sub = doc.add_paragraph(f"Generated: {today}")
@@ -97,6 +101,23 @@ def write_docx(entries: list[GeneratedEntry], path: str) -> None:
     )
     disclaimer.runs[0].font.color.rgb = RGBColor(0xC0, 0x00, 0x00)
     doc.add_paragraph()
+
+    # If a non-generic template is active, use the template system for content
+    if _active_template != "generic":
+        from evadex.generate.templates import apply_template
+        lines = apply_template(
+            _active_template, entries,
+            seed=_active_seed,
+            noise_level=_active_noise_level,
+            density=_active_density,
+        )
+        for line in lines:
+            if line.startswith("===") or line.startswith("---"):
+                continue
+            if line.strip():
+                doc.add_paragraph(line)
+        doc.save(path)
+        return
 
     by_cat: dict[PayloadCategory, list[GeneratedEntry]] = defaultdict(list)
     for e in entries:

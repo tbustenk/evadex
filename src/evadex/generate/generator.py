@@ -45,6 +45,17 @@ class GenerateConfig:
     output: str = "output"
     include_heuristic: bool = False
     language: str = "en"   # "en" or "fr-CA"
+    # Granular amount options
+    count_per_category: Optional[dict[str, int]] = None   # category_name -> count
+    total: Optional[int] = None                           # distribute N across categories
+    density: str = "medium"                               # low, medium, high
+    # Granular evasion options
+    technique_group: Optional[list[str]] = None           # generator family names
+    technique_mix: Optional[dict[str, float]] = None      # generator_name -> proportion
+    evasion_per_category: Optional[dict[str, float]] = None  # category_name -> evasion rate
+    # Template / noise options
+    template: str = "generic"
+    noise_level: str = "medium"                           # low, medium, high
 
 
 # ── Luhn-valid credit card generation ─────────────────────────────────────────
@@ -96,12 +107,34 @@ def _pick_variant(
     cat: PayloadCategory,
     generators: list,
     allowed_techniques: Optional[list[str]],
+    technique_group: Optional[list[str]] = None,
+    technique_mix: Optional[dict[str, float]] = None,
 ):
     """Return a random Variant for plain, or None if none applicable."""
     applicable = [
         g for g in generators
         if g.applicable_categories is None or cat in g.applicable_categories
     ]
+
+    # Filter by technique group (generator family name)
+    if technique_group:
+        applicable = [g for g in applicable if g.name in technique_group]
+
+    # If technique_mix is set, pick a generator weighted by proportions
+    if technique_mix and applicable:
+        weighted = [(g, technique_mix.get(g.name, 0.0)) for g in applicable]
+        weighted = [(g, w) for g, w in weighted if w > 0]
+        if weighted:
+            gens_list, weights = zip(*weighted)
+            chosen_gen = rng.choices(list(gens_list), weights=list(weights), k=1)[0]
+            try:
+                variants = list(chosen_gen.generate(plain))
+            except Exception:
+                return None
+            if allowed_techniques:
+                variants = [v for v in variants if v.technique in allowed_techniques]
+            return rng.choice(variants) if variants else None
+
     order = list(applicable)
     rng.shuffle(order)
     for gen in order:
@@ -170,26 +203,56 @@ def generate_entries(config: GenerateConfig) -> list[GeneratedEntry]:
     # Build per-category synthetic value pools for categories that have generators
     _synthetic_pools: dict[PayloadCategory, list[str]] = {}
 
+    # Resolve per-category counts
+    cat_counts: dict[PayloadCategory, int] = {}
+    cat_list = sorted(by_cat.keys(), key=lambda c: c.value)
+
+    if config.total is not None:
+        # Distribute --total evenly across categories
+        n_cats = len(cat_list)
+        base_count = config.total // n_cats
+        remainder = config.total % n_cats
+        for idx, cat in enumerate(cat_list):
+            cat_counts[cat] = base_count + (1 if idx < remainder else 0)
+    else:
+        for cat in cat_list:
+            if config.count_per_category and cat.value in config.count_per_category:
+                cat_counts[cat] = config.count_per_category[cat.value]
+            else:
+                cat_counts[cat] = config.count
+
     entries: list[GeneratedEntry] = []
-    for cat, seeds in sorted(by_cat.items(), key=lambda kv: kv[0].value):
+    for cat in cat_list:
+        seeds = by_cat[cat]
+        count_for_cat = cat_counts[cat]
+
         # Pre-generate a synthetic pool if a generator is registered for this category
         syn_gen = get_synthetic_generator(cat)
-        if syn_gen is not None and config.count > len(seeds):
+        if syn_gen is not None and count_for_cat > len(seeds):
             seed_val = rng.randint(0, 2 ** 31)
-            _synthetic_pools[cat] = syn_gen.generate(config.count, seed=seed_val)
+            _synthetic_pools[cat] = syn_gen.generate(count_for_cat, seed=seed_val)
 
-        for i in range(config.count):
+        # Per-category evasion rate override
+        cat_evasion_rate = evasion_rate
+        if config.evasion_per_category and cat.value in config.evasion_per_category:
+            cat_evasion_rate = config.evasion_per_category[cat.value]
+
+        for i in range(count_for_cat):
             plain = _pick_plain_value(rng, cat, seeds, i, _synthetic_pools)
 
             # Evasion decision
-            do_evasion = rng.random() < evasion_rate
+            do_evasion = rng.random() < cat_evasion_rate
             technique: Optional[str] = None
             gen_name: Optional[str] = None
             transform: Optional[str] = None
             variant_value = plain
 
             if do_evasion:
-                v = _pick_variant(rng, plain, cat, gens, techniques)
+                v = _pick_variant(
+                    rng, plain, cat, gens, techniques,
+                    technique_group=config.technique_group,
+                    technique_mix=config.technique_mix,
+                )
                 if v is not None:
                     variant_value = v.value
                     technique = v.technique

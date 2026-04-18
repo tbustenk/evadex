@@ -12,14 +12,42 @@ from evadex.payloads.tiers import get_tier_categories, VALID_TIERS
 
 err_console = Console(stderr=True)
 
-_FORMAT_CHOICES = click.Choice(["xlsx", "docx", "pdf", "csv", "txt"], case_sensitive=False)
+_ALL_FORMATS = ["xlsx", "docx", "pdf", "csv", "txt", "eml", "msg", "json", "xml", "sql", "log"]
+_FORMAT_CHOICES = click.Choice(_ALL_FORMATS, case_sensitive=False)
 _CATEGORY_CHOICES = click.Choice(
     [c.value for c in PayloadCategory if c != PayloadCategory.UNKNOWN],
     case_sensitive=False,
 )
 _TIER_CHOICES = click.Choice(sorted(VALID_TIERS), case_sensitive=False)
+_TEMPLATE_CHOICES = click.Choice(
+    ["generic", "invoice", "statement", "hr_record", "audit_report",
+     "source_code", "config_file", "chat_log", "medical_record"],
+    case_sensitive=False,
+)
 
-_VALID_BATCH_FORMATS = {"xlsx", "docx", "pdf", "csv", "txt"}
+_VALID_BATCH_FORMATS = set(_ALL_FORMATS)
+
+
+def _parse_key_int_pair(value: str) -> tuple[str, int]:
+    """Parse 'key:int' into (key, int)."""
+    if ":" not in value:
+        raise click.BadParameter(f"Expected key:value format, got {value!r}")
+    k, v = value.rsplit(":", 1)
+    try:
+        return k, int(v)
+    except ValueError:
+        raise click.BadParameter(f"Expected integer after ':', got {v!r}")
+
+
+def _parse_key_float_pair(value: str) -> tuple[str, float]:
+    """Parse 'key:float' into (key, float)."""
+    if ":" not in value:
+        raise click.BadParameter(f"Expected key:value format, got {value!r}")
+    k, v = value.rsplit(":", 1)
+    try:
+        return k, float(v)
+    except ValueError:
+        raise click.BadParameter(f"Expected number after ':', got {v!r}")
 
 
 @click.command("generate")
@@ -125,6 +153,87 @@ _VALID_BATCH_FORMATS = {"xlsx", "docx", "pdf", "csv", "txt"}
     type=click.Choice(["en", "fr-CA"], case_sensitive=False),
     help="Language for keyword context sentences: 'en' (English) or 'fr-CA' (Canadian French).",
 )
+# ── Part 2: Granular amount options ──────────────────────────────────────────
+@click.option(
+    "--count-per-category",
+    multiple=True,
+    metavar="CATEGORY:COUNT",
+    help=(
+        "Override count for a specific category.  Repeat for multiple.  "
+        "Example: --count-per-category credit_card:200 --count-per-category sin:50"
+    ),
+)
+@click.option(
+    "--total",
+    type=click.IntRange(1, 100_000),
+    default=None,
+    metavar="N",
+    help=(
+        "Generate exactly N records distributed evenly across selected categories.  "
+        "Mutually exclusive with --count."
+    ),
+)
+@click.option(
+    "--density",
+    default="medium",
+    show_default=True,
+    type=click.Choice(["low", "medium", "high"], case_sensitive=False),
+    help=(
+        "Controls how frequently sensitive values appear in filler text.  "
+        "low=one per paragraph, medium=one per 2-3 sentences, high=almost every sentence."
+    ),
+)
+# ── Part 3: Granular evasion options ─────────────────────────────────────────
+@click.option(
+    "--technique-group",
+    multiple=True,
+    metavar="GENERATOR",
+    help=(
+        "Limit evasion variants to a specific generator family.  "
+        "Repeat for multiple.  Example: --technique-group unicode_encoding"
+    ),
+)
+@click.option(
+    "--technique-mix",
+    default=None,
+    metavar="GEN:PROP,...",
+    help=(
+        "Exact proportion per technique group.  "
+        "Example: --technique-mix unicode_encoding:0.4,encoding:0.3,splitting:0.3  "
+        "Proportions must sum to 1.0."
+    ),
+)
+@click.option(
+    "--evasion-per-category",
+    multiple=True,
+    metavar="CATEGORY:RATE",
+    help=(
+        "Override evasion rate for a specific category.  Repeat for multiple.  "
+        "Example: --evasion-per-category credit_card:0.7 --evasion-per-category sin:0.2"
+    ),
+)
+# ── Part 4: Template / noise options ─────────────────────────────────────────
+@click.option(
+    "--template",
+    default="generic",
+    show_default=True,
+    type=_TEMPLATE_CHOICES,
+    help=(
+        "Document template controlling structure and tone.  "
+        "Options: generic, invoice, statement, hr_record, audit_report, "
+        "source_code, config_file, chat_log, medical_record."
+    ),
+)
+@click.option(
+    "--noise-level",
+    default="medium",
+    show_default=True,
+    type=click.Choice(["low", "medium", "high"], case_sensitive=False),
+    help=(
+        "Controls ratio of filler text to sensitive values.  "
+        "low=mostly values, medium=balanced, high=lots of business text."
+    ),
+)
 def generate(
     fmt: str | None,
     batch_formats: str | None,
@@ -139,6 +248,14 @@ def generate(
     output: str,
     include_heuristic: bool,
     language: str,
+    count_per_category: tuple[str, ...],
+    total: int | None,
+    density: str,
+    technique_group: tuple[str, ...],
+    technique_mix: str | None,
+    evasion_per_category: tuple[str, ...],
+    template: str,
+    noise_level: str,
 ) -> None:
     """Generate test documents filled with synthetic sensitive data for DLP testing.
 
@@ -152,6 +269,9 @@ def generate(
       evadex generate --formats xlsx,docx,pdf --tier banking --count 100 --output reports/banking
       evadex generate --format docx --evasion-rate 0.6 --technique homoglyph_substitution --output doc.docx
       evadex generate --format txt  --random --count 100 --seed 42 --output test.txt
+      evadex generate --format json --tier banking --total 1000 --output export.json
+      evadex generate --format xlsx --tier banking --evasion-rate 0.5 --technique-group unicode_encoding --output test.xlsx
+      evadex generate --format docx --tier banking --template statement --count 100 --output stmt.docx
     """
     # ── Validate format args ───────────────────────────────────────────────────
     if not fmt and not batch_formats:
@@ -173,6 +293,42 @@ def generate(
             raise click.UsageError("--formats must contain at least one format.")
     else:
         formats = [fmt]  # type: ignore[list-item]
+
+    # ── Parse granular options ────────────────────────────────────────────────
+    parsed_count_per_category: dict[str, int] | None = None
+    if count_per_category:
+        parsed_count_per_category = {}
+        for item in count_per_category:
+            k, v = _parse_key_int_pair(item)
+            parsed_count_per_category[k] = v
+
+    parsed_technique_mix: dict[str, float] | None = None
+    if technique_mix:
+        parsed_technique_mix = {}
+        for pair in technique_mix.split(","):
+            pair = pair.strip()
+            if not pair:
+                continue
+            k, v = _parse_key_float_pair(pair)
+            parsed_technique_mix[k] = v
+        # Validate proportions sum to 1.0
+        total_prop = sum(parsed_technique_mix.values())
+        if abs(total_prop - 1.0) > 0.01:
+            raise click.UsageError(
+                f"--technique-mix proportions must sum to 1.0 "
+                f"(got {total_prop:.3f})"
+            )
+
+    parsed_evasion_per_category: dict[str, float] | None = None
+    if evasion_per_category:
+        parsed_evasion_per_category = {}
+        for item in evasion_per_category:
+            k, v = _parse_key_float_pair(item)
+            if not 0.0 <= v <= 1.0:
+                raise click.UsageError(
+                    f"Evasion rate for {k!r} must be 0.0–1.0, got {v}"
+                )
+            parsed_evasion_per_category[k] = v
 
     # ── Validate output path ───────────────────────────────────────────────────
     out = Path(output)
@@ -203,12 +359,14 @@ def generate(
             err_console.print(f"[dim]Tier: {effective_tier}[/dim]")
 
     techs = list(techniques) if techniques else None
+    tech_groups = list(technique_group) if technique_group else None
 
     # ── Generate entries once (shared across all formats) ─────────────────────
+    display_count = str(total) + " total" if total else str(count)
     err_console.print(
         f"[bold]evadex generate[/bold] — "
         f"format=[cyan]{', '.join(formats)}[/cyan]  "
-        f"count=[cyan]{count}[/cyan]  evasion-rate=[cyan]{evasion_rate}[/cyan]"
+        f"count=[cyan]{display_count}[/cyan]  evasion-rate=[cyan]{evasion_rate}[/cyan]"
     )
     if seed is not None:
         err_console.print(f"  seed: [dim]{seed}[/dim]")
@@ -226,6 +384,14 @@ def generate(
         output=output,
         include_heuristic=include_heuristic,
         language=language,
+        count_per_category=parsed_count_per_category,
+        total=total,
+        density=density,
+        technique_group=tech_groups,
+        technique_mix=parsed_technique_mix,
+        evasion_per_category=parsed_evasion_per_category,
+        template=template,
+        noise_level=noise_level,
     )
 
     entries = generate_entries(config)
@@ -241,7 +407,13 @@ def generate(
     )
 
     # ── Write output for each format ──────────────────────────────────────────
-    from evadex.generate.writers import get_writer
+    from evadex.generate.writers import get_writer, set_writer_config
+    set_writer_config(
+        template=template,
+        noise_level=noise_level,
+        density=density,
+        seed=seed,
+    )
 
     for write_fmt in formats:
         # Determine output path: stem + extension for --formats, original path for --format

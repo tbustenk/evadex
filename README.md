@@ -721,7 +721,7 @@ evadex generate (--format FORMAT | --formats FMT,FMT,...) --output PATH [OPTIONS
 
 | Flag | Default | Description |
 |---|---|---|
-| `--format` | *(one of format/formats required)* | Single output format: `xlsx`, `docx`, `pdf`, `csv`, `txt` |
+| `--format` | *(one of format/formats required)* | Single output format: `xlsx`, `docx`, `pdf`, `csv`, `txt`, `eml`, `msg`, `json`, `xml`, `sql`, `log` |
 | `--formats` | *(one of format/formats required)* | Comma-separated list of formats. Output is a path stem; extensions are appended. `--formats xlsx,docx,pdf --output dir/test` → `test.xlsx`, `test.docx`, `test.pdf` |
 | `--output` | *(required)* | Output file path (with `--format`) or path stem (with `--formats`) |
 | `--tier` | `banking` | Payload tier when `--category` is not set: `banking` (default), `core`, `regional`, `full` |
@@ -734,14 +734,40 @@ evadex generate (--format FORMAT | --formats FMT,FMT,...) --output PATH [OPTIONS
 | `--random` | off | Randomise categories, evasion rate, and keyword rate |
 | `--seed` | *(none)* | Integer seed for reproducible output |
 | `--include-heuristic` | off | Also include heuristic categories (AWS keys, tokens, JWT, etc.) |
+| `--count-per-category` | *(uses --count)* | Override count for a specific category. Repeat for multiple. Example: `--count-per-category credit_card:200 --count-per-category sin:50` |
+| `--total` | *(off)* | Generate exactly N records distributed evenly across selected categories. Example: `--total 1000` |
+| `--density` | `medium` | How frequently sensitive values appear in filler text: `low` (one per paragraph), `medium` (one per 2-3 sentences), `high` (almost every sentence) |
+| `--technique-group` | *(all)* | Limit evasion variants to a specific generator family. Repeat for multiple. Example: `--technique-group unicode_encoding` |
+| `--technique-mix` | *(off)* | Exact proportion per technique group, comma-separated. Proportions must sum to 1.0. Example: `--technique-mix unicode_encoding:0.4,encoding:0.3,splitting:0.3` |
+| `--evasion-per-category` | *(uses --evasion-rate)* | Override evasion rate for a specific category. Repeat for multiple. Example: `--evasion-per-category credit_card:0.7 --evasion-per-category sin:0.2` |
+| `--template` | `generic` | Document template controlling structure and tone: `generic`, `invoice`, `statement`, `hr_record`, `audit_report`, `source_code`, `config_file`, `chat_log`, `medical_record` |
+| `--noise-level` | `medium` | Ratio of filler text to sensitive values: `low` (mostly values), `medium` (balanced), `high` (lots of business text) |
 
 **Format details:**
 
 - **`xlsx`** — Multiple sheets: one `Summary` sheet plus one sheet per category. Columns include embedded text, plain value, variant value, technique, and generator. Evasion rows are highlighted yellow.
-- **`docx`** — Title page with disclaimer; one heading per category; two-thirds prose paragraphs, one-third tabular layout.
+- **`docx`** — Title page with disclaimer; one heading per category; two-thirds prose paragraphs, one-third tabular layout. Supports `--template` for alternate document structures.
 - **`pdf`** — Sections per category with header/footer; evasion rows highlighted.
 - **`csv`** — Flat CSV with columns: `category`, `plain_value`, `variant_value`, `technique`, `generator`, `transform_name`, `has_keywords`, `embedded_text`.
-- **`txt`** — Plain-text document with section headings and numbered entry list.
+- **`txt`** — Plain-text document with section headings and numbered entry list. Supports `--template` for alternate document structures.
+- **`eml`** — RFC 2822 email file with From/To/Subject headers, realistic names, and sensitive values in the body. Example: `"Please find attached the statement for card 4532015112830366"`.
+- **`msg`** — Outlook message format. Currently generates EML-format content with `.msg` extension (DLP scanners extract text identically).
+- **`json`** — Structured JSON data export. Array of records with realistic field names: `customer_id`, `card_number`, `name`, `email`, plus filler fields. Pretty-printed.
+- **`xml`** — Financial messaging format resembling ISO 20022 (pain.001) payment messages. Sensitive values in appropriate XML elements (`<IBAN>`, `<BIC>`, `<Ustrd>`).
+- **`sql`** — Database dump format with `CREATE TABLE` and `INSERT INTO` statements. Example: `INSERT INTO customers (id, name, sin, card_number) VALUES (1, 'John Smith', '046 454 286', '4532015112830366');`.
+- **`log`** — Application log format with timestamps, log levels, and services. Mixes plaintext, structured, and JSON log formats.
+
+**Template details:**
+
+- **`generic`** (default) — Mixed prose and table format (existing behaviour).
+- **`invoice`** — Payment invoice layout with line items, amounts, HST, and totals.
+- **`statement`** — Bank statement with account details, transaction history, and balance.
+- **`hr_record`** — HR employee records with personal information fields grouped per employee.
+- **`audit_report`** — Internal audit report with executive summary, detailed findings (severity-rated), and recommendations.
+- **`source_code`** — Realistic source code with sensitive values as hardcoded strings, variable assignments, and comments. Mixes Python, JavaScript, and generic syntax.
+- **`config_file`** — Application config (randomly INI, YAML, or ENV format) with sensitive values as configuration parameters.
+- **`chat_log`** — Messaging/chat export with timestamps, participant names, and sensitive values shared in conversation.
+- **`medical_record`** — Clinical notes and patient records with MRN, DOB, diagnoses, medications, and sensitive identifiers.
 
 **Examples:**
 
@@ -773,6 +799,42 @@ evadex generate --format xlsx --random --count 500 --seed 42 --output random.xls
 # CSV for programmatic inspection
 evadex generate --format csv --category ssn --count 1000 \
   --evasion-rate 0.3 --output ssn_variants.csv
+
+# New formats — email, JSON, XML, SQL, log
+evadex generate --format eml --tier banking --count 50 --output test_email.eml
+evadex generate --format json --tier banking --count 200 --output export.json
+evadex generate --format xml --category iban --category credit_card --count 100 --output payments.xml
+evadex generate --format sql --tier banking --count 500 --output dump.sql
+evadex generate --format log --tier banking --count 1000 --output app.log
+evadex generate --formats eml,json,xml,sql,log --tier banking --output reports/multi
+
+# Per-category count overrides
+evadex generate --format xlsx --tier banking --count 100 \
+  --count-per-category credit_card:500 --count-per-category sin:50 --output overrides.xlsx
+
+# Total record distribution
+evadex generate --format json --tier banking --total 1000 --output distributed.json
+
+# Evasion technique control
+evadex generate --format xlsx --tier banking --evasion-rate 0.5 \
+  --technique-group unicode_encoding --output unicode_only.xlsx
+evadex generate --format xlsx --tier banking --evasion-rate 0.5 \
+  --technique-mix unicode_encoding:0.4,encoding:0.3,splitting:0.3 --output mixed.xlsx
+
+# Per-category evasion rates
+evadex generate --format csv --tier banking --evasion-rate 0.3 \
+  --evasion-per-category credit_card:0.9 --evasion-per-category sin:0.1 --output targeted.csv
+
+# Document templates
+evadex generate --format docx --tier banking --template statement --count 100 --output statement.docx
+evadex generate --format txt --tier banking --template invoice --output invoice.txt
+evadex generate --format txt --category credit_card --template source_code --count 50 --output leaked_code.txt
+evadex generate --format txt --category credit_card --template chat_log --count 20 --output chat_export.txt
+evadex generate --format txt --tier banking --template audit_report --noise-level high --output audit.txt
+
+# Density and noise control
+evadex generate --format docx --tier banking --density high --count 100 --output dense.docx
+evadex generate --format pdf --tier banking --noise-level high --count 100 --output noisy.pdf
 ```
 
 **Value generation:**
@@ -939,7 +1001,7 @@ evadex list-payloads [--type structured|heuristic]
 
 ### `evadex list-techniques`
 
-List all registered evasion generators and the techniques each one applies.
+List all registered evasion generators and the techniques each one applies. Generator names shown here can be used with `evadex generate --technique-group` and `--technique-mix`.
 
 ```
 evadex list-techniques [--generator NAME]
