@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "evadex"
-version = "3.6.0"
+version = "3.7.0"
 description = "Comprehensive DLP evasion test suite — scanner-agnostic, file-aware"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -42,6 +42,14 @@ dev = [
     "pytest>=8.0,<10",
     "pytest-asyncio>=0.23,<2",
     "respx>=0.21,<1",
+]
+# Optional barcode/QR image generation for `evadex generate --format png|jpg|multi_barcode_png`.
+# Exercises DLP scanners (e.g. Siphon) that decode QR codes and 1D/2D
+# barcodes from image inputs. Install with `pip install evadex[barcodes]`.
+barcodes = [
+    "qrcode[pil]>=7.4,<9",
+    "python-barcode[images]>=0.15,<1",
+    "Pillow>=10.0,<13",
 ]
 
 [project.urls]

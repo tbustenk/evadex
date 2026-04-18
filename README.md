@@ -448,6 +448,13 @@ cd evadex
 pip install -e ".[dev]"
 ```
 
+Optional extras:
+
+```bash
+# Barcode / QR image generation for scanners that decode images (Siphon, etc.)
+pip install evadex[barcodes]
+```
+
 For reproducible installs with pinned, hash-verified dependencies (recommended for regulated environments):
 
 ```bash
@@ -727,8 +734,9 @@ evadex generate (--format FORMAT | --formats FMT,FMT,...) --output PATH [OPTIONS
 
 | Flag | Default | Description |
 |---|---|---|
-| `--format` | *(one of format/formats required)* | Single output format: `xlsx`, `docx`, `pdf`, `csv`, `txt`, `eml`, `msg`, `json`, `xml`, `sql`, `log` |
+| `--format` | *(one of format/formats required)* | Single output format: `xlsx`, `docx`, `pdf`, `csv`, `txt`, `eml`, `msg`, `json`, `xml`, `sql`, `log`, `png`, `jpg`, `multi_barcode_png` |
 | `--formats` | *(one of format/formats required)* | Comma-separated list of formats. Output is a path stem; extensions are appended. `--formats xlsx,docx,pdf --output dir/test` → `test.xlsx`, `test.docx`, `test.pdf` |
+| `--barcode-type` | `qr` | Barcode encoding for `png`/`jpg`/`multi_barcode_png`: `qr` (unicode, up to 4296 chars), `code128` (ASCII 1D), `ean13` (13 digits, zero-padded), `pdf417` (2D, requires optional `pdf417gen`), `datamatrix` (2D, requires optional `pylibdmtx`), or `random`. |
 | `--output` | *(required)* | Output file path (with `--format`) or path stem (with `--formats`) |
 | `--tier` | `banking` | Payload tier when `--category` is not set: `banking` (default), `core`, `regional`, `full` |
 | `--category` | *(overrides --tier)* | Payload category to include. Repeat for multiple. |
@@ -762,6 +770,8 @@ evadex generate (--format FORMAT | --formats FMT,FMT,...) --output PATH [OPTIONS
 - **`xml`** — Financial messaging format resembling ISO 20022 (pain.001) payment messages. Sensitive values in appropriate XML elements (`<IBAN>`, `<BIC>`, `<Ustrd>`).
 - **`sql`** — Database dump format with `CREATE TABLE` and `INSERT INTO` statements. Example: `INSERT INTO customers (id, name, sin, card_number) VALUES (1, 'John Smith', '046 454 286', '4532015112830366');`.
 - **`log`** — Application log format with timestamps, log levels, and services. Mixes plaintext, structured, and JSON log formats.
+- **`png` / `jpg`** — Image grid of barcodes/QR codes, one per entry. Targets scanners that extract text from images via barcode decoding (e.g. Siphon's `extract_barcode` pipeline, which decodes QR, Data Matrix, PDF417, Code 128, EAN-13, etc.). Capped at 60 barcodes per image for decompression-bomb safety and to stay under Siphon's 100-codes-per-image decode cap. Value is rendered with a quiet zone plus a human-readable label. *Requires `pip install evadex[barcodes]`.*
+- **`multi_barcode_png`** — PNG styled like a scanned form with a header bar, body text, and a mixed grid of QR, Code 128, and EAN-13 codes carrying different sensitive values. Exercises multi-format decoding in one pass. *Requires `pip install evadex[barcodes]`.*
 
 **Template details:**
 
@@ -813,6 +823,16 @@ evadex generate --format xml --category iban --category credit_card --count 100 
 evadex generate --format sql --tier banking --count 500 --output dump.sql
 evadex generate --format log --tier banking --count 1000 --output app.log
 evadex generate --formats eml,json,xml,sql,log --tier banking --output reports/multi
+
+# Barcode / QR code images (requires: pip install evadex[barcodes])
+evadex generate --format png --category credit_card --count 10 --barcode-type qr       --output qr.png
+evadex generate --format png --category credit_card --count 10 --barcode-type code128  --output code128.png
+evadex generate --format png --category credit_card --count 12 --barcode-type ean13    --output ean13.png
+evadex generate --format jpg --category credit_card --count 10 --evasion-rate 0.3      --output cards.jpg
+evadex generate --format multi_barcode_png --category credit_card --category ssn --count 10 --output form.png
+# Barcode image evasions (split across two codes, noise overlay, rotation, embed-in-document)
+evadex generate --format png --category credit_card --count 4 --evasion-rate 1.0 \
+  --technique-group barcode_evasion --output evasion.png
 
 # Per-category count overrides
 evadex generate --format xlsx --tier banking --count 100 \

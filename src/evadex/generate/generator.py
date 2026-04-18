@@ -111,10 +111,25 @@ def _pick_variant(
     technique_mix: Optional[dict[str, float]] = None,
 ):
     """Return a random Variant for plain, or None if none applicable."""
+    # Sort by generator name so seeded shuffles are reproducible regardless of
+    # the order in which generator modules were imported. Without this sort,
+    # import order (for example, which variant test pytest collects first)
+    # shifts the shuffle output and breaks deterministic tests that depend on
+    # --seed alone.
     applicable = [
         g for g in generators
         if g.applicable_categories is None or cat in g.applicable_categories
     ]
+    # Skip generators that opt out of random selection unless the user has
+    # explicitly requested them via --technique-group / --technique-mix.
+    explicit_names: set = set(technique_group or [])
+    if technique_mix:
+        explicit_names.update(technique_mix.keys())
+    applicable = [
+        g for g in applicable
+        if getattr(g, "auto_applicable", True) or g.name in explicit_names
+    ]
+    applicable.sort(key=lambda g: g.name)
 
     # Filter by technique group (generator family name)
     if technique_group:

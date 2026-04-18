@@ -9,6 +9,7 @@ _active_template: str = "generic"
 _active_noise_level: str = "medium"
 _active_density: str = "medium"
 _active_seed: Optional[int] = None
+_active_barcode_type: str = "qr"
 
 
 def set_writer_config(
@@ -16,13 +17,16 @@ def set_writer_config(
     noise_level: str = "medium",
     density: str = "medium",
     seed: Optional[int] = None,
+    barcode_type: str = "qr",
 ) -> None:
     """Set template/noise config for subsequent writer calls."""
     global _active_template, _active_noise_level, _active_density, _active_seed
+    global _active_barcode_type
     _active_template = template
     _active_noise_level = noise_level
     _active_density = density
     _active_seed = seed
+    _active_barcode_type = barcode_type
 
 
 def get_writer(fmt: str) -> Callable[[list[GeneratedEntry], str], None]:
@@ -60,4 +64,13 @@ def get_writer(fmt: str) -> Callable[[list[GeneratedEntry], str], None]:
     if fmt == "log":
         from evadex.generate.writers.log_writer import write_log
         return write_log
+    if fmt == "png":
+        from evadex.generate.writers.barcode_writer import write_png
+        return write_png
+    if fmt == "jpg":
+        from evadex.generate.writers.barcode_writer import write_jpg
+        return write_jpg
+    if fmt == "multi_barcode_png":
+        from evadex.generate.writers.barcode_writer import write_multi_barcode_png
+        return write_multi_barcode_png
     raise ValueError(f"Unknown format: {fmt!r}")

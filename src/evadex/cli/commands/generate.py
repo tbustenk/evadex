@@ -12,8 +12,17 @@ from evadex.payloads.tiers import get_tier_categories, VALID_TIERS
 
 err_console = Console(stderr=True)
 
-_ALL_FORMATS = ["xlsx", "docx", "pdf", "csv", "txt", "eml", "msg", "json", "xml", "sql", "log"]
+_ALL_FORMATS = [
+    "xlsx", "docx", "pdf", "csv", "txt", "eml", "msg",
+    "json", "xml", "sql", "log",
+    # Barcode/QR image formats — require `pip install evadex[barcodes]`.
+    "png", "jpg", "multi_barcode_png",
+]
 _FORMAT_CHOICES = click.Choice(_ALL_FORMATS, case_sensitive=False)
+_BARCODE_TYPE_CHOICES = click.Choice(
+    ["qr", "code128", "ean13", "pdf417", "datamatrix", "random"],
+    case_sensitive=False,
+)
 _CATEGORY_CHOICES = click.Choice(
     [c.value for c in PayloadCategory if c != PayloadCategory.UNKNOWN],
     case_sensitive=False,
@@ -236,6 +245,19 @@ def _parse_key_float_pair(value: str) -> tuple[str, float]:
         "low=mostly values, medium=balanced, high=lots of business text."
     ),
 )
+@click.option(
+    "--barcode-type",
+    "barcode_type",
+    default="qr",
+    show_default=True,
+    type=_BARCODE_TYPE_CHOICES,
+    help=(
+        "Barcode encoding for --format png|jpg|multi_barcode_png.  "
+        "qr (default, unicode up to 4296 chars), code128 (ASCII 1D), "
+        "ean13 (13 digits, padded from value), pdf417 (2D, requires pdf417gen), "
+        "datamatrix (2D, requires pylibdmtx), or random (mixed)."
+    ),
+)
 def generate(
     fmt: str | None,
     batch_formats: str | None,
@@ -258,6 +280,7 @@ def generate(
     evasion_per_category: tuple[str, ...],
     template: str,
     noise_level: str,
+    barcode_type: str,
 ) -> None:
     """Generate test documents filled with synthetic sensitive data for DLP testing.
 
@@ -415,6 +438,7 @@ def generate(
         noise_level=noise_level,
         density=density,
         seed=seed,
+        barcode_type=barcode_type,
     )
 
     for write_fmt in formats:
