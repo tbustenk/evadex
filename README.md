@@ -736,7 +736,7 @@ evadex generate (--format FORMAT | --formats FMT,FMT,...) --output PATH [OPTIONS
 
 | Flag | Default | Description |
 |---|---|---|
-| `--format` | *(one of format/formats required)* | Single output format: `xlsx`, `docx`, `pdf`, `csv`, `txt`, `eml`, `msg`, `json`, `xml`, `sql`, `log`, `png`, `jpg`, `multi_barcode_png` |
+| `--format` | *(one of format/formats required)* | Single output format: `xlsx`, `docx`, `pdf`, `csv`, `txt`, `eml`, `msg`, `json`, `xml`, `sql`, `log`, `png`, `jpg`, `multi_barcode_png`, `edm_json` |
 | `--formats` | *(one of format/formats required)* | Comma-separated list of formats. Output is a path stem; extensions are appended. `--formats xlsx,docx,pdf --output dir/test` → `test.xlsx`, `test.docx`, `test.pdf` |
 | `--barcode-type` | `qr` | Barcode encoding for `png`/`jpg`/`multi_barcode_png`: `qr` (unicode, up to 4296 chars), `code128` (ASCII 1D), `ean13` (13 digits, zero-padded), `pdf417` (2D, requires optional `pdf417gen`), `datamatrix` (2D, requires optional `pylibdmtx`), or `random`. |
 | `--output` | *(required)* | Output file path (with `--format`) or path stem (with `--formats`) |
@@ -774,6 +774,7 @@ evadex generate (--format FORMAT | --formats FMT,FMT,...) --output PATH [OPTIONS
 - **`log`** — Application log format with timestamps, log levels, and services. Mixes plaintext, structured, and JSON log formats.
 - **`png` / `jpg`** — Image grid of barcodes/QR codes, one per entry. Targets scanners that extract text from images via barcode decoding (e.g. Siphon's `extract_barcode` pipeline, which decodes QR, Data Matrix, PDF417, Code 128, EAN-13, etc.). Capped at 60 barcodes per image for decompression-bomb safety and to stay under Siphon's 100-codes-per-image decode cap. Value is rendered with a quiet zone plus a human-readable label. *Requires `pip install evadex[barcodes]`.*
 - **`multi_barcode_png`** — PNG styled like a scanned form with a header bar, body text, and a mixed grid of QR, Code 128, and EAN-13 codes carrying different sensitive values. Exercises multi-format decoding in one pass. *Requires `pip install evadex[barcodes]`.*
+- **`edm_json`** — flat JSON file (`{"values": [{"value", "category", "label"}, …]}`) matching the shape of Siphon's `POST /v1/edm/register` request body. Use for bulk EDM registration — see [EDM testing](#edm-testing).
 
 **Template details:**
 
@@ -1444,6 +1445,63 @@ async def submit(self, payload, variant):
 ```
 
 `FileBuilder.build(text, fmt)` returns `(bytes, mime_type)` entirely in memory — no disk writes.
+
+---
+
+## EDM testing
+
+Siphon's **Exact Data Match (EDM)** engine catches *specific known values* — real SSNs, account numbers, tokens — rather than just structurally-plausible patterns. Values are HMAC-SHA256 hashed after normalisation and stored as a hash set; scan tokens are hashed the same way and constant-time compared. EDM complements pattern matching: patterns catch the shape of sensitive data, EDM catches the actual records.
+
+**Normalisation applied before hashing** (from `crates/siphon-core/src/edm.rs :: normalize_value`, in order):
+
+1. NFKC Unicode normalisation
+2. Lowercase
+3. Trim leading/trailing whitespace
+4. Remove every character matching `[\s\-./()]+` (whitespace, hyphens, dots, slashes, parens)
+
+That's what EDM absorbs. Anything else — Cyrillic/Greek homoglyphs, zero-width joiners, unicode substitutions — defeats EDM because NFKC does not fold distinct Unicode scripts together.
+
+**The `evadex edm` command:**
+
+```bash
+# Register built-in payloads with Siphon EDM, verify each one, then probe
+# which evasion transforms its normaliser absorbs.
+evadex edm --url http://localhost:8000 --api-key $SIPHON_KEY
+
+# Restrict to specific categories
+evadex edm --category credit_card --category sin --limit 25
+
+# Corpus generation only — no Siphon contact — write a bulk-import file
+evadex edm --generate-corpus --output edm_corpus.json
+evadex edm --generate-corpus --corpus-format csv --count 1000 --output edm_corpus.csv
+
+# Dry run: print what would be registered without sending anything
+evadex edm --dry-run --category credit_card
+```
+
+**What the command reports:**
+
+| Section | Meaning |
+|---|---|
+| **EDM exact-value detection** table | Each registered value resubmitted verbatim — should be 100% if EDM is configured correctly |
+| **EDM evasion probe** table | Detection rate per transform (exact, uppercase, dashes, spaces, dots, slashes, nbsp_spaces, homoglyph_0, homoglyph_o, zero_width). `yes` = absorbed by normaliser; `no` = defeats EDM; `partial` = depends on the value |
+
+Registration uses the category namespace `evadex_test_<original_category>` so test hashes never collide with production EDM categories. Note: Siphon's HTTP API exposes `POST /v1/edm/register` and `GET /v1/edm/categories` but **no delete endpoint**, so true cleanup requires clearing the server's EDM state file or restarting the server. The namespace prefix keeps stray hashes clearly identifiable.
+
+**Performance note.** Siphon's EDM does a constant-time scan over every registered hash per token to prevent timing leaks — above `MAX_CONSTANT_TIME_HASHES = 50,000` total hashes the scan cost grows linearly. `evadex edm` prints a warning when a registration run would cross that threshold.
+
+**EDM bulk-registration corpus format** (`--format edm_json` on `evadex generate`):
+
+```json
+{
+  "values": [
+    {"value": "4532015112830366", "category": "credit_card", "label": "Visa test"},
+    {"value": "046 454 286",      "category": "sin",         "label": "SIN test"}
+  ]
+}
+```
+
+The shape matches Siphon's `POST /v1/edm/register` request body (flat, one `values[]` array). Split by category and POST each slice, or replay the whole file through a small wrapper — the field names line up with Siphon's API.
 
 ---
 

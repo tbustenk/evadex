@@ -17,6 +17,8 @@ _ALL_FORMATS = [
     "json", "xml", "sql", "log",
     # Barcode/QR image formats — require `pip install evadex[barcodes]`.
     "png", "jpg", "multi_barcode_png",
+    # Siphon EDM bulk-registration format.
+    "edm_json",
 ]
 _FORMAT_CHOICES = click.Choice(_ALL_FORMATS, case_sensitive=False)
 _BARCODE_TYPE_CHOICES = click.Choice(

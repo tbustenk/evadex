@@ -73,4 +73,7 @@ def get_writer(fmt: str) -> Callable[[list[GeneratedEntry], str], None]:
     if fmt == "multi_barcode_png":
         from evadex.generate.writers.barcode_writer import write_multi_barcode_png
         return write_multi_barcode_png
+    if fmt == "edm_json":
+        from evadex.generate.writers.edm_json_writer import write_edm_json
+        return write_edm_json
     raise ValueError(f"Unknown format: {fmt!r}")
