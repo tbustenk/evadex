@@ -278,10 +278,28 @@ def _render_entry(entry: GeneratedEntry, barcode_type: str, rng: random.Random):
     When the entry carries a barcode_evasion technique we apply an image-level
     transform on top of the base barcode render. Plain entries follow the
     default render → label path.
+
+    Encoded payload selection: 2D barcodes (QR / PDF417 / Data Matrix) and
+    Code 128 carry the entry's full ``embedded_text`` (keyword sentence
+    around the value) so a downstream DLP scanner sees the same context
+    its recognisers normally rely on. Without this, a barcode containing
+    only a bare 16-digit string can defeat Siphon's CC pattern when the
+    OCR/decoder concatenates several codes together with newlines —
+    confirmed on Siphon @ 22f7971: three newline-separated bare CCs
+    yield zero matches, while three with "Credit card N" prefixes yield
+    three. EAN-13 stays on the bare value because the barcode itself
+    can only encode 12 digits.
     """
-    value = entry.variant_value
     technique = entry.technique
     label = entry.variant_value
+
+    # Pick the encoded payload based on barcode capacity. EAN-13 can only
+    # hold 12 numeric digits, so context text would be discarded — keep
+    # the bare value. Everything else gets the full embedded sentence.
+    if barcode_type == "ean13":
+        value = entry.variant_value
+    else:
+        value = entry.embedded_text or entry.variant_value
 
     # Strip zero-width markers before encoding so the barcode content is clean.
     # \x1e is the split marker for barcode_split (kept as-is for the split

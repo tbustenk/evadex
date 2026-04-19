@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.12.1] — 2026-04-19
+
+### Fixed
+
+- **Barcode writer (`png` / `jpg`) now encodes contextual text instead of bare values.** Empirical end-to-end test against `siphon @ 22f7971` showed Siphon's CC pattern firing on a single bare 16-digit string but failing on three newline-separated bare strings — the exact output rxing produces from a multi-QR PNG. Encoding `entry.embedded_text` (which carries the keyword sentence around the value) instead of `entry.variant_value` lifted PNG detection from `0 → 12` matches and JPG from `0 → 11` for a banking-tier `--count 5 --evasion-rate 0.0` fixture. EAN-13 still encodes the bare value because the symbology can only carry 12 numeric digits — context wouldn't survive the encode anyway.
+- This brings the plain-PNG/JPG path in line with `multi_barcode_png`, which was already encoding `embedded_text or variant_value`.
+
+### Verified
+
+- End-to-end format detection matrix added — every new format from v3.4.0 onwards generated and submitted to a live `siphon scan`. 12 / 15 formats detect as expected. Three known issues, all on Siphon's side:
+  - **`zip` / `zip_nested`** — Siphon's plain-ZIP extractor only walks `*.xml` entries (see prior reports). Generator output is structurally correct; no evadex change.
+  - **`parquet`** — Siphon's `extract_parquet` hangs on any Parquet input (timed out at 5 min on a 1 KB single-row file). Generator output validates against pyarrow.
+
 ## [3.12.0] — 2026-04-19
 
 ### Added
