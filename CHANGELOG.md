@@ -1,5 +1,135 @@
 # Changelog
 
+## [3.10.1] — 2026-04-19
+
+### Fixed
+
+- **Dead code removed in new modules** (3.4.0–3.10.0): unused imports in `siphon/adapter.py`, `cli/commands/entropy.py`, `cli/commands/edm.py`, `reporters/c2_reporter.py`, `generate/writers/docx_writer.py`, `generate/writers/parquet_writer.py`, `generate/writers/sqlite_writer.py`. Removed nine f-strings in `generate/templates.py` that had no placeholders.
+- **`evadex generate` missing-dependency errors** were leaking raw `RuntimeError` tracebacks. The CLI now catches and prints the friendly install hint (`pip install evadex[barcodes]` or `evadex[data-formats]`) on a single red line and exits 1.
+- **`evadex edm` connection errors** to a down Siphon instance showed a raw `WinError 10061`. Now prints "Could not reach Siphon at <url>. Is the scanner running?" Also added explicit handling for HTTP 404 ("Siphon's EDM API is not available — check that EDM is enabled").
+- **`evadex edm` 50,000-hash warning** now also prints *before* registration starts (in addition to after), so operators can abort with Ctrl-C.
+- **Inaccurate help text**: `evadex entropy` description said "three entropy scan modes" but `--mode` accepts four (`gated|assignment|all|off`). Updated docstring and the matching README section.
+- **`evadex init` template**: added the missing `wrap_context` config key (previously documented in the README but absent from the generated `evadex.yaml`).
+
+### Documentation
+
+- CHANGELOG entries reconstructed for v3.4.0 → v3.10.0 (the file had stopped at 3.3.1).
+
+## [3.10.0] — 2026-04-18
+
+### Added
+
+- **`evadex generate --format parquet`** — flat customer/banking schema (`customer_id`, `name`, `email`, `phone`, `sin`, `card_number`, `iban`, `swift_bic`, `aba_routing`, `aws_key`, `jwt`, `notes`). Snappy-compressed, 1000-row row groups so multi-group readers get exercised. Sensitive payloads route to their category column; remaining columns are filled with realistic fake data. Gated behind `pip install evadex[data-formats]` (pyarrow).
+- **`evadex generate --format sqlite`** — three-table banking schema (`customers`, `transactions`, `accounts`). Uses Python stdlib `sqlite3` only — no extra install on evadex's side. Categories route to the table that owns them; unmapped categories land in `customers.notes` so nothing is dropped.
+- **`--language fr-CA`** support for both formats — French column/table names (`nom`, `courriel`, `telephone`, `numero_assurance_sociale`, `numero_carte`, `clients`, `transactions`, `comptes`) and French addresses (Montréal, Québec, Laval, …).
+- Shared realistic-data filler module (`_data_filler.py`) so both writers use the same name/address/date generators.
+- New optional install group: `evadex[data-formats]` (pyarrow). Clear `RuntimeError` raised with install hint when missing.
+
+### Notes
+
+Pair with a scanner built with data-format extractors (e.g. Siphon compiled with `--features data-formats`, which reads the first 10,000 rows of Parquet and up to 5,000 rows per SQLite table).
+
+## [3.9.0] — 2026-04-18
+
+### Added
+
+- **`evadex edm` command** — exercises Siphon's Exact Data Match engine end to end: register built-in payloads under an evadex-scoped category namespace (`evadex_test_<category>`), verify every registered value is detected when resubmitted, then probe which transforms Siphon's normaliser absorbs vs which defeat it. Supports register / verify / evasion / corpus / dry-run modes. Pushes results to Siphon-C2 via `--c2-url` when configured.
+- **EDM corpus generator** in two shapes — built into the command (`--generate-corpus` with `json|csv`) and as a full writer format (`evadex generate --format edm_json`) that matches the shape of Siphon's `POST /v1/edm/register` request body.
+- **Evasion probe transforms** covering Siphon's normaliser surface: `exact`, `uppercase`, `lowercase`, `dashes`, `spaces`, `dots`, `slashes`, `nbsp_spaces`, `homoglyph_0`, `homoglyph_o`, `zero_width`. Reports `absorbed` / `partial` / `defeats` per transform.
+- Warns at Siphon's constant-time-scan threshold of 50,000 hashes (`MAX_CONSTANT_TIME_HASHES` in siphon-core) so operators notice before the server does.
+
+### Notes
+
+Siphon exposes no delete endpoint — true cleanup requires restarting the server or clearing `DLPSCAN_EDM_STATE`. The `evadex_test_` prefix keeps stray hashes clearly identifiable.
+
+## [3.8.0] — 2026-04-18
+
+### Added
+
+- **Siphon-C2 integration** — push scan, false-positive, comparison, and history reports into the Siphon-C2 management plane so detection quality appears on the admin dashboard alongside operational metrics.
+- New `src/evadex/reporters/c2_reporter.py` with typed helpers for each report shape (scan / falsepos / compare / history). Auth matches Siphon's core HTTP API: `x-api-key` header.
+- `--c2-url` / `--c2-key` flags added to `scan`, `falsepos`, `compare`, `history` (with `EVADEX_C2_URL` / `EVADEX_C2_KEY` env fallback).
+- `c2_url` / `c2_key` keys added to `evadex.yaml`.
+- `evadex history --push-c2` batches every audit-log entry to `/v1/evadex/history` — useful for backfilling a fresh C2.
+
+### Endpoints
+
+- `POST /v1/evadex/scan` — counts, pass rate, per-cat / per-tech, top 50 failing variants
+- `POST /v1/evadex/falsepos` — per-category FP rate plus flagged values
+- `POST /v1/evadex/compare` — comparison dict with delta + diffs
+- `POST /v1/evadex/history` — batched audit entries (backfill)
+
+### Reliability
+
+Every push swallows errors to a single stderr warning line and returns cleanly. Scan exit codes, `--min-detection-rate` gating, and on-disk outputs are unaffected by C2 reachability — per the "C2 is not critical path" architecture contract.
+
+## [3.7.0] — 2026-04-18
+
+### Added
+
+- **Barcode / QR image generation** — new `--format` values `png`, `jpg`, `multi_barcode_png` produce grid-layout images with quiet zones and human-readable labels, capped at 60 codes/image to stay safe under PIL's decompression-bomb guard and Siphon's 100-codes/image decode cap.
+- **`--barcode-type`** flag: `qr` (default, 4296-char capacity), `code128`, `ean13` (zero-padded), `pdf417` (via optional `pdf417gen`), `datamatrix` (via optional `pylibdmtx`), or `random`.
+- **`barcode_evasion` generator** with split / noise / rotate / embed-in-document techniques. Opt-in via `--technique-group barcode_evasion` so its image-only markers don't leak into text pipelines.
+- New `auto_applicable` class attribute on `BaseVariantGenerator` so out-of-band evasions can register without skewing random variant selection. `_pick_variant` now stable-sorts generators by name so seeded runs stay reproducible regardless of module import order.
+- New optional install group: `evadex[barcodes]` (`qrcode[pil]`, `python-barcode[images]`, `Pillow`). Friendly `RuntimeError` raised if extras are missing.
+
+### Notes
+
+Targets scanners with image barcode extractors (Siphon's `extract_barcode`, which decodes via rxing — QR, Data Matrix, Aztec, PDF417, UPC, EAN, Code 39/128, ITF, Codabar).
+
+## [3.6.0] — 2026-04-18
+
+### Added
+
+- **`evadex entropy` command** — submits every entropy payload in three contexts (bare / gated / assignment) and reports per-context detection plus per-mode coverage. Validates Siphon's high-entropy token detection without a live production setup.
+- Six new heuristic payload categories for entropy testing: `random_api_key`, `random_token`, `random_secret`, `encoded_credential`, `assignment_secret`, `gated_secret`. All gated out of the default tier.
+- **`entropy_evasion` generator** — six techniques tuned to Siphon's token rules (16-char floor, 4.5 bits/char threshold, whitespace and `,;'"()[]{}=:` delimiters): `split`, `comment`, `concat`, `low_mix`, `encode`, `space`.
+- Three new `generate` templates focused on entropy shapes: `env_file` (`KEY=VALUE`), `secrets_file` (YAML keyword-value), `code_with_secrets` (bare function-call literals).
+- Entropy false-positive generator: UUIDs, empty-string hashes, common-text base64, char-run repetitions — any detection here is a real FP.
+
+### Documented gap
+
+Siphon's entropy mode cannot catch pure-hex secrets because `log2(16) = 4.0 < 4.5` bits/char threshold. Documented in the README so operators know to layer pattern-based detection on top.
+
+## [3.5.0] — 2026-04-18
+
+### Added
+
+- **`siphon` adapter** — first-class HTTP-API adapter for dlpscan-rs / Siphon, removing the CLI subprocess dependency so evadex runs in production environments where only the Siphon service is reachable.
+- `POST /v1/scan` for text. Adapter extras: `presets`, `categories`, `min_confidence`, `require_context` are forwarded as request body fields. DOCX/XLSX extracted client-side and routed through the same endpoint since Siphon's API is text-only.
+- `x-api-key` auth via `--api-key` / `EVADEX_API_KEY`.
+- Clear errors for 401 / 403 / 429 / 5xx instead of opaque HTTP failures.
+- `ScanResult` gains optional `confidence`, `bin_brand`, `bin_country`, `entropy_classification`, `validator` fields. Emitted in JSON output only when Siphon supplies them.
+
+### Changed
+
+- `evadex compare` now surfaces confidence-score deltas between two runs even when severity is unchanged (`>= 0.01` threshold).
+
+## [3.4.1] — 2026-04-18
+
+### Fixed
+
+- **JSON / SQL / XML writers**: `context_injection` variants now place the plain value in the structured field (`card_number`, `iban`, etc.) instead of the full sentence. Sentences go in a notes field instead, matching how DLP scanners parse structured documents.
+- **Filler templates**: added 23 missing dlpscan-rs context keywords across 21 categories (`credit_card`, `sin`, `iban`, `swift_bic`, `aba_routing`, …) so generated documents trigger detection in `--require-context` mode. Alignment: 23/23 categories now fully matched.
+
+### Tests
+
+454 unit tests, 66 integration tests — all passing.
+
+## [3.4.0] — 2026-04-18
+
+### Added
+
+- **New file formats**: `eml` (RFC 2822 email), `msg` (Outlook), `json` (structured records), `xml` (ISO 20022 pain.001 payment messages), `sql` (database dump with `CREATE TABLE` / `INSERT INTO`), `log` (mixed plaintext / structured / JSON application logs).
+- **Granular amount control**: `--count-per-category` (per-category overrides), `--total` (exact record budget distributed evenly), `--density` (`low` / `medium` / `high` — frequency of sensitive values in filler text).
+- **Granular evasion control**: `--technique-group` (limit to a generator family), `--technique-mix` (exact proportion per group, must sum to 1.0), `--evasion-per-category` (per-category evasion rate overrides).
+- **Document templates** via `--template`: `invoice`, `statement`, `hr_record`, `audit_report`, `source_code`, `config_file`, `chat_log`, `medical_record`. Each template controls overall document structure and tone.
+- **`--noise-level`** (`low` / `medium` / `high`) — ratio of filler text to sensitive values.
+
+### Tests
+
+36 new integration tests, 0 regressions on the existing 30.
+
 ## [3.3.1] — 2026-04-14
 
 ### Fixed

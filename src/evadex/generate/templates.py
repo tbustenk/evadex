@@ -90,7 +90,7 @@ def format_invoice(
         f"  Invoice #:     {inv_no}",
         f"  Date:          {today.isoformat()}",
         f"  Due Date:      {(today + datetime.timedelta(days=30)).isoformat()}",
-        f"  Payment Terms: Net 30",
+        "  Payment Terms: Net 30",
         "",
         "  Bill To:                        Ship To:",
         "  Acme Financial Corp.            Global Processing Inc.",
@@ -206,7 +206,7 @@ def format_hr_record(
             lines.append(f"  Name:           {first} {last}")
             lines.append(f"  Department:     {dept}")
             lines.append(f"  Start Date:     {(datetime.date.today() - datetime.timedelta(days=rng.randint(30, 3650))).isoformat()}")
-            lines.append(f"  Status:         Active")
+            lines.append("  Status:         Active")
 
         field = e.category.value.replace("_", " ").title()
         lines.append(f"  {field + ':':<18}{e.embedded_text}")
@@ -231,9 +231,9 @@ def format_audit_report(
         "=" * 70,
         f"  Audit Reference:   {audit_no}",
         f"  Report Date:       {today.isoformat()}",
-        f"  Auditor:           Compliance & Risk Management Division",
-        f"  Scope:             PCI-DSS Data Handling Compliance Review",
-        f"  Classification:    CONFIDENTIAL",
+        "  Auditor:           Compliance & Risk Management Division",
+        "  Scope:             PCI-DSS Data Handling Compliance Review",
+        "  Classification:    CONFIDENTIAL",
         "",
         "  1. EXECUTIVE SUMMARY",
         "  " + "-" * 50,
@@ -415,7 +415,7 @@ def format_config_file(
 
     else:  # yaml
         lines += [
-            f"# Application Configuration — CONFIDENTIAL",
+            "# Application Configuration — CONFIDENTIAL",
             f"# Generated: {datetime.date.today().isoformat()}",
             "",
             "database:",
@@ -448,7 +448,7 @@ def format_chat_log(
 
     lines = [
         f"Chat Export — {datetime.date.today().isoformat()}",
-        f"Channel: #compliance-sensitive-data",
+        "Channel: #compliance-sensitive-data",
         f"Participants: {', '.join(participants)}",
         "=" * 50,
         "",
@@ -524,7 +524,7 @@ def format_medical_record(
         "=" * 70,
         "              CLINICAL RECORD — CONFIDENTIAL",
         "=" * 70,
-        f"  Facility:     Regional Medical Centre",
+        "  Facility:     Regional Medical Centre",
         f"  Report Date:  {today.isoformat()}",
         "  ** PROTECTED HEALTH INFORMATION — HIPAA / PHIPA **",
         "",
@@ -640,7 +640,7 @@ def format_secrets_file(
             comment = f"  # evasion: {e.technique}" if e.technique else ""
             lines.append(f"  - name: {name}")
             lines.append(f"    {kw}: {e.variant_value}{comment}")
-            lines.append(f"    environment: production")
+            lines.append("    environment: production")
 
     return lines
 

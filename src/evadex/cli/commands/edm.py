@@ -32,7 +32,6 @@ clearly-labelled test data.
 """
 from __future__ import annotations
 
-import asyncio
 import csv
 import json
 import sys
@@ -44,9 +43,9 @@ import httpx
 from rich.console import Console
 from rich.table import Table
 
-from evadex.core.registry import get_adapter, load_builtins
+from evadex.core.registry import load_builtins
 from evadex.payloads.builtins import BUILTIN_PAYLOADS, HEURISTIC_CATEGORIES
-from evadex.core.result import Payload, PayloadCategory, Variant
+from evadex.core.result import Payload, PayloadCategory
 
 
 err_console = Console(stderr=True)
@@ -459,6 +458,14 @@ def edm(
             err_console.print(f"  {c}: {info['registered']} values")
         return
 
+    if len(payloads) > SIPHON_EDM_HASH_WARN_THRESHOLD:
+        err_console.print(
+            f"[yellow]Warning: about to register {len(payloads)} values, "
+            f"which exceeds Siphon's recommended constant-time threshold of "
+            f"{SIPHON_EDM_HASH_WARN_THRESHOLD}. EDM scan performance will "
+            f"degrade on the server. Press Ctrl-C to abort.[/yellow]"
+        )
+
     err_console.print(
         f"[dim]Registering {len(payloads)} values with Siphon EDM at {url}[/dim]"
     )
@@ -471,8 +478,20 @@ def edm(
                 "[red]Registration refused (403) — the API key must have the "
                 "Admin role (POST /v1/edm/register requires AdminAction).[/red]"
             )
+        elif status == 404:
+            err_console.print(
+                f"[red]Siphon's EDM API is not available at {url} (HTTP 404). "
+                f"Check that EDM is enabled in Siphon's config "
+                f"(edm.enabled = true).[/red]"
+            )
         else:
             err_console.print(f"[red]EDM registration failed: HTTP {status}[/red]")
+        sys.exit(1)
+    except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+        err_console.print(
+            f"[red]Could not reach Siphon at {url}. Is the scanner running? "
+            f"({exc.__class__.__name__})[/red]"
+        )
         sys.exit(1)
     except httpx.HTTPError as exc:
         err_console.print(f"[red]EDM registration failed: {exc}[/red]")

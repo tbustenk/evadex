@@ -27,17 +27,13 @@ from __future__ import annotations
 
 import os
 import random
-from collections import defaultdict
-from typing import Optional
 
 from evadex.core.result import PayloadCategory
 from evadex.generate.generator import GeneratedEntry
 from evadex.generate.writers._data_filler import (
     fake_address,
-    fake_amount,
     fake_date,
     fake_name,
-    fake_uuid,
     normalize_language,
 )
 

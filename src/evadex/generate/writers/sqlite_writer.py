@@ -31,7 +31,6 @@ from __future__ import annotations
 import os
 import random
 import sqlite3
-from typing import Optional
 
 from evadex.core.result import PayloadCategory
 from evadex.generate.generator import GeneratedEntry

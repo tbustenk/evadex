@@ -460,5 +460,8 @@ def generate(
         except OSError as exc:
             err_console.print(f"[red]Cannot write '{out_path}': {exc.strerror}[/red]")
             sys.exit(1)
+        except RuntimeError as exc:
+            err_console.print(f"[red]{exc}[/red]")
+            sys.exit(1)
 
         err_console.print(f"[green]✓ Written:[/green] {out_path}")

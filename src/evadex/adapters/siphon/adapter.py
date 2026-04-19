@@ -19,8 +19,6 @@ min_confidence : float
 require_context : bool
     Require keyword context for a match (mirrors ``--require-context`` on the CLI).
 """
-from typing import Optional
-
 from evadex.adapters.base import BaseAdapter, AdapterError
 from evadex.adapters.dlpscan.file_builder import FileBuilder
 from evadex.adapters.siphon.client import SiphonClient

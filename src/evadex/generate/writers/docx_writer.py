@@ -12,7 +12,7 @@ import datetime
 from collections import defaultdict
 
 from docx import Document
-from docx.shared import Pt, RGBColor, Inches
+from docx.shared import RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement

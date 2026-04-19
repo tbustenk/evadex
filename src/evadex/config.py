@@ -49,6 +49,9 @@ output: results.json
 format: json
 # audit_log: evadex_audit.jsonl
 # require_context: false  # Pass --require-context to dlpscan-rs (requires cmd_style: rust)
+# wrap_context: false     # Embed every variant in a keyword sentence before submission.
+#                         # Auto-enabled when cmd_style: rust. dlpscan-rs ignores bare
+#                         # values without context — leave unset unless you need to override.
 
 # Siphon-C2 management-plane integration — push scan / falsepos / compare
 # results to an admin dashboard. Safe to leave disabled (commented out);

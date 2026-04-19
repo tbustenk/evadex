@@ -1360,7 +1360,7 @@ When the Siphon adapter reports a match, the result also carries Siphon-specific
 
 #### Entropy-mode testing
 
-Siphon's scanner has three high-entropy-token detection modes, each gating the 4.5 bits/char threshold differently:
+Siphon's scanner has four high-entropy-token detection modes, each gating the 4.5 bits/char threshold differently:
 
 | Mode | Gate | When to use |
 |---|---|---|
@@ -1371,7 +1371,7 @@ Siphon's scanner has three high-entropy-token detection modes, each gating the 4
 
 Siphon's token floor is 16 characters and the Shannon threshold is 4.5 bits/char, so pure-hex secrets (max entropy ~4.0 bits/char) pass through **any** mode untouched — a real gap to be aware of.
 
-`evadex entropy` targets all three modes at once:
+`evadex entropy` targets all detection modes at once:
 
 ```bash
 # Sanity-check every mode against a Siphon instance

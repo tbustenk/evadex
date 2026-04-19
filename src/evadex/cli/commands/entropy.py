@@ -27,7 +27,7 @@ from rich.console import Console
 from rich.table import Table
 
 from evadex.core.registry import get_adapter, get_generator, load_builtins
-from evadex.core.result import Payload, PayloadCategory, Variant
+from evadex.core.result import Payload, Variant
 from evadex.payloads.builtins import ENTROPY_CATEGORIES, get_payloads
 
 
@@ -248,12 +248,14 @@ def entropy(
     fmt: str,
     output: Optional[str],
 ) -> None:
-    """Test Siphon's three entropy scan modes (gated, assignment, all).
+    """Test Siphon's entropy scan modes (gated, assignment, all, off).
 
     Submits each entropy payload in three contexts — bare, gated (next to a
     keyword), and in a KEY=VALUE assignment — and reports which mode catches
-    which category. Also runs the ``entropy_evasion`` generator so you can
-    see which evasion techniques defeat entropy-based detection.
+    which category. Pass --mode off to confirm that no entropy detection
+    occurs when the scanner has entropy disabled. Also runs the
+    ``entropy_evasion`` generator so you can see which evasion techniques
+    defeat entropy-based detection.
 
     \b
     Examples:
