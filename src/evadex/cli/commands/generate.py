@@ -19,6 +19,9 @@ _ALL_FORMATS = [
     "png", "jpg", "multi_barcode_png",
     # Siphon EDM bulk-registration format.
     "edm_json",
+    # Data-format extractors — `parquet` requires `pip install evadex[data-formats]`
+    # (pyarrow); `sqlite` uses stdlib only.
+    "parquet", "sqlite",
 ]
 _FORMAT_CHOICES = click.Choice(_ALL_FORMATS, case_sensitive=False)
 _BARCODE_TYPE_CHOICES = click.Choice(
@@ -441,6 +444,7 @@ def generate(
         density=density,
         seed=seed,
         barcode_type=barcode_type,
+        language=language,
     )
 
     for write_fmt in formats:

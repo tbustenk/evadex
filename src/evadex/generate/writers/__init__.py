@@ -10,6 +10,7 @@ _active_noise_level: str = "medium"
 _active_density: str = "medium"
 _active_seed: Optional[int] = None
 _active_barcode_type: str = "qr"
+_active_language: str = "en"
 
 
 def set_writer_config(
@@ -18,15 +19,17 @@ def set_writer_config(
     density: str = "medium",
     seed: Optional[int] = None,
     barcode_type: str = "qr",
+    language: str = "en",
 ) -> None:
     """Set template/noise config for subsequent writer calls."""
     global _active_template, _active_noise_level, _active_density, _active_seed
-    global _active_barcode_type
+    global _active_barcode_type, _active_language
     _active_template = template
     _active_noise_level = noise_level
     _active_density = density
     _active_seed = seed
     _active_barcode_type = barcode_type
+    _active_language = language
 
 
 def get_writer(fmt: str) -> Callable[[list[GeneratedEntry], str], None]:
@@ -76,4 +79,10 @@ def get_writer(fmt: str) -> Callable[[list[GeneratedEntry], str], None]:
     if fmt == "edm_json":
         from evadex.generate.writers.edm_json_writer import write_edm_json
         return write_edm_json
+    if fmt == "parquet":
+        from evadex.generate.writers.parquet_writer import write_parquet
+        return write_parquet
+    if fmt == "sqlite":
+        from evadex.generate.writers.sqlite_writer import write_sqlite
+        return write_sqlite
     raise ValueError(f"Unknown format: {fmt!r}")

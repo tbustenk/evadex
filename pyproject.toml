@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "evadex"
-version = "3.9.0"
+version = "3.10.0"
 description = "Comprehensive DLP evasion test suite — scanner-agnostic, file-aware"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -50,6 +50,14 @@ barcodes = [
     "qrcode[pil]>=7.4,<9",
     "python-barcode[images]>=0.15,<1",
     "Pillow>=10.0,<13",
+]
+# Parquet and SQLite generation for `evadex generate --format parquet|sqlite`.
+# Exercises DLP scanners with data-formats extractors (e.g. Siphon built with
+# `--features data-formats`, which pulls the parquet + rusqlite crates).
+# sqlite is stdlib, so this extra only covers Parquet.
+data-formats = [
+    "pyarrow>=14.0,<24",
+    "pandas>=2.0,<4",
 ]
 
 [project.urls]

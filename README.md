@@ -453,6 +453,11 @@ Optional extras:
 ```bash
 # Barcode / QR image generation for scanners that decode images (Siphon, etc.)
 pip install evadex[barcodes]
+
+# Parquet generation (pyarrow). SQLite is stdlib — no extra needed.
+# Pair with a scanner built with data-format extractors, e.g. Siphon
+# compiled with `--features data-formats`.
+pip install evadex[data-formats]
 ```
 
 For reproducible installs with pinned, hash-verified dependencies (recommended for regulated environments):
@@ -736,7 +741,7 @@ evadex generate (--format FORMAT | --formats FMT,FMT,...) --output PATH [OPTIONS
 
 | Flag | Default | Description |
 |---|---|---|
-| `--format` | *(one of format/formats required)* | Single output format: `xlsx`, `docx`, `pdf`, `csv`, `txt`, `eml`, `msg`, `json`, `xml`, `sql`, `log`, `png`, `jpg`, `multi_barcode_png`, `edm_json` |
+| `--format` | *(one of format/formats required)* | Single output format: `xlsx`, `docx`, `pdf`, `csv`, `txt`, `eml`, `msg`, `json`, `xml`, `sql`, `log`, `png`, `jpg`, `multi_barcode_png`, `edm_json`, `parquet`, `sqlite` |
 | `--formats` | *(one of format/formats required)* | Comma-separated list of formats. Output is a path stem; extensions are appended. `--formats xlsx,docx,pdf --output dir/test` → `test.xlsx`, `test.docx`, `test.pdf` |
 | `--barcode-type` | `qr` | Barcode encoding for `png`/`jpg`/`multi_barcode_png`: `qr` (unicode, up to 4296 chars), `code128` (ASCII 1D), `ean13` (13 digits, zero-padded), `pdf417` (2D, requires optional `pdf417gen`), `datamatrix` (2D, requires optional `pylibdmtx`), or `random`. |
 | `--output` | *(required)* | Output file path (with `--format`) or path stem (with `--formats`) |
@@ -775,6 +780,8 @@ evadex generate (--format FORMAT | --formats FMT,FMT,...) --output PATH [OPTIONS
 - **`png` / `jpg`** — Image grid of barcodes/QR codes, one per entry. Targets scanners that extract text from images via barcode decoding (e.g. Siphon's `extract_barcode` pipeline, which decodes QR, Data Matrix, PDF417, Code 128, EAN-13, etc.). Capped at 60 barcodes per image for decompression-bomb safety and to stay under Siphon's 100-codes-per-image decode cap. Value is rendered with a quiet zone plus a human-readable label. *Requires `pip install evadex[barcodes]`.*
 - **`multi_barcode_png`** — PNG styled like a scanned form with a header bar, body text, and a mixed grid of QR, Code 128, and EAN-13 codes carrying different sensitive values. Exercises multi-format decoding in one pass. *Requires `pip install evadex[barcodes]`.*
 - **`edm_json`** — flat JSON file (`{"values": [{"value", "category", "label"}, …]}`) matching the shape of Siphon's `POST /v1/edm/register` request body. Use for bulk EDM registration — see [EDM testing](#edm-testing).
+- **`parquet`** — Apache Parquet with a flat customer/banking schema (`customer_id`, `name`, `email`, `phone`, `sin`, `card_number`, `iban`, `swift_bic`, …) and snappy compression. Each sensitive payload lands in its category-appropriate column; remaining columns are filled with realistic fake data. Written in 1000-row row groups so large files exercise multi-group Parquet readers. Targets scanners with Parquet extractors (e.g. Siphon built with `--features data-formats`, which reads the first 10,000 rows). *Requires `pip install evadex[data-formats]`.*
+- **`sqlite`** — SQLite database with three realistic banking tables (`customers`, `transactions`, `accounts`). Payloads route to whichever table owns their category. Uses Python's stdlib `sqlite3` so no extra install is needed on evadex's side — the scanner still needs its own SQLite support (Siphon's `extract_sqlite` requires the `data-formats` feature and reads up to 5,000 rows per table).
 
 **Template details:**
 
@@ -826,6 +833,13 @@ evadex generate --format xml --category iban --category credit_card --count 100 
 evadex generate --format sql --tier banking --count 500 --output dump.sql
 evadex generate --format log --tier banking --count 1000 --output app.log
 evadex generate --formats eml,json,xml,sql,log --tier banking --output reports/multi
+
+# Parquet / SQLite (Parquet requires: pip install evadex[data-formats]; SQLite is stdlib)
+evadex generate --format parquet --tier banking --count 1000 --evasion-rate 0.3 --output test.parquet
+evadex generate --format sqlite  --tier banking --count 1000 --evasion-rate 0.3 --output test.db
+# French-Canadian column/table names
+evadex generate --format parquet --tier banking --count 100 --language fr-CA --output test_frca.parquet
+evadex generate --format sqlite  --tier banking --count 100 --language fr-CA --output test_frca.db
 
 # Barcode / QR code images (requires: pip install evadex[barcodes])
 evadex generate --format png --category credit_card --count 10 --barcode-type qr       --output qr.png
