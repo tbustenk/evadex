@@ -1,0 +1,181 @@
+# evadex DLP Evasion Regression
+#
+# Drop this file into Siphon's repo at .github/workflows/evadex-regression.yml.
+# It runs on every push to main and every pull request and posts a summary
+# comment back to the PR with detection rate, false-positive rate, and a
+# per-category breakdown.
+#
+# Required configuration (none for the basic run):
+#   - Optional: commit a baseline JSON at evadex_baseline.json in the repo
+#     so the comparison step has something to diff against. Generate with:
+#         evadex scan --tool siphon --tier banking --baseline evadex_baseline.json
+#
+# Tunables: edit --min-detection-rate (default 85) to control the gating
+# threshold. The scan step exits non-zero — and fails the workflow — when
+# detection drops below it.
+
+name: evadex DLP Evasion Regression
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  evasion-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Siphon
+        uses: actions/checkout@v4
+
+      - name: Cache cargo registry and target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build Siphon (release, full features)
+        run: cargo build --release --features full
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install evadex
+        run: pip install evadex
+
+      - name: Start Siphon API
+        run: |
+          DLPSCAN_API_KEY=ci-test DLPSCAN_API_PORT=8080 \
+            ./target/release/siphon serve >/tmp/siphon-api.log 2>&1 &
+          # Wait for /health (max 30 s) so we don't race the bind.
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/health >/dev/null; then
+              echo "Siphon API up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Siphon API failed to start within 30s"
+          cat /tmp/siphon-api.log
+          exit 1
+
+      - name: Run evadex banking-tier scan
+        run: |
+          evadex scan \
+            --tool siphon \
+            --url http://localhost:8080 \
+            --api-key ci-test \
+            --tier banking \
+            --strategy text \
+            --scanner-label "siphon-${{ github.sha }}" \
+            --min-detection-rate 85 \
+            --format json \
+            -o evadex_results.json
+
+      - name: Run false-positive check
+        run: |
+          evadex falsepos \
+            --tool siphon \
+            --url http://localhost:8080 \
+            --api-key ci-test \
+            --count 50 \
+            --wrap-context \
+            --format json \
+            -o evadex_falsepos.json
+
+      - name: Compare against baseline (if present)
+        if: hashFiles('evadex_baseline.json') != ''
+        run: |
+          evadex compare \
+            evadex_baseline.json \
+            evadex_results.json \
+            --format json \
+            -o evadex_comparison.json
+        continue-on-error: true
+
+      - name: Upload evadex artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evadex-results-${{ github.sha }}
+          path: |
+            evadex_results.json
+            evadex_falsepos.json
+            evadex_comparison.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Post summary to PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            const safeRead = (p) => {
+              try { return JSON.parse(fs.readFileSync(p, 'utf8')); }
+              catch (e) { return null; }
+            };
+
+            const results = safeRead('evadex_results.json');
+            const falsepos = safeRead('evadex_falsepos.json');
+
+            if (!results) {
+              core.warning('evadex_results.json missing — scan likely failed before output.');
+              return;
+            }
+
+            const meta = results.meta || {};
+            const passRate = meta.pass_rate ?? 'n/a';
+            const total = meta.total ?? 'n/a';
+            const evaded = meta.fail ?? 'n/a';
+            const fpRate = falsepos?.overall_false_positive_rate ?? 'n/a';
+
+            // Render per-category table (top 10 worst).
+            const cats = meta.summary_by_category || {};
+            const rows = Object.entries(cats)
+              .map(([k, v]) => {
+                const t = (v.pass || 0) + (v.fail || 0) + (v.error || 0);
+                const rate = t ? ((v.pass / t) * 100).toFixed(1) : '0.0';
+                return [k, t, parseFloat(rate)];
+              })
+              .sort((a, b) => a[2] - b[2])
+              .slice(0, 10);
+
+            const tableLines = [
+              '| Category | Total | Detection rate |',
+              '|---|---|---|',
+              ...rows.map(([k, t, r]) => `| \`${k}\` | ${t} | ${r}% |`),
+            ];
+
+            const body = [
+              '## evadex DLP evasion report',
+              '',
+              `**Scanner:** \`siphon-${{ github.sha }}\``,
+              `**Detection rate:** ${passRate}%  (${total - evaded}/${total} variants flagged)`,
+              `**Variants that evaded:** ${evaded}`,
+              `**False-positive rate:** ${fpRate}%`,
+              '',
+              '### Worst categories (10 lowest detection rate)',
+              '',
+              ...tableLines,
+              '',
+              `Full results: download \`evadex-results-${{ github.sha }}\` from the workflow artifacts.`,
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });

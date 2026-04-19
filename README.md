@@ -458,6 +458,11 @@ pip install evadex[barcodes]
 # Pair with a scanner built with data-format extractors, e.g. Siphon
 # compiled with `--features data-formats`.
 pip install evadex[data-formats]
+
+# 7-Zip archive generation (py7zr). ZIP / nested ZIP / mbox / ics / warc
+# all use stdlib only — no extra needed for those. Pair 7z with a scanner
+# built with archive extractors, e.g. Siphon compiled with `--features archives`.
+pip install evadex[archives]
 ```
 
 For reproducible installs with pinned, hash-verified dependencies (recommended for regulated environments):
@@ -741,7 +746,7 @@ evadex generate (--format FORMAT | --formats FMT,FMT,...) --output PATH [OPTIONS
 
 | Flag | Default | Description |
 |---|---|---|
-| `--format` | *(one of format/formats required)* | Single output format: `xlsx`, `docx`, `pdf`, `csv`, `txt`, `eml`, `msg`, `json`, `xml`, `sql`, `log`, `png`, `jpg`, `multi_barcode_png`, `edm_json`, `parquet`, `sqlite` |
+| `--format` | *(one of format/formats required)* | Single output format: `xlsx`, `docx`, `pdf`, `csv`, `txt`, `eml`, `msg`, `json`, `xml`, `sql`, `log`, `png`, `jpg`, `multi_barcode_png`, `edm_json`, `parquet`, `sqlite`, `zip`, `zip_nested`, `7z`, `mbox`, `ics`, `warc` |
 | `--formats` | *(one of format/formats required)* | Comma-separated list of formats. Output is a path stem; extensions are appended. `--formats xlsx,docx,pdf --output dir/test` → `test.xlsx`, `test.docx`, `test.pdf` |
 | `--barcode-type` | `qr` | Barcode encoding for `png`/`jpg`/`multi_barcode_png`: `qr` (unicode, up to 4296 chars), `code128` (ASCII 1D), `ean13` (13 digits, zero-padded), `pdf417` (2D, requires optional `pdf417gen`), `datamatrix` (2D, requires optional `pylibdmtx`), or `random`. |
 | `--output` | *(required)* | Output file path (with `--format`) or path stem (with `--formats`) |
@@ -782,6 +787,12 @@ evadex generate (--format FORMAT | --formats FMT,FMT,...) --output PATH [OPTIONS
 - **`edm_json`** — flat JSON file (`{"values": [{"value", "category", "label"}, …]}`) matching the shape of Siphon's `POST /v1/edm/register` request body. Use for bulk EDM registration — see [EDM testing](#edm-testing).
 - **`parquet`** — Apache Parquet with a flat customer/banking schema (`customer_id`, `name`, `email`, `phone`, `sin`, `card_number`, `iban`, `swift_bic`, …) and snappy compression. Each sensitive payload lands in its category-appropriate column; remaining columns are filled with realistic fake data. Written in 1000-row row groups so large files exercise multi-group Parquet readers. Targets scanners with Parquet extractors (e.g. Siphon built with `--features data-formats`, which reads the first 10,000 rows). *Requires `pip install evadex[data-formats]`.*
 - **`sqlite`** — SQLite database with three realistic banking tables (`customers`, `transactions`, `accounts`). Payloads route to whichever table owns their category. Uses Python's stdlib `sqlite3` so no extra install is needed on evadex's side — the scanner still needs its own SQLite support (Siphon's `extract_sqlite` requires the `data-formats` feature and reads up to 5,000 rows per table).
+- **`zip`** — ZIP archive containing 4–12 inner files (`customer_data.csv`, `transactions_q1.csv`, `audit_log.txt`, `config.json`, …) with sensitive payloads spread across them, plus a `manifest.xml` index. Stdlib `zipfile`. **Note:** Siphon's plain-ZIP extractor in `crates/siphon-core/src/extractors.rs` only walks `*.xml` entries — text inside non-OOXML ZIPs is currently not extracted, so detection on this format mostly serves to document the gap. Use `7z` (below) when you need detection to actually fire end to end.
+- **`zip_nested`** — ZIP-inside-ZIP-inside-ZIP, three levels deep, with sensitive data only in the innermost archive. Tests recursive-archive extraction (which Siphon does not currently perform). Stdlib `zipfile`.
+- **`7z`** — 7-Zip / LZMA2 archive with the same banking-filename inner structure as `zip`. Siphon's `extract_7z` *does* read txt/csv/json content (1 MB per file, 100 KB content cap), so this is the right choice when you want detection to fire on the archive contents. *Requires `pip install evadex[archives]`.*
+- **`mbox`** — Unix mailbox file with one realistic email per entry (sensible From/To/Subject/Date headers, banking-domain prose). Roughly one in three messages uses `Content-Transfer-Encoding: base64` so Siphon's `extract_mbox` decode path gets exercised. Stdlib `mailbox` / `email`.
+- **`ics`** — iCalendar (RFC 5545) file with one VEVENT per entry. Sensitive payloads land in `SUMMARY`, `DESCRIPTION`, and `ATTENDEE` properties — exactly what Siphon's `extract_ics` walks. CRLF-terminated and 75-octet line-folded so any conformant calendar parser will read it.
+- **`warc`** — Web ARChive (ISO 28500 / WARC 1.1) with one `warcinfo` record plus one HTTP-`response` record per entry. Sensitive values are embedded in synthetic HTML banking-portal bodies inside the captured responses — exercises Siphon's `extract_warc`.
 
 **Template details:**
 
@@ -840,6 +851,18 @@ evadex generate --format sqlite  --tier banking --count 1000 --evasion-rate 0.3 
 # French-Canadian column/table names
 evadex generate --format parquet --tier banking --count 100 --language fr-CA --output test_frca.parquet
 evadex generate --format sqlite  --tier banking --count 100 --language fr-CA --output test_frca.db
+
+# Archive and message formats (zip / mbox / ics / warc are stdlib;
+# 7z requires: pip install evadex[archives])
+evadex generate --format zip        --tier banking --count 100 --output test_output/test.zip
+evadex generate --format zip_nested --tier banking --count 50  --output test_output/test_nested.zip
+evadex generate --format 7z         --tier banking --count 100 --output test_output/test.7z
+evadex generate --format mbox       --tier banking --count 50  --output test_output/test.mbox
+evadex generate --format ics        --tier banking --count 30  --output test_output/test.ics
+evadex generate --format warc       --tier banking --count 20  --output test_output/test.warc
+# Archive evasion variants (password, double-extension, deep nesting, mixed formats)
+evadex generate --format zip --category credit_card --count 20 --evasion-rate 1.0 \
+  --technique-group archive_evasion --output archive_evasion.zip
 
 # Barcode / QR code images (requires: pip install evadex[barcodes])
 evadex generate --format png --category credit_card --count 10 --barcode-type qr       --output qr.png
@@ -1118,6 +1141,41 @@ evadex scan --tool dlpscan-cli --scanner-label "candidate" \
 ```
 
 The `--compare-baseline` flag prints a regression summary to stderr listing any variants that were previously detected and are now missed, and any improvements.
+
+### GitHub Actions workflows
+
+evadex ships ready-to-drop-in GitHub Actions workflows for the Siphon repo at [`docs/github-actions/`](docs/github-actions/). Both build Siphon with `--features full`, start its API server, and run the evadex banking-tier suite against the binary.
+
+| File | Trigger | What it does |
+|---|---|---|
+| [`evadex-regression.yml`](docs/github-actions/evadex-regression.yml) | every push to `main` and every PR | banking-tier scan + false-positive suite, baseline diff if `evadex_baseline.json` is committed, posts a per-category breakdown back to the PR |
+| [`evadex-daily.yml`](docs/github-actions/evadex-daily.yml) | cron `0 6 * * *` (06:00 UTC) | full banking-tier scan + false-positive suite, posts a one-line summary to Slack if the `SLACK_WEBHOOK` secret is set, fails when detection drops below 85 % |
+
+**To install:**
+
+```bash
+# In Siphon's repo
+mkdir -p .github/workflows
+curl -O https://raw.githubusercontent.com/tbustenk/evadex/main/docs/github-actions/evadex-regression.yml
+curl -O https://raw.githubusercontent.com/tbustenk/evadex/main/docs/github-actions/evadex-daily.yml
+mv evadex-regression.yml evadex-daily.yml .github/workflows/
+git add .github/workflows/
+git commit -m "ci: add evadex DLP evasion regression workflows"
+```
+
+**To set the regression baseline** (commit it to the Siphon repo so the workflow has something to diff against):
+
+```bash
+evadex scan --tool siphon --url http://localhost:8080 --api-key $KEY \
+  --tier banking --strategy text \
+  --baseline evadex_baseline.json
+git add evadex_baseline.json
+git commit -m "ci: refresh evadex DLP detection baseline"
+```
+
+**To tune the gating threshold** (default 85 %), edit the `--min-detection-rate 85` line in either workflow file. A failing scan exits non-zero and fails the workflow, so the threshold doubles as a deploy gate.
+
+**Slack notifications** (daily workflow only): create an incoming webhook in Slack, then add the URL as a repo secret named `SLACK_WEBHOOK`. Without the secret the Slack step skips silently.
 
 ---
 

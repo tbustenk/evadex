@@ -22,6 +22,9 @@ _ALL_FORMATS = [
     # Data-format extractors — `parquet` requires `pip install evadex[data-formats]`
     # (pyarrow); `sqlite` uses stdlib only.
     "parquet", "sqlite",
+    # Archive and message-format extractors — `7z` requires
+    # `pip install evadex[archives]` (py7zr); the rest use stdlib only.
+    "zip", "zip_nested", "7z", "mbox", "ics", "warc",
 ]
 _FORMAT_CHOICES = click.Choice(_ALL_FORMATS, case_sensitive=False)
 _BARCODE_TYPE_CHOICES = click.Choice(
@@ -41,6 +44,15 @@ _TEMPLATE_CHOICES = click.Choice(
 )
 
 _VALID_BATCH_FORMATS = set(_ALL_FORMATS)
+
+# Logical format → real on-disk extension. Most formats use their own
+# name, but a few alias (sqlite → .db, multi_barcode_png → .png,
+# zip_nested → .zip — all carry the same magic / MIME).
+_FORMAT_EXTENSION = {
+    "sqlite": "db",
+    "multi_barcode_png": "png",
+    "zip_nested": "zip",
+}
 
 
 def _parse_key_int_pair(value: str) -> tuple[str, int]:
@@ -452,7 +464,8 @@ def generate(
     for write_fmt in formats:
         # Determine output path: stem + extension for --formats, original path for --format
         if batch_formats:
-            out_path = str(out.with_suffix(f".{write_fmt}"))
+            ext = _FORMAT_EXTENSION.get(write_fmt, write_fmt)
+            out_path = str(out.with_suffix(f".{ext}"))
         else:
             out_path = output
 

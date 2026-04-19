@@ -1,5 +1,27 @@
 # Changelog
 
+## [3.12.0] — 2026-04-19
+
+### Added
+
+- **New archive and message-format generators** for `evadex generate`:
+  - `zip` — multi-file ZIP archive with banking-domain inner filenames (`customer_data.csv`, `transactions_q1.csv`, `audit_log.txt`, `config.json`, …) plus a `manifest.xml`. Stdlib only.
+  - `zip_nested` — ZIP-inside-ZIP-inside-ZIP, three levels deep, with sensitive payloads only in the innermost archive. Tests recursive-archive extraction (which Siphon does not currently perform).
+  - `7z` — 7-Zip / LZMA2 archive with the same inner-file structure as `zip`. *Requires `pip install evadex[archives]`* (py7zr).
+  - `mbox` — Unix mailbox with one realistic email per entry. ~1 in 3 messages uses base64 transfer encoding so Siphon's mbox decode path is exercised.
+  - `ics` — RFC 5545 iCalendar with one VEVENT per entry, payload in `SUMMARY` / `DESCRIPTION` / `ATTENDEE`. CRLF + 75-octet line-folded.
+  - `warc` — WARC 1.1 web archive with one HTTP `response` record per entry (synthetic banking-portal HTML bodies).
+- **`archive_evasion` variant generator** — four container-level techniques (`archive_password`, `archive_double_extension`, `archive_deep_nest`, `archive_mixed_formats`). `auto_applicable=False` so its archive-only markers don't leak into random text-pipeline selection; opt in via `--technique-group archive_evasion`.
+- **`evadex[archives]` optional dependency group** — adds `py7zr` for 7z generation. ZIP / mbox / ics / warc all use stdlib only.
+- **GitHub Actions workflows for Siphon** at `docs/github-actions/`:
+  - `evadex-regression.yml` — runs on every push to main and every PR. Builds Siphon, starts the API, runs banking-tier scan + false-positive suite, optionally diffs against a committed `evadex_baseline.json`, posts a per-category breakdown back to the PR.
+  - `evadex-daily.yml` — cron-driven daily run with full banking-tier scan + false-positive suite, Slack notification when `SLACK_WEBHOOK` is set, fails on detection drop below 85 %.
+- **README "GitHub Actions workflows" subsection** under CI/CD integration with install / baseline / threshold-tuning instructions.
+
+### Fixed
+
+- `evadex generate --formats` previously appended the literal logical format name as the file extension, producing nonsense extensions like `.sqlite` (should be `.db`), `.multi_barcode_png` (should be `.png`), and `.zip_nested` (should be `.zip`). New `_FORMAT_EXTENSION` mapping resolves these to the conventional on-disk extension.
+
 ## [3.11.0] — 2026-04-19
 
 ### Added

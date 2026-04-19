@@ -85,4 +85,22 @@ def get_writer(fmt: str) -> Callable[[list[GeneratedEntry], str], None]:
     if fmt == "sqlite":
         from evadex.generate.writers.sqlite_writer import write_sqlite
         return write_sqlite
+    if fmt == "zip":
+        from evadex.generate.writers.archive_writer import write_zip
+        return write_zip
+    if fmt == "zip_nested":
+        from evadex.generate.writers.archive_writer import write_zip_nested
+        return write_zip_nested
+    if fmt == "7z":
+        from evadex.generate.writers.archive_writer import write_7z
+        return write_7z
+    if fmt == "mbox":
+        from evadex.generate.writers.mbox_writer import write_mbox
+        return write_mbox
+    if fmt == "ics":
+        from evadex.generate.writers.ics_writer import write_ics
+        return write_ics
+    if fmt == "warc":
+        from evadex.generate.writers.warc_writer import write_warc
+        return write_warc
     raise ValueError(f"Unknown format: {fmt!r}")

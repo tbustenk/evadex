@@ -1,0 +1,125 @@
+# evadex DLP daily regression
+#
+# Drop into Siphon's repo at .github/workflows/evadex-daily.yml. Runs at
+# 06:00 UTC every day on the latest main, posts a summary to Slack if the
+# SLACK_WEBHOOK secret is set, and fails the workflow if banking-tier
+# detection drops below the gating threshold (default 85 %).
+#
+# Required secrets (all optional except for Slack):
+#   SLACK_WEBHOOK   — Slack incoming-webhook URL. Without it, the Slack
+#                     notification step skips silently.
+
+name: evadex DLP daily regression
+
+on:
+  schedule:
+    # 06:00 UTC every day. Edit the cron string to taste.
+    - cron: '0 6 * * *'
+  # Allow manual triggering from the Actions tab for ad-hoc reruns.
+  workflow_dispatch:
+
+jobs:
+  daily-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout Siphon
+        uses: actions/checkout@v4
+
+      - name: Cache cargo registry and target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build Siphon (release, full features)
+        run: cargo build --release --features full
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install evadex
+        run: pip install evadex
+
+      - name: Start Siphon API
+        run: |
+          DLPSCAN_API_KEY=ci-test DLPSCAN_API_PORT=8080 \
+            ./target/release/siphon serve >/tmp/siphon-api.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/health >/dev/null; then
+              echo "Siphon API up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Siphon API failed to start within 30s"
+          cat /tmp/siphon-api.log
+          exit 1
+
+      - name: Run full banking-tier scan
+        id: scan
+        run: |
+          evadex scan \
+            --tool siphon \
+            --url http://localhost:8080 \
+            --api-key ci-test \
+            --tier banking \
+            --strategy text \
+            --scanner-label "siphon-daily-${{ github.sha }}" \
+            --min-detection-rate 85 \
+            --format json \
+            -o evadex_results.json
+
+      - name: Run false-positive suite
+        run: |
+          evadex falsepos \
+            --tool siphon \
+            --url http://localhost:8080 \
+            --api-key ci-test \
+            --count 100 \
+            --wrap-context \
+            --format json \
+            -o evadex_falsepos.json
+
+      - name: Upload daily artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evadex-daily-${{ github.run_id }}
+          path: |
+            evadex_results.json
+            evadex_falsepos.json
+          retention-days: 90
+
+      - name: Notify Slack
+        if: always() && env.SLACK_WEBHOOK != ''
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          # Build payload from results JSON. Falls back gracefully if
+          # the scan step failed before producing output.
+          if [ ! -f evadex_results.json ]; then
+            payload='{"text":":x: evadex daily run failed before producing results — check workflow logs."}'
+          else
+            pass_rate=$(python -c "import json; print(json.load(open('evadex_results.json'))['meta']['pass_rate'])")
+            total=$(python -c "import json; print(json.load(open('evadex_results.json'))['meta']['total'])")
+            fp_rate=$(python -c "import json; print(json.load(open('evadex_falsepos.json'))['overall_false_positive_rate'])")
+            status_icon=":white_check_mark:"
+            if [ "${{ job.status }}" != "success" ]; then status_icon=":x:"; fi
+            payload=$(python -c "
+            import json, os
+            print(json.dumps({
+              'text': f'${status_icon} evadex daily — Siphon detection rate {pass_rate}% on {total} variants. False-positive rate {fp_rate}%. <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>',
+            }))
+            ")
+          fi
+          curl -sS -X POST -H 'Content-Type: application/json' \
+            --data "$payload" "$SLACK_WEBHOOK"

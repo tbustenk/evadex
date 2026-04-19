@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "evadex"
-version = "3.11.0"
+version = "3.12.0"
 description = "Comprehensive DLP evasion test suite — scanner-agnostic, file-aware"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -58,6 +58,15 @@ barcodes = [
 data-formats = [
     "pyarrow>=14.0,<24",
     "pandas>=2.0,<4",
+]
+# Archive generation for `evadex generate --format zip|zip_nested|7z`.
+# Exercises Siphon's archive extractors in `crates/siphon-core/src/extractors.rs`
+# (zip is stdlib so only 7z needs an extra). mbox / ics / warc all use stdlib only.
+# RAR generation is intentionally not supported here because writing RAR archives
+# requires the proprietary RAR encoder which has no permissively-licensed
+# Python implementation; consume real-world RAR samples instead.
+archives = [
+    "py7zr>=0.20,<2",
 ]
 
 [project.urls]
