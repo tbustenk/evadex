@@ -686,6 +686,61 @@ def format_code_with_secrets(
     return lines
 
 
+def format_lsh_variants(
+    entries: list[GeneratedEntry],
+    rng: random.Random,
+    noise_level: str = "medium",
+    density: str = "medium",
+) -> list[str]:
+    """Render a document containing N near-duplicate sections of a base
+    text — one section per entry. Each section restates the same base
+    paragraph with a different distortion rate, reporting the empirical
+    Jaccard similarity to the base in the section header.
+
+    Use this template to produce fixtures for testing a DLP scanner's
+    LSH document-similarity engine. The single output file contains
+    multiple variants stitched together; split on the
+    ``--- VARIANT N ---`` separator to get individual documents to
+    feed into ``siphon lsh query``.
+    """
+    from evadex.lsh import BASE_DOCUMENTS, distorted_variant, jaccard_similarity
+
+    base_id = "loan_decision"
+    base = BASE_DOCUMENTS[base_id]
+
+    n = max(1, len(entries))
+    if n == 1:
+        rates = [0.0]
+    else:
+        # Smoothly span from no distortion to heavy distortion.
+        rates = [round(i / (n - 1) * 0.5, 4) for i in range(n)]
+
+    lines: list[str] = [
+        "=" * 70,
+        f"  LSH NEAR-DUPLICATE VARIANTS — base document: {base_id}",
+        f"  {n} variants spanning distortion rates 0%–{int(rates[-1] * 100)}%",
+        "=" * 70,
+        "",
+    ]
+
+    for idx, (rate, entry) in enumerate(zip(rates, entries)):
+        variant = distorted_variant(base, rate, rng) if rate > 0 else base
+        # Splice the entry's sensitive value into the variant so each
+        # near-duplicate carries a distinct PII payload — exactly the
+        # property an LSH scan should preserve across variants.
+        variant = f"{variant} Reference identifier: {entry.variant_value}."
+        empirical = jaccard_similarity(base, variant)
+        lines.append(f"--- VARIANT {idx} ---")
+        lines.append(f"Distortion rate: {rate:.0%}  "
+                     f"Empirical Jaccard vs base: {empirical:.0%}  "
+                     f"Embedded category: {entry.category.value}")
+        lines.append("")
+        lines.append(variant)
+        lines.append("")
+
+    return lines
+
+
 _FORMATTERS = {
     "generic": format_generic,
     "invoice": format_invoice,
@@ -699,6 +754,7 @@ _FORMATTERS = {
     "env_file": format_env_file,
     "secrets_file": format_secrets_file,
     "code_with_secrets": format_code_with_secrets,
+    "lsh_variants": format_lsh_variants,
 }
 
 

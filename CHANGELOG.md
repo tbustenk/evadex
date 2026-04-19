@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.11.0] — 2026-04-19
+
+### Added
+
+- **`evadex lsh` command** — exercises Siphon's document-similarity (LSH) engine end to end. Generates a base banking-domain document (loan decision / incident report / compliance finding), registers it with Siphon, then submits six near-duplicate variants at decreasing similarity levels (~83 %, ~53 %, ~35 %, ~25 %, ~8 % empirical Jaccard) and reports the minimum similarity Siphon reliably detects. Two transports: `--transport http` (live API server) and `--transport cli` (shells out to `siphon lsh register|query` against a fresh state file).
+- **`evadex.lsh` module** — Siphon-compatible 3-word shingling, exact Jaccard helper, and a deterministic near-duplicate generator that preserves sensitive tokens (digits, structured codes) under distortion. Mirrors the algorithm in `crates/siphon-core/src/lsh.rs` so empirical similarity matches what Siphon's MinHash should asymptotically estimate.
+- **`lsh_variants` document template** for `evadex generate` — produces a single document containing N labelled near-duplicate sections of a base banking memo, each splittable on `--- VARIANT N ---` for offline LSH testing or human inspection.
+
+### Fixed
+
+- **`evadex generate --format sql`** schema bug. The `customers` table declared only `sensitive_val` but every INSERT used a category-specific column name (`card_number`, `routing_number`, `sin`, …), so the resulting SQL failed to load into any strict-mode SQL engine. Schema now declares all 11 category columns up-front; fixture loads cleanly into SQLite with 1 400 rows preserved across categories.
+
 ## [3.10.1] — 2026-04-19
 
 ### Fixed

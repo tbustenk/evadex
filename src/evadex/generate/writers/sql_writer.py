@@ -35,19 +35,35 @@ def write_sql(entries: list[GeneratedEntry], path: str) -> None:
                   "Taylor", "Anderson", "Martinez", "Kumar", "Tanaka", "Hassan"]
     departments = ["Finance", "Compliance", "HR", "IT", "Operations", "Legal", "Risk"]
 
+    # The schema declares every category column up-front so each INSERT
+    # can target the column matching its payload (card_number, sin, …)
+    # rather than overloading a single ``sensitive_val`` field.
+    # All payload columns are NULL-able since any one row only fills
+    # the column that matches its category.
     lines: list[str] = [
         f"-- evadex DLP test data — generated {today}",
         "-- CONFIDENTIAL — For DLP Scanner Testing Only",
         "",
         "CREATE TABLE IF NOT EXISTS customers (",
-        "    id            INT PRIMARY KEY AUTO_INCREMENT,",
-        "    first_name    VARCHAR(100) NOT NULL,",
-        "    last_name     VARCHAR(100) NOT NULL,",
-        "    department    VARCHAR(50),",
-        "    sensitive_val VARCHAR(500) NOT NULL,",
-        "    category      VARCHAR(50) NOT NULL,",
-        "    notes         TEXT,",
-        "    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP",
+        "    id              INT PRIMARY KEY AUTO_INCREMENT,",
+        "    first_name      VARCHAR(100) NOT NULL,",
+        "    last_name       VARCHAR(100) NOT NULL,",
+        "    department      VARCHAR(50),",
+        "    sensitive_val   VARCHAR(500),",
+        "    card_number     VARCHAR(500),",
+        "    ssn             VARCHAR(500),",
+        "    sin             VARCHAR(500),",
+        "    iban            VARCHAR(500),",
+        "    swift_bic       VARCHAR(500),",
+        "    routing_number  VARCHAR(500),",
+        "    btc_address     VARCHAR(500),",
+        "    eth_address     VARCHAR(500),",
+        "    email_address   VARCHAR(500),",
+        "    phone_number    VARCHAR(500),",
+        "    passport_number VARCHAR(500),",
+        "    category        VARCHAR(50) NOT NULL,",
+        "    notes           TEXT,",
+        "    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP",
         ");",
         "",
     ]

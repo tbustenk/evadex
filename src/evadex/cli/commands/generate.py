@@ -36,7 +36,7 @@ _TIER_CHOICES = click.Choice(sorted(VALID_TIERS), case_sensitive=False)
 _TEMPLATE_CHOICES = click.Choice(
     ["generic", "invoice", "statement", "hr_record", "audit_report",
      "source_code", "config_file", "chat_log", "medical_record",
-     "env_file", "secrets_file", "code_with_secrets"],
+     "env_file", "secrets_file", "code_with_secrets", "lsh_variants"],
     case_sensitive=False,
 )
 
@@ -237,7 +237,9 @@ def _parse_key_float_pair(value: str) -> tuple[str, float]:
         "Document template controlling structure and tone.  "
         "Options: generic, invoice, statement, hr_record, audit_report, "
         "source_code, config_file, chat_log, medical_record, "
-        "env_file, secrets_file, code_with_secrets."
+        "env_file, secrets_file, code_with_secrets, lsh_variants "
+        "(N near-duplicate sections of a base banking memo for testing "
+        "Siphon's LSH document-similarity engine — split on '--- VARIANT N ---')."
     ),
 )
 @click.option(
