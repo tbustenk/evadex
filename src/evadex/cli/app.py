@@ -16,6 +16,7 @@ from evadex.cli.commands.lsh import lsh
 from evadex.cli.commands.techniques import techniques
 from evadex.cli.commands.profile import profile as profile_cmd
 from evadex.cli.commands.schedule import schedule as schedule_cmd
+from evadex.cli.commands.bridge import bridge as bridge_cmd
 
 # Ensure stdout/stderr use UTF-8 on Windows so that Rich tables with Unicode
 # box-drawing characters and special symbols render without codec errors.
@@ -47,3 +48,4 @@ main.add_command(lsh)
 main.add_command(techniques)
 main.add_command(profile_cmd)
 main.add_command(schedule_cmd)
+main.add_command(bridge_cmd)

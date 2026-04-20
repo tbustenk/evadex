@@ -1,5 +1,21 @@
 # Changelog
 
+## [3.16.0] — 2026-04-20
+
+### Added
+
+- **HTTP bridge server** — new `evadex bridge` subcommand exposes evadex over HTTP so siphon-c2 (and any other frontend) can drive scans, generation, and metrics from the browser. Install via `pip install evadex[bridge]` (FastAPI + uvicorn).
+  - `POST /v1/evadex/run` — trigger a scan in the background; accepts `profile`, `tier`, `evasion_mode`, `tool`, `exe`, `scanner_label`, `categories` (C2 coarse buckets or evadex fine categories, auto-expanded). Returns `run_id` immediately with `202 Accepted`. Run status pollable at `GET /v1/evadex/run/{run_id}`.
+  - `GET /v1/evadex/metrics` — detection rate, FP rate, coverage, detection / FP trends, per-coarse-category TP/FN/FP/recall/precision breakdown, top-ranked evasion techniques, and last-10 run history. Aggregated from `results/audit.jsonl` + linked archive JSON files with no mutations to the underlying data.
+  - `POST /v1/evadex/generate` — produces a synthetic test artefact and streams it back as `application/octet-stream`. Honours `format`, `tier`, `category` (C2 or evadex), `count`, `evasion_rate` (accepts 0–1 or 0–100), `language`, `template`.
+  - `GET /healthz` — unauthenticated liveness probe.
+- **C2 ↔ evadex category mapping** — `src/evadex/bridge/categories.py` maps the six C2 coarse buckets (`PCI`, `PII`, `PHI`, `CRED`, `SECRET`, `CRYPTO`) to evadex fine-grained `PayloadCategory` values and roll s back up the other way for metrics.
+- **Bridge auth + CORS** — optional `x-api-key` (`--api-key` or `EVADEX_BRIDGE_KEY`) applied to every endpoint except `/healthz`; CORS allow-list via `--cors` / `EVADEX_BRIDGE_CORS_ORIGINS` (default `*`).
+
+### Verified
+
+- New test file `tests/unit/test_bridge.py` covers: metrics shape + values, C2 bucket roll-up, coverage computation, empty-audit fallback, `run` returns 202 + run_id, C2 categories expanded before launch, 404 for unknown run_id, `generate` file download, `evasion_rate` normalisation (0–100 → 0–1), 500 propagation on evadex failure, CORS headers, `x-api-key` enforcement, `/healthz` always open.
+
 ## [3.15.0] — 2026-04-20
 
 ### Added
