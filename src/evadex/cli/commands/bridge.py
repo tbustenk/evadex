@@ -28,8 +28,19 @@ import click
               help=("Directory evadex scans against (defaults to the "
                     "current working directory). Mirrors "
                     "EVADEX_BRIDGE_ROOT."))
+@click.option("--exe", default=None, type=click.Path(),
+              help=("Default scanner executable path forwarded as --exe "
+                    "on every `evadex scan` the bridge launches. "
+                    "Per-request `exe` in POST /v1/evadex/run overrides. "
+                    "Mirrors EVADEX_BRIDGE_EXE."))
+@click.option("--cmd-style", default=None, metavar="STYLE",
+              help=("Default scanner command style forwarded as "
+                    "--cmd-style on every scan (e.g. 'binary', 'stdin'). "
+                    "Per-request `cmd_style` overrides. Mirrors "
+                    "EVADEX_BRIDGE_CMD_STYLE."))
 def bridge(host: str, port: int, api_key: str | None, cors: str | None,
-           reload: bool, root: str | None) -> None:
+           reload: bool, root: str | None,
+           exe: str | None, cmd_style: str | None) -> None:
     """Start the evadex HTTP bridge.
 
     Exposes three endpoints the siphon-c2 dashboard calls:
@@ -60,12 +71,20 @@ def bridge(host: str, port: int, api_key: str | None, cors: str | None,
         os.environ["EVADEX_BRIDGE_CORS_ORIGINS"] = cors
     if root:
         os.environ["EVADEX_BRIDGE_ROOT"] = str(root)
+    if exe:
+        os.environ["EVADEX_BRIDGE_EXE"] = str(exe)
+    if cmd_style:
+        os.environ["EVADEX_BRIDGE_CMD_STYLE"] = cmd_style
 
     click.echo(f"evadex bridge listening on http://{host}:{port}")
     click.echo(
         "auth: " + ("x-api-key required" if os.environ.get("EVADEX_BRIDGE_KEY")
                     else "open (no API key set)")
     )
+    if os.environ.get("EVADEX_BRIDGE_EXE"):
+        click.echo(f"scan exe:      {os.environ['EVADEX_BRIDGE_EXE']}")
+    if os.environ.get("EVADEX_BRIDGE_CMD_STYLE"):
+        click.echo(f"scan cmd-style: {os.environ['EVADEX_BRIDGE_CMD_STYLE']}")
 
     import uvicorn
     uvicorn.run(

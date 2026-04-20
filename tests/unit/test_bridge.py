@@ -289,6 +289,35 @@ class TestRunEndpoint:
         # Private exception field should never leak to clients.
         assert "_exception" not in body
 
+    def test_exe_and_cmd_style_default_from_env(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Env vars set by the `evadex bridge` CLI should flow into every
+        scan argv as the default --exe / --cmd-style."""
+        monkeypatch.setenv("EVADEX_BRIDGE_EXE", "C:/bin/siphon.exe")
+        monkeypatch.setenv("EVADEX_BRIDGE_CMD_STYLE", "binary")
+        argv = runs_mod._build_scan_argv({"tool": "siphon-cli"})
+        assert "--exe" in argv
+        assert argv[argv.index("--exe") + 1] == "C:/bin/siphon.exe"
+        assert "--cmd-style" in argv
+        assert argv[argv.index("--cmd-style") + 1] == "binary"
+
+    def test_exe_and_cmd_style_request_overrides_env(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Per-request body.exe / body.cmd_style must override the env
+        defaults — operator sets a server-wide default, individual runs
+        can still point at a different scanner."""
+        monkeypatch.setenv("EVADEX_BRIDGE_EXE", "C:/bin/default.exe")
+        monkeypatch.setenv("EVADEX_BRIDGE_CMD_STYLE", "stdin")
+        argv = runs_mod._build_scan_argv({
+            "tool": "siphon-cli",
+            "exe":  "C:/bin/override.exe",
+            "cmd_style": "binary",
+        })
+        assert argv[argv.index("--exe") + 1] == "C:/bin/override.exe"
+        assert argv[argv.index("--cmd-style") + 1] == "binary"
+
     def test_failed_launch_python_exception_surfaces(
         self, client: TestClient, monkeypatch: pytest.MonkeyPatch
     ):

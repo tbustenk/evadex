@@ -54,15 +54,25 @@ def _build_scan_argv(body: dict) -> list[str]:
     Only the fields documented in the C2 contract are honoured; anything
     else in *body* is ignored rather than rejected so the frontend can
     evolve independently.
+
+    Server-level defaults are read from environment variables set by the
+    ``evadex bridge`` CLI (``EVADEX_BRIDGE_EXE``, ``EVADEX_BRIDGE_CMD_STYLE``).
+    Per-request ``exe`` / ``cmd_style`` in *body* override the default.
     """
     argv = [sys.executable, "-m", "evadex", "scan"]
 
     tool = body.get("tool") or "siphon-cli"
     argv += ["--tool", str(tool)]
 
-    exe = body.get("exe")
+    # exe: request body wins, then CLI-provided env default.
+    exe = body.get("exe") or os.environ.get("EVADEX_BRIDGE_EXE")
     if exe:
         argv += ["--exe", str(exe)]
+
+    # cmd-style: same precedence.
+    cmd_style = body.get("cmd_style") or os.environ.get("EVADEX_BRIDGE_CMD_STYLE")
+    if cmd_style:
+        argv += ["--cmd-style", str(cmd_style)]
 
     scanner_label = body.get("scanner_label")
     if scanner_label:
