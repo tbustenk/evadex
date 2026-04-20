@@ -24,6 +24,8 @@ KNOWN_KEYS = {
     "wrap_context", "tier",
     # Siphon-C2 management-plane integration
     "c2_url", "c2_key",
+    # Smart evasion selection (v3.13.0+)
+    "evasion_mode",
 }
 
 DEFAULT_CONFIG_YAML = """\
@@ -58,6 +60,13 @@ format: json
 # C2 push never blocks or fails a scan even when the URL is unreachable.
 # c2_url: http://localhost:9090
 # c2_key: CHANGEME   # sent as x-api-key header (same auth as Siphon's API)
+
+# Smart evasion selection (v3.13.0+).
+# 'random' = uniform; 'exhaustive' = every applicable variant (scan default);
+# 'weighted' = bias toward techniques that have evaded best in past runs;
+# 'adversarial' = restrict to techniques with ≤ 50% historical detection.
+# Reads history from audit_log above. Cold-start falls back to random.
+# evasion_mode: random
 """
 
 
@@ -84,6 +93,7 @@ class EvadexConfig:
     # uses. Both may also come from EVADEX_C2_URL / EVADEX_C2_KEY.
     c2_url: Optional[str] = None
     c2_key: Optional[str] = None
+    evasion_mode: Optional[str] = None
 
 
 def find_config() -> Optional[Path]:
@@ -300,5 +310,15 @@ def load_config(path: "str | Path") -> EvadexConfig:
                     f"Config {key!r} must be a string or null, got: {type(val).__name__}"
                 )
             setattr(cfg, key, val)
+
+    if "evasion_mode" in raw:
+        val = raw["evasion_mode"]
+        valid = {"random", "weighted", "adversarial", "exhaustive"}
+        if val is not None and val not in valid:
+            raise click.UsageError(
+                f"Config 'evasion_mode' must be one of: {', '.join(sorted(valid))}, "
+                f"got: {val!r}"
+            )
+        cfg.evasion_mode = val
 
     return cfg

@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from evadex.core.result import PayloadCategory
     from evadex.synthetic.base import BaseSyntheticGenerator
 
 _SYNTHETIC_GENERATORS: dict = {}
@@ -50,3 +49,5 @@ def load_synthetic_generators() -> None:
     import evadex.synthetic.au_medicare       # noqa: F401
     import evadex.synthetic.de_tax_id         # noqa: F401
     import evadex.synthetic.us_dl             # noqa: F401
+    # All imports above are side-effect: each module's @register_synthetic
+    # decorator populates _SYNTHETIC_GENERATORS at import time.

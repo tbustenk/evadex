@@ -249,7 +249,7 @@ def _parse_key_float_pair(value: str) -> tuple[str, float]:
         "How to pick evasion techniques. "
         "'random' = uniform; "
         "'weighted' = bias toward techniques that have evaded best in past audit history; "
-        "'adversarial' = only techniques with ≤ 50%% historical detection; "
+        "'adversarial' = only techniques with ≤ 50% historical detection; "
         "'exhaustive' = deterministic first-match. "
         "Reads history from --audit-log (default: results/audit.jsonl). "
         "Falls back to random with a warning if no history exists yet."
@@ -425,7 +425,7 @@ def generate(
         cats = list(tier_cats) if tier_cats is not None else None
         if not tier:
             err_console.print(
-                f"[dim]Tier: banking (default) — use --tier full for all categories[/dim]"
+                "[dim]Tier: banking (default) — use --tier full for all categories[/dim]"
             )
         else:
             err_console.print(f"[dim]Tier: {effective_tier}[/dim]")

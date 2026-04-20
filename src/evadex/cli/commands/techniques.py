@@ -45,9 +45,11 @@ def _trend_arrow(delta: Optional[float]) -> str:
 )
 @click.option(
     "--category", default=None,
-    help="Restrict to techniques whose name contains this substring "
-         "(rough category match — technique names embed their family, "
-         "e.g. 'unicode_zwsp', 'encoding_base64').",
+    help="Substring match on technique *name* — not the PII payload "
+         "category. Technique names embed their family ('unicode_zwsp', "
+         "'encoding_base64', 'morse_space_sep'); a value like 'unicode' "
+         "filters to all unicode-family techniques. Run "
+         "`evadex list-techniques` for the full name list.",
 )
 @click.option(
     "--min-runs", type=int, default=1, show_default=True,
@@ -87,9 +89,19 @@ def techniques(
     rows = filter_stats(stats, min_runs=min_runs, top=top)
 
     if not rows:
-        err_console.print(
-            "[yellow]No techniques matched the filter criteria.[/yellow]"
-        )
+        if category:
+            err_console.print(
+                f"[yellow]No technique names contain "
+                f"'{category}'.[/yellow]\n"
+                "[dim]--category is a substring match on the technique "
+                "*name* (e.g. 'unicode', 'encoding', 'zwsp'), not the PII "
+                "payload category. Run [cyan]evadex list-techniques[/cyan] "
+                "to see available technique names.[/dim]"
+            )
+        else:
+            err_console.print(
+                "[yellow]No techniques matched the filter criteria.[/yellow]"
+            )
         sys.exit(0)
 
     table = Table(

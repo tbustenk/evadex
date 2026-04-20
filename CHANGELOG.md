@@ -1,5 +1,26 @@
 # Changelog
 
+## [3.13.1] — 2026-04-19
+
+### Fixed
+
+- **Help-text rendering** — `≤ 50%%` was rendering literally as `50%%` instead of `50%` in `evadex scan` / `evadex generate` `--evasion-mode` help and the runtime status messages. Click does not re-substitute `%`; dropped the redundant escape.
+- **Pre-existing dead imports** surfaced by the audit pass — `string` in `synthetic/email.py`, `Iterable` in `feedback/technique_history.py`, `PayloadCategory` (TYPE_CHECKING block) in `synthetic/registry.py`. Removed.
+- **No-placeholder f-strings** in `cli/commands/scan.py` (3 sites) and `cli/commands/generate.py` (1 site) — converted to plain strings to silence pyflakes.
+
+### Added
+
+- **`evasion_mode` is now a recognised key in `evadex.yaml`** — added to `KNOWN_KEYS`, `EvadexConfig` dataclass, the `load_config` validator (rejects unknown values with a clear error), and the `evadex init` template (commented placeholder with description).
+
+### Improved
+
+- **`evadex techniques --category <name>` empty-result message** now explicitly explains that the flag is a substring match on the technique *name*, not the PII payload category, and points at `evadex list-techniques` for the available names. The flag's `--help` text was reworded to match.
+
+### Verified
+
+- All 6 v3.13.0 synthetic generators pass invariant checks at count = 1 000 (SSN no reserved areas; UK NIN prefix/suffix rules; CPF / Medicare / DE-tax checksums; US DL covers all 51 states).
+- 591 unit tests passing (no regressions).
+
 ## [3.13.0] — 2026-04-19
 
 ### Added — synthetic generators

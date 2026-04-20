@@ -258,7 +258,7 @@ def _print_summary(results, err_console):
         "Restrict the variant pool by historical effectiveness. "
         "'exhaustive' (default) tests every applicable variant — the legacy "
         "behaviour. 'adversarial' restricts to generators whose historical "
-        "scanner-detection rate is ≤ 50%% (focused regression on what's been "
+        "scanner-detection rate is ≤ 50% (focused regression on what's been "
         "evading). 'weighted' and 'random' currently behave the same as "
         "'exhaustive' for scan, since scan already runs every variant. "
         "Reads history from --audit-log."
@@ -441,7 +441,7 @@ def scan(
             filter_cats = tier_cats  # None for full tier → no category filter
             if effective_tier == "banking" and not tier:
                 err_console.print(
-                    f"[dim]Tier: banking (default) — use --tier full for all payloads[/dim]"
+                    "[dim]Tier: banking (default) — use --tier full for all payloads[/dim]"
                 )
             elif tier:
                 err_console.print(f"[dim]Tier: {effective_tier}[/dim]")
@@ -516,13 +516,13 @@ def scan(
                 generators = kept
                 err_console.print(
                     f"[dim]--evasion-mode adversarial: restricted to "
-                    f"{len(kept)} generator(s) with ≤ 50%% historical "
+                    f"{len(kept)} generator(s) with ≤ 50% historical "
                     f"detection.[/dim]"
                 )
             else:
                 err_console.print(
-                    f"[yellow]--evasion-mode adversarial: no generators "
-                    f"matched the ≤ 50%% filter — running full suite.[/yellow]"
+                    "[yellow]--evasion-mode adversarial: no generators "
+                    "matched the ≤ 50% filter — running full suite.[/yellow]"
                 )
         else:
             err_console.print(
@@ -675,9 +675,9 @@ def scan(
             sys.exit(1)
         if not isinstance(baseline_data, dict) or "meta" not in baseline_data or "results" not in baseline_data:
             err_console.print(
-                f"[red]Baseline file does not look like an evadex result file "
-                f"(missing 'meta' or 'results' keys). "
-                f"Generate a baseline with: evadex scan ... --baseline <file>[/red]"
+                "[red]Baseline file does not look like an evadex result file "
+                "(missing 'meta' or 'results' keys). "
+                "Generate a baseline with: evadex scan ... --baseline <file>[/red]"
             )
             sys.exit(1)
         current_data = json.loads(JsonReporter(scanner_label=scanner_label).render(results))
