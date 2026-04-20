@@ -239,6 +239,32 @@ def _parse_key_float_pair(value: str) -> tuple[str, float]:
         "Example: --evasion-per-category credit_card:0.7 --evasion-per-category sin:0.2"
     ),
 )
+@click.option(
+    "--evasion-mode",
+    type=click.Choice(["random", "weighted", "adversarial", "exhaustive"],
+                      case_sensitive=False),
+    default="random",
+    show_default=True,
+    help=(
+        "How to pick evasion techniques. "
+        "'random' = uniform; "
+        "'weighted' = bias toward techniques that have evaded best in past audit history; "
+        "'adversarial' = only techniques with ≤ 50%% historical detection; "
+        "'exhaustive' = deterministic first-match. "
+        "Reads history from --audit-log (default: results/audit.jsonl). "
+        "Falls back to random with a warning if no history exists yet."
+    ),
+)
+@click.option(
+    "--audit-log",
+    default="results/audit.jsonl",
+    show_default=True,
+    metavar="PATH",
+    help=(
+        "Audit-log path used by --evasion-mode weighted/adversarial to "
+        "load technique history. Ignored for random and exhaustive modes."
+    ),
+)
 # ── Part 4: Template / noise options ─────────────────────────────────────────
 @click.option(
     "--template",
@@ -297,6 +323,8 @@ def generate(
     technique_group: tuple[str, ...],
     technique_mix: str | None,
     evasion_per_category: tuple[str, ...],
+    evasion_mode: str,
+    audit_log: str,
     template: str,
     noise_level: str,
     barcode_type: str,
@@ -415,6 +443,24 @@ def generate(
     if seed is not None:
         err_console.print(f"  seed: [dim]{seed}[/dim]")
 
+    # ── Resolve --evasion-mode (load history if needed) ───────────────────────
+    technique_history: dict | None = None
+    em = evasion_mode.lower()
+    if em in ("weighted", "adversarial"):
+        from evadex.feedback.technique_history import (
+            has_history, load_technique_history,
+        )
+        if has_history(audit_log):
+            stats = load_technique_history(audit_log)
+            technique_history = {t: s.average_success for t, s in stats.items()}
+        else:
+            err_console.print(
+                f"[yellow]No technique history found in {audit_log} — "
+                f"--evasion-mode {em} falls back to random. "
+                f"Run a few scans with --audit-log set to build history.[/yellow]"
+            )
+            em = "random"
+
     # Build config with a placeholder fmt (overridden per-format during writing)
     config = GenerateConfig(
         fmt=formats[0],
@@ -436,6 +482,8 @@ def generate(
         evasion_per_category=parsed_evasion_per_category,
         template=template,
         noise_level=noise_level,
+        evasion_mode=em,
+        technique_history=technique_history,
     )
 
     entries = generate_entries(config)

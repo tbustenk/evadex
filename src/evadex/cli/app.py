@@ -13,6 +13,7 @@ from evadex.cli.commands.trend import trend
 from evadex.cli.commands.entropy import entropy
 from evadex.cli.commands.edm import edm
 from evadex.cli.commands.lsh import lsh
+from evadex.cli.commands.techniques import techniques
 
 # Ensure stdout/stderr use UTF-8 on Windows so that Rich tables with Unicode
 # box-drawing characters and special symbols render without codec errors.
@@ -41,3 +42,4 @@ main.add_command(trend)
 main.add_command(entropy)
 main.add_command(edm)
 main.add_command(lsh)
+main.add_command(techniques)

@@ -56,6 +56,14 @@ class GenerateConfig:
     # Template / noise options
     template: str = "generic"
     noise_level: str = "medium"                           # low, medium, high
+    # Smart evasion selection (v3.13.0+)
+    # "random" (default), "weighted", "adversarial", "exhaustive"
+    evasion_mode: str = "random"
+    # Optional {technique_name: scanner_pass_rate} from the audit log.
+    # Required for "weighted" / "adversarial"; ignored for "random" /
+    # "exhaustive". Cold-start (None or empty) silently falls back to
+    # random mode — see evadex.cli.commands.scan for the warning UX.
+    technique_history: Optional[dict[str, float]] = None
 
 
 # ── Luhn-valid credit card generation ─────────────────────────────────────────
@@ -109,8 +117,24 @@ def _pick_variant(
     allowed_techniques: Optional[list[str]],
     technique_group: Optional[list[str]] = None,
     technique_mix: Optional[dict[str, float]] = None,
+    evasion_mode: str = "random",
+    technique_history: Optional[dict[str, float]] = None,
 ):
-    """Return a random Variant for plain, or None if none applicable."""
+    """Return a Variant for plain, or None if none applicable.
+
+    *evasion_mode* selects the technique strategy:
+
+    * ``random``       — uniform random over applicable generators (default).
+    * ``weighted``     — weight by ``1 - scanner_pass_rate`` from the audit
+      history, so techniques that already evade well are picked more often.
+      Falls back to random if no history is available.
+    * ``adversarial``  — restrict the candidate pool to techniques whose
+      historical scanner-detection rate is ≤ 50 %. Falls back to random
+      if the filter leaves no candidates.
+    * ``exhaustive``   — pick deterministically (the first applicable
+      generator after the auto_applicable / technique_group filter).
+      Useful when the caller is iterating to cover every technique.
+    """
     # Sort by generator name so seeded shuffles are reproducible regardless of
     # the order in which generator modules were imported. Without this sort,
     # import order (for example, which variant test pytest collects first)
@@ -150,8 +174,36 @@ def _pick_variant(
                 variants = [v for v in variants if v.technique in allowed_techniques]
             return rng.choice(variants) if variants else None
 
-    order = list(applicable)
-    rng.shuffle(order)
+    # ── Smart evasion-mode candidate ordering ─────────────────────────────
+    # `applicable` at this point is the post-technique-group / auto-applicable
+    # filter pool. Modes other than `random` reshape the order or filter the
+    # pool further. Cold-start (no history) falls back to random.
+    history = technique_history or {}
+    if evasion_mode == "exhaustive":
+        order = list(applicable)  # deterministic — first generator wins
+    elif evasion_mode == "adversarial" and history:
+        # Keep only generators whose historical scanner-detection rate is
+        # ≤ 0.5. Generators with no history default to "include" so a brand
+        # new technique gets a chance to be measured.
+        kept = [g for g in applicable if history.get(g.name, 0.0) <= 0.5]
+        if not kept:
+            kept = list(applicable)  # fall back rather than emit nothing
+        order = list(kept)
+        rng.shuffle(order)
+    elif evasion_mode == "weighted" and history:
+        # Weight = 1 - pass_rate. Generators with no history default to 0.5
+        # so they get a chance to be measured but don't dominate.
+        weights = [1.0 - history.get(g.name, 0.5) for g in applicable]
+        # Avoid all-zero weights (a 100 %-detected generator would otherwise
+        # be impossible to pick at all, which makes history brittle).
+        weights = [max(w, 0.05) for w in weights]
+        order = rng.choices(applicable, weights=weights, k=len(applicable))
+    else:
+        # `random` (the default), or `weighted` / `adversarial` with no
+        # history — uniform shuffle.
+        order = list(applicable)
+        rng.shuffle(order)
+
     for gen in order:
         try:
             variants = list(gen.generate(plain))
@@ -267,6 +319,8 @@ def generate_entries(config: GenerateConfig) -> list[GeneratedEntry]:
                     rng, plain, cat, gens, techniques,
                     technique_group=config.technique_group,
                     technique_mix=config.technique_mix,
+                    evasion_mode=config.evasion_mode,
+                    technique_history=config.technique_history,
                 )
                 if v is not None:
                     variant_value = v.value

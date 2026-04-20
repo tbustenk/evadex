@@ -39,12 +39,18 @@ def append_audit_entry(
     compare_baseline: Optional[str],
     min_detection_rate: Optional[float],
     exit_code: int,
+    technique_success_rates: Optional[dict] = None,
 ) -> None:
     """Append one JSON line to *audit_log* describing this scan run.
 
     Parent directories are created if they do not exist.  Any exception
     (permissions, disk full, bad path) is silently swallowed so the
     caller's exit code and output are never affected.
+
+    *technique_success_rates* is a ``{technique_name: success_fraction}``
+    mapping (success = pass / (pass + fail), errors excluded). The
+    ``evadex techniques`` command and the ``weighted`` / ``adversarial``
+    evasion modes consume this field.
     """
     entry = {
         "timestamp":         datetime.now(timezone.utc).isoformat(),
@@ -65,6 +71,7 @@ def append_audit_entry(
         "compare_baseline":  compare_baseline,
         "min_detection_rate": min_detection_rate,
         "exit_code":         exit_code,
+        "technique_success_rates": technique_success_rates or {},
     }
     try:
         path = Path(audit_log)

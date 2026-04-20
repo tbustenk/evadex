@@ -248,6 +248,22 @@ def _print_summary(results, err_console):
               help="Filter built-in payloads by category. Repeat for multiple.")
 @click.option("--variant-group", "variant_groups", multiple=True,
               help="Limit to specific generator names. Repeat for multiple.")
+@click.option(
+    "--evasion-mode",
+    type=click.Choice(["random", "weighted", "adversarial", "exhaustive"],
+                      case_sensitive=False),
+    default="exhaustive",
+    show_default=True,
+    help=(
+        "Restrict the variant pool by historical effectiveness. "
+        "'exhaustive' (default) tests every applicable variant — the legacy "
+        "behaviour. 'adversarial' restricts to generators whose historical "
+        "scanner-detection rate is ≤ 50%% (focused regression on what's been "
+        "evading). 'weighted' and 'random' currently behave the same as "
+        "'exhaustive' for scan, since scan already runs every variant. "
+        "Reads history from --audit-log."
+    ),
+)
 @click.option("--include-heuristic", "include_heuristic", is_flag=True, default=False,
               help="Also run heuristic categories (JWT, AWS key). See README for limitations.")
 @click.option("--tier", "tier", default=None, type=TIER_CHOICES, show_default=False,
@@ -298,7 +314,8 @@ def _print_summary(results, err_console):
 def scan(
     ctx,
     config_path, tool, input_value, fmt, output, url, api_key, timeout,
-    strategies, concurrency, categories, variant_groups, include_heuristic,
+    strategies, concurrency, categories, variant_groups, evasion_mode,
+    include_heuristic,
     tier, scanner_label, executable, cmd_style, min_detection_rate,
     save_baseline, compare_baseline, audit_log, feedback_report,
     require_context, wrap_context, no_wrap_context,
@@ -463,7 +480,11 @@ def scan(
         err_console.print(f"[red]Health check failed for adapter '{tool}'.{hint}[/red]")
         sys.exit(1)
 
-    # Resolve generators
+    # ── Resolve generators ────────────────────────────────────────────────────
+    # Start from the explicit --variant-group set if given, otherwise None
+    # (= all registered generators). --evasion-mode adversarial then narrows
+    # the selection further by filtering against historical detection rates.
+    em = (evasion_mode or "exhaustive").lower()
     if variant_groups:
         try:
             generators = [get_generator(name) for name in variant_groups]
@@ -472,6 +493,43 @@ def scan(
             sys.exit(1)
     else:
         generators = None  # use all registered
+
+    if em == "adversarial":
+        from evadex.feedback.technique_history import (
+            has_history, load_technique_history,
+        )
+        log_path = audit_log or "results/audit.jsonl"
+        if has_history(log_path):
+            stats = load_technique_history(log_path)
+            evading = {
+                t for t, s in stats.items()
+                if s.average_success <= 0.5
+            }
+            from evadex.core.registry import _GENERATORS as _ALL_GENS
+            # _GENERATORS stores classes; instantiate when forming the
+            # default pool. Already-resolved generators stay as instances.
+            pool = generators if generators is not None else [
+                cls() for cls in _ALL_GENS.values()
+            ]
+            kept = [g for g in pool if g.name in evading]
+            if kept:
+                generators = kept
+                err_console.print(
+                    f"[dim]--evasion-mode adversarial: restricted to "
+                    f"{len(kept)} generator(s) with ≤ 50%% historical "
+                    f"detection.[/dim]"
+                )
+            else:
+                err_console.print(
+                    f"[yellow]--evasion-mode adversarial: no generators "
+                    f"matched the ≤ 50%% filter — running full suite.[/yellow]"
+                )
+        else:
+            err_console.print(
+                f"[yellow]--evasion-mode adversarial: no history in "
+                f"{log_path} — running full suite. Build history with a "
+                f"few normal scans first.[/yellow]"
+            )
 
     # Run engine with live progress bar on stderr
     if tool == "dlpscan-cli":
@@ -651,6 +709,24 @@ def scan(
     # regardless of whether the detection-rate gate passes or fails.
     if audit_log:
         from evadex.audit import append_audit_entry
+        from collections import defaultdict as _dd
+        # Per-technique pass rates feed `evadex techniques` and the
+        # weighted/adversarial evasion modes. From the scanner's
+        # perspective "success" = variant was caught (pass), so rate =
+        # pass / (pass + fail), errors excluded. Computed inline from
+        # `results` rather than re-parsing the rendered JSON so this
+        # block does not depend on --format being json.
+        _tech_counts: dict = _dd(lambda: {"pass": 0, "fail": 0})
+        for r in results:
+            if r.severity.value not in ("pass", "fail"):
+                continue
+            tech = r.variant.technique or r.variant.generator
+            _tech_counts[tech][r.severity.value] += 1
+        technique_success_rates: dict = {}
+        for tech, c in _tech_counts.items():
+            denom = c["pass"] + c["fail"]
+            if denom > 0:
+                technique_success_rates[tech] = round(c["pass"] / denom, 4)
         append_audit_entry(
             audit_log,
             scanner_label=scanner_label,
@@ -671,6 +747,7 @@ def scan(
                 1 if (min_detection_rate is not None and pass_rate < min_detection_rate)
                 else 0
             ),
+            technique_success_rates=technique_success_rates,
         )
 
     # Siphon-C2 push. Uses the already-rendered JSON so we don't re-serialise

@@ -44,3 +44,9 @@ def load_synthetic_generators() -> None:
     import evadex.synthetic.ca_health_cards   # noqa: F401
     import evadex.synthetic.ca_drivers_licences  # noqa: F401
     import evadex.synthetic.ca_corporate      # noqa: F401
+    import evadex.synthetic.ssn               # noqa: F401
+    import evadex.synthetic.uk_nin            # noqa: F401
+    import evadex.synthetic.br_cpf            # noqa: F401
+    import evadex.synthetic.au_medicare       # noqa: F401
+    import evadex.synthetic.de_tax_id         # noqa: F401
+    import evadex.synthetic.us_dl             # noqa: F401

@@ -1,5 +1,34 @@
 # Changelog
 
+## [3.13.0] — 2026-04-19
+
+### Added — synthetic generators
+
+- **US SSN** (`PayloadCategory.SSN`) — `AAA-BB-CCCC` with reserved area / group / serial blocks excluded.
+- **UK NIN** (`PayloadCategory.UK_NIN`) — HMRC-compliant `XX NNNNNN X` with disallowed prefixes (`BG`, `GB`, `NK`, `KN`, `NT`, `TN`, `ZZ`) and forbidden first / second-letter sets.
+- **Brazilian CPF** (`PayloadCategory.BR_CPF`) — `NNN.NNN.NNN-DD` with the two-pass Receita Federal checksum; all-same-digit base values rejected.
+- **Australian Medicare** (`PayloadCategory.AU_MEDICARE`) — `NNNN NNNNN N` with the Services Australia weighted check digit.
+- **German Steuer-IdNr** (`PayloadCategory.DE_TAX_ID`) — 11-digit with ISO 7064 MOD 11,10 check digit and the exactly-twice duplicate-digit constraint.
+- **US driver licences** (`PayloadCategory.US_DL`) — cycles through all 50 state + DC formats (shape only; most state DLs have no public checksum).
+- All six generators expose `iter_generate(count, seed)` for streaming use; tests cover format conformance, checksum validity, and `count=10000` behaviour.
+
+### Added — smart evasion selection
+
+- **`technique_success_rates`** field on every audit-log entry (`audit.jsonl`) — `{technique: pass_rate}` captured at the end of each scan.
+- **`summary_by_technique`** added to `evadex scan` JSON `meta` block, alongside the existing per-category and per-generator summaries.
+- **New `evadex techniques` command** — Rich table of latest / average / trend per technique. Filters: `--last`, `--top`, `--category`, `--min-runs`. Cold-start prints a hint and exits cleanly.
+- **`--evasion-mode {random,weighted,adversarial,exhaustive}`** flag added to both `evadex scan` and `evadex generate`. `weighted` biases by historical evasion success; `adversarial` restricts to techniques the scanner has been catching ≤ 50 % of the time. Cold-start falls back to random with a stderr warning.
+
+### Performance / fixed
+
+- **SQLite writer 10k memory hang** — pre-3.13.0 the `customers` table was built in Python before insert; `--count 10000` pushed peak RSS over 500 MB and aborted in our safety harness. Now uses 1 000-row chunked `executemany`. New peak: 309 MB at 10 k.
+- **Documented per-format `--count` ceilings** in the README based on measured peak RSS (CSV / SQLite linear; XLSX in-memory; PDF / DOCX recommended ≤ 2 000).
+
+### Verified
+
+- Concurrency sweep: `--concurrency 10 → 17.8 var/s`, `20 → 18.9`, `50 → 20.6` against the dlpscan binary on Windows. Sweet spot: 20–50 (process-spawn overhead dominates).
+- 591 unit tests passing (554 + 37 new for synthetic generators and evasion-mode).
+
 ## [3.12.1] — 2026-04-19
 
 ### Fixed

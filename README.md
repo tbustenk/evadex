@@ -928,6 +928,12 @@ evadex generates values two ways:
   - `ca_gst_hst` — GST/HST registration (9-digit BN + RT + 4 digits)
   - `ca_transit_number` — Transit/routing number (NNNNN-NNN format)
   - `ca_bank_account` — Bank account (7–12 random digits)
+  - `ssn` — Valid US Social Security Numbers (`AAA-BB-CCCC`, no reserved area / group / serial blocks). *(v3.13.0)*
+  - `uk_nin` — Valid UK National Insurance Numbers (`XX NNNNNN X`, HMRC-compliant prefix and suffix rules). *(v3.13.0)*
+  - `br_cpf` — Valid Brazilian CPFs (`NNN.NNN.NNN-DD`, two-pass Receita Federal checksum, all-same-digit base rejected). *(v3.13.0)*
+  - `au_medicare` — Valid Australian Medicare cards (`NNNN NNNNN N`, weighted check digit per Services Australia). *(v3.13.0)*
+  - `de_tax_id` — Valid German Steuer-IdNr (11 digits, ISO 7064 MOD 11,10 check digit, exactly-twice duplicate-digit rule). *(v3.13.0)*
+  - `us_dl` — US driver-licence numbers cycling through all 50 state + DC formats (shape only — most state DLs have no public checksum). *(v3.13.0)*
 - **Seed rotation fallback** — Categories without a synthetic generator rotate through the built-in seed values.
 - **Evasion variants** — Drawn from all 12 evadex generators (same techniques as `evadex scan`). Use `--technique` to restrict to specific techniques.
 
@@ -1077,6 +1083,64 @@ evadex list-techniques [--generator NAME]
 |---|---|---|
 | `--generator`, `-g` | *(all)* | Show techniques for a specific generator only |
 
+### `evadex techniques`
+
+Show per-technique scanner-detection rates from the audit log. Powers the `--evasion-mode weighted` and `--evasion-mode adversarial` selections — and useful on its own for spotting which techniques the scanner has been letting through. *(v3.13.0)*
+
+```
+evadex techniques [OPTIONS]
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `--audit-log` | `results/audit.jsonl` | Source audit log to aggregate. |
+| `--last` | `10` | Aggregate only the most recent N audit entries. |
+| `--top` | *(all)* | Show only the top N techniques by latest scanner-detection rate. |
+| `--category` | *(all)* | Substring filter against technique name (e.g. `unicode`, `encoding`). |
+| `--min-runs` | `1` | Require at least N data points before showing a technique. |
+
+Sample output:
+
+```
+Technique scanner-detection rates  (last 10 runs, 3 techniques)
+┌──────────────────────┬────────┬────────┬──────┬──────────┐
+│ Technique            │ Latest │   Avg  │ Runs │ Trend    │
+├──────────────────────┼────────┼────────┼──────┼──────────┤
+│ unicode_zwsp         │  9.1%  │ 12.3%  │  4   │ ↓ -3.2%  │
+│ homoglyph_substitute │ 18.4%  │ 17.6%  │  4   │ → +0.4%  │
+│ base64_of_rot13      │ 23.5%  │ 26.7%  │  4   │ ↓ -2.1%  │
+└──────────────────────┴────────┴────────┴──────┴──────────┘
+```
+
+"Latest" / "Avg" are scanner-detection rates — **lower is better evasion**. Cold-start (no history yet) prints a hint and exits cleanly.
+
+### `--evasion-mode` (in `evadex scan` and `evadex generate`)
+
+Control how techniques are chosen for evasion variants based on what's worked historically. *(v3.13.0)*
+
+| Mode | Behaviour |
+|---|---|
+| `random` *(generate default)* | Uniform random across applicable techniques. |
+| `exhaustive` *(scan default)* | Every applicable variant is run / generated. |
+| `weighted` | Bias selection by `1 − historical_detection`. Techniques that have evaded best are picked more often. Falls back to random if no audit history exists. |
+| `adversarial` | Restrict to techniques whose historical detection is ≤ 50 %. In `evadex scan`, the variant-group filter narrows accordingly. Falls back to the full pool if the filter leaves no candidates. |
+
+Both `weighted` and `adversarial` read history from `--audit-log` (defaults to `results/audit.jsonl`). Run a few normal scans with `--audit-log` set first to build the history. Until then, `evadex techniques` shows a cold-start hint and `--evasion-mode weighted/adversarial` falls back to random with a warning.
+
+```bash
+# Build history with a few baseline runs
+evadex scan --tool dlpscan-cli --strategy text --tier banking \
+  --audit-log results/audit.jsonl
+
+# Now bias toward techniques that have evaded
+evadex scan --tool dlpscan-cli --strategy text --tier banking \
+  --evasion-mode adversarial --audit-log results/audit.jsonl
+
+# In generate, focus regression fixtures on the hardest evasions
+evadex generate --format xlsx --tier banking \
+  --evasion-mode weighted --count 100 --output test_weighted.xlsx
+```
+
 ### Examples
 
 ```bash
@@ -1110,6 +1174,30 @@ evadex scan --tool dlpscan-cli --exe /opt/rust-dlpscan --cmd-style rust \
   --scanner-label "rust-2.0.0" -o rust.json
 evadex compare python.json rust.json --format html -o comparison.html
 ```
+
+---
+
+## Performance and recommended limits
+
+Benchmarks captured on a Windows / Python 3.13 / 32 GB host running the banking tier with `--evasion-rate 0.5`. Times include the full evadex pipeline — payload selection, evasion variant generation, and writer I/O.
+
+| Format | count=100 | count=1 000 | count=10 000 | Peak RSS (1 k) | Notes |
+|---|---|---|---|---|---|
+| `csv` | ~1.5 s | ~3 s | ~20 s, 92 MB output | 103 MB | Linear scaling — recommended for large fixtures. |
+| `xlsx` | ~3 s | ~13 s | **not recommended** | 259 MB | openpyxl materialises every cell in memory. Linear extrapolation puts 10 k at ~2.5 GB peak. Use `csv` or `sqlite` for larger volumes. |
+| `sqlite` | ~1.6 s | ~4 s | ~24 s, 114 MB output | 143 MB / **309 MB at 10 k** | Prior to v3.13.0, the customer table was built in Python before insert and 10 k pushed RSS over 500 MB. Now uses 1000-row chunked `executemany`. |
+| `parquet` | n/a | n/a | n/a | n/a | Generation works, but Siphon's extractor hangs on every Parquet file ≥ 1 KB — see `results/format_detection_matrix.md`. Skipped from perf testing. |
+
+**Concurrency tuning** (`evadex scan --concurrency N`) on Windows against the dlpscan binary: `--concurrency 10` → 17.8 variants/s, `--concurrency 20` → 18.9, `--concurrency 50` → 20.6. Process-spawn overhead dominates at high concurrency on Windows. Sweet spot is 20–50; going higher rarely pays for itself.
+
+**Recommended `--count` ceilings per format** to stay under 500 MB peak RSS without further optimisation:
+
+| Format | Safe ceiling |
+|---|---|
+| `csv`, `txt`, `json`, `xml`, `sql`, `log`, `mbox`, `ics`, `warc` | 50 000 + |
+| `sqlite`, `7z` | 25 000 |
+| `xlsx`, `docx`, `pdf` | 2 000 (memory-heavy formats; chunk via `--formats` + multiple runs for larger volumes) |
+| `parquet` | unlimited generation, but skip if you intend to scan with Siphon ≤ 22f7971 |
 
 ---
 

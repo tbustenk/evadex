@@ -214,9 +214,16 @@ def _insert_customers(
             "INSERT INTO customers (id, name, email, phone, sin, "
             "date_of_birth, address, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
         )
-    rows = []
+
+    # Stream rows in 1000-row batches so very large fixtures do not build
+    # the entire customer table in Python memory before insert. Without
+    # this, --count 10000 banking-tier (~800k customer rows) pushed peak
+    # RSS over the 500 MB safety ceiling. Chunked executemany keeps RSS
+    # bounded by the chunk size.
+    BATCH = 1000
+    batch: list[tuple] = []
     for cid in ids:
-        rows.append((
+        batch.append((
             cid,
             fake_name(rng, language),
             f"user{cid}@example.com",
@@ -226,7 +233,11 @@ def _insert_customers(
             fake_address(rng, language),
             "",
         ))
-    cur.executemany(sql, rows)
+        if len(batch) >= BATCH:
+            cur.executemany(sql, batch)
+            batch.clear()
+    if batch:
+        cur.executemany(sql, batch)
 
 
 def _update_customer_column(
