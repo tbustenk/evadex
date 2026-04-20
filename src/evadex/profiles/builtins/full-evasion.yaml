@@ -1,0 +1,24 @@
+name: full-evasion
+description: Comprehensive evasion test — full tier, adversarial mode, all file strategies.
+scan:
+  tool: siphon-cli
+  tier: full
+  strategy:
+    - text
+    - docx
+    - pdf
+    - xlsx
+  scanner_label: full-evasion
+  evasion_mode: adversarial
+  require_context: true
+  wrap_context: true
+  min_detection_rate: 80
+  concurrency: 10
+falsepos:
+  enabled: true
+  count: 100
+  wrap_context: true
+output:
+  format: json
+  dir: ~/.evadex/results
+  retain_days: 90

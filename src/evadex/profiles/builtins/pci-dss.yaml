@@ -1,0 +1,26 @@
+name: pci-dss
+description: PCI-DSS focused check — payment rails only, require-context for FP control.
+scan:
+  tool: siphon-cli
+  strategy: text
+  scanner_label: pci-dss
+  require_context: true
+  wrap_context: true
+  evasion_mode: exhaustive
+  min_detection_rate: 90
+  categories:
+    - credit_card
+    - iban
+    - swift_bic
+    - aba_routing
+falsepos:
+  enabled: true
+  count: 100
+  wrap_context: true
+  require_context: true
+  categories:
+    - credit_card
+    - iban
+output:
+  format: json
+  dir: ~/.evadex/results

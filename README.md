@@ -1437,6 +1437,151 @@ Together, Phase 1 measures **false negatives** (sensitive values the scanner mis
 
 ---
 
+## Profiles
+
+A **profile** is a named, saved YAML file that bundles scan flags, optional false-positive settings, optional Siphon-C2 push config, and optional schedule metadata. Profiles are the configuration surface for scheduled runs, the C2 adversarial testing section, and shared team playbooks — "run the PCI-DSS daily check" becomes a one-liner instead of a wall of flags.
+
+User profiles live in `~/.evadex/profiles/<name>.yaml` (override with the `EVADEX_PROFILES_DIR` environment variable — tests use this to avoid touching your home directory). Built-in profiles ship with evadex and are resolved by name when no user profile with the same name exists; a user profile always shadows a built-in.
+
+### Built-in profiles
+
+| Name | Purpose |
+|---|---|
+| `banking-daily` | Daily Canadian banking check — banking tier, `weighted` evasion, require-context, false-positive pass enabled, daily 06:00 cron |
+| `pci-dss` | PCI-DSS focused — credit card / IBAN / SWIFT / ABA routing only, exhaustive evasion, 90% detection target |
+| `canadian-ids` | Canadian identity documents — SIN, RAMQ, all provincial DL / health-card codes, CA passport, postal code, PR card |
+| `full-evasion` | Comprehensive — full tier, adversarial evasion mode, all file strategies (text / docx / pdf / xlsx) |
+| `quick-check` | Fast sanity check — banking tier, text only, random evasion, no false-positive pass |
+
+```bash
+# See every profile and its description
+evadex profile list
+
+# Inspect one
+evadex profile show pci-dss
+
+# Run a built-in end-to-end (scan + falsepos if enabled)
+evadex profile run quick-check
+
+# Run several sequentially
+evadex profile run pci-dss canadian-ids banking-daily
+```
+
+### Profile file format
+
+```yaml
+name: pci-dss-daily
+description: Daily PCI-DSS compliance check
+created: 2026-04-20T10:00:00Z
+last_run: 2026-04-20T06:00:00Z
+
+scan:
+  tool: siphon-cli
+  exe: /usr/local/bin/siphon
+  tier: banking
+  strategy: text
+  scanner_label: siphon-prod
+  require_context: true
+  wrap_context: true
+  evasion_mode: weighted
+  min_detection_rate: 85
+  categories:
+    - credit_card
+    - sin
+    - iban
+
+falsepos:
+  enabled: true
+  count: 100
+  wrap_context: true
+
+c2:
+  url: http://c2:9090
+  key: ${EVADEX_C2_KEY}    # ${…} is substituted at run time
+
+schedule:
+  cron: "0 6 * * *"        # 06:00 UTC daily
+  frequency: daily
+  time: "06:00"
+  timezone: America/Toronto
+
+output:
+  format: json
+  dir: ~/.evadex/results
+  retain_days: 90
+```
+
+**Environment variable substitution** — any `${NAME}` placeholder inside string values is replaced with the matching environment variable at run time. This lets teams share the same YAML across environments (dev / staging / prod) while keeping secrets out of the file. `profile show` preserves placeholders so secrets never appear on-screen; pass `--expand-env` if you want the concrete values.
+
+### Saving a run as a profile
+
+`evadex scan --save-as <name>` captures the resolved flag set into a user profile before executing:
+
+```bash
+evadex scan --tool siphon-cli --tier banking --evasion-mode weighted \
+  --require-context --wrap-context --save-as my-banking
+# Later…
+evadex profile run my-banking
+```
+
+The saved profile includes every flag the scan ended up using, including auto-enabled ones like `wrap_context: true`, so a subsequent `profile run` reproduces the configuration exactly.
+
+### Profile commands
+
+```bash
+evadex profile create <name> [--tool … --tier … --falsepos …]
+evadex profile list [--builtins-only | --user-only]
+evadex profile show <name> [--expand-env]
+evadex profile run <name> [<name> …] [--dry-run] [--skip-falsepos]
+evadex profile edit <name>            # opens in $EDITOR (built-ins are forked on first edit)
+evadex profile delete <name> [--yes]  # built-ins cannot be deleted
+evadex profile export <name> [--output PATH]
+evadex profile import <file.yaml> [--name OVERRIDE] [--overwrite]
+```
+
+`profile edit` copies a built-in profile into the user directory on first edit so your changes persist without modifying the installed package. The same holds for `schedule add`.
+
+### Scheduling
+
+evadex **never installs schedules into the system scheduler itself** — crontab / Task Scheduler management is privileged, platform-specific, and hard to reverse. Instead, `evadex schedule` manages the `schedule:` section of profiles and emits ready-to-install artefacts:
+
+```bash
+# Attach a cron expression to a profile
+evadex schedule add pci-dss --cron "0 6 * * *"
+
+# See every scheduled profile (includes built-ins like banking-daily)
+evadex schedule list
+
+# Remove the schedule from a user profile
+evadex schedule remove pci-dss
+
+# Emit a cron line ready to paste into crontab
+evadex schedule export pci-dss --format cron
+# → 0 6 * * * /usr/bin/python -m evadex profile run pci-dss
+
+# Emit Task Scheduler XML for schtasks.exe /Create /XML …
+evadex schedule export pci-dss --format windows-task --output pci-dss.xml
+
+# Poll entry: run every profile whose cron matches the current minute.
+# Wire this into a single system-level cron entry that polls every minute.
+evadex schedule run-due
+```
+
+`run-due` uses each profile's `last_run` stamp plus a 5-minute reentry window to avoid firing twice when cron polls at second boundaries. The `last_run` field is stamped automatically when `profile run` or `schedule run-due` completes.
+
+**Supported cron expressions** — evadex's own parser handles `*` and single integers (`0 6 * * *`, `30 14 * * 1`). Ranges (`1-5`), steps (`*/15`), and lists (`1,15`) are rejected; those should go straight to system cron via the exported line. Windows Task Scheduler XML export is supported for simple daily triggers (`frequency: daily` + `time: HH:MM`, or an hour/minute cron with `*` everywhere else).
+
+### Siphon-C2 integration
+
+When a profile has a `c2:` section, `profile run` forwards `c2.url` and `c2.key` as `--c2-url` / `--c2-key` to the scan and falsepos subcommands. Results are pushed to:
+
+- `POST /v1/evadex/scan` — scan run output
+- `POST /v1/evadex/falsepos` — false-positive run output
+
+See [Siphon-C2 integration](#siphon-c2-integration) below for the push semantics (failures are always non-fatal — a C2 outage never fails a compliance run).
+
+---
+
 ## Adapters
 
 ### Built-in: `dlpscan-cli`

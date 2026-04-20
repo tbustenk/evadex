@@ -314,6 +314,10 @@ def _print_summary(results, err_console):
 @click.option("--c2-key", "c2_key", default=None, envvar="EVADEX_C2_KEY",
               help="API key sent as 'x-api-key' to Siphon-C2 (same format as the "
                    "core Siphon API). Falls back to EVADEX_C2_KEY env var.")
+@click.option("--save-as", "save_as", default=None, metavar="NAME",
+              help="Save the flags used for this run as a named profile in "
+                   "~/.evadex/profiles before executing. Future runs can use "
+                   "'evadex profile run NAME' with the same config.")
 def scan(
     ctx,
     config_path, tool, input_value, fmt, output, url, api_key, timeout,
@@ -322,7 +326,7 @@ def scan(
     tier, scanner_label, executable, cmd_style, min_detection_rate,
     save_baseline, compare_baseline, audit_log, feedback_report,
     require_context, wrap_context, no_wrap_context,
-    c2_url, c2_key,
+    c2_url, c2_key, save_as,
 ):
     """Run DLP evasion tests."""
     load_builtins()
@@ -405,6 +409,63 @@ def scan(
         wrap_context = True
     if no_wrap_context:
         wrap_context = False
+
+    # ── --save-as: persist the resolved flag set as a named profile ──────────
+    if save_as:
+        from evadex.profiles import Profile, save_profile
+        from evadex.profiles.runner import scan_flags_to_profile_dict
+        from evadex.profiles.schema import ProfileError, validate_name
+
+        try:
+            validate_name(save_as)
+        except ProfileError as e:
+            err_console.print(f"[red]{e}[/red]")
+            sys.exit(1)
+
+        scan_section = scan_flags_to_profile_dict({
+            "tool": tool,
+            "input_value": input_value,
+            "fmt": fmt,
+            "output": output,
+            "url": url,
+            "api_key": api_key,
+            "timeout": timeout,
+            "strategies": strategies,
+            "concurrency": concurrency,
+            "categories": categories,
+            "variant_groups": variant_groups,
+            "evasion_mode": evasion_mode,
+            "include_heuristic": include_heuristic,
+            "tier": tier,
+            "scanner_label": scanner_label,
+            "executable": executable,
+            "cmd_style": cmd_style,
+            "min_detection_rate": min_detection_rate,
+            "audit_log": audit_log,
+            "feedback_report": feedback_report,
+            "require_context": require_context,
+            "wrap_context": wrap_context,
+        })
+        c2_section: dict = {}
+        if c2_url:
+            c2_section["url"] = c2_url
+        if c2_key:
+            c2_section["key"] = c2_key
+        profile_obj = Profile(
+            name=save_as,
+            description=f"Saved from 'evadex scan --save-as {save_as}'",
+            scan=scan_section,
+            c2=c2_section,
+        )
+        try:
+            saved_path = save_profile(profile_obj, overwrite=True)
+        except ProfileError as e:
+            err_console.print(f"[red]{e}[/red]")
+            sys.exit(1)
+        err_console.print(
+            f"[dim]Saved profile '{save_as}' → {saved_path}. "
+            f"Re-run with: evadex profile run {save_as}[/dim]"
+        )
 
     # ── Heuristic warning ─────────────────────────────────────────────────────
     if include_heuristic:

@@ -1,0 +1,24 @@
+name: banking-daily
+description: Daily Canadian banking check — banking tier, text strategy, weighted evasion.
+scan:
+  tool: siphon-cli
+  tier: banking
+  strategy: text
+  scanner_label: banking-daily
+  evasion_mode: weighted
+  require_context: true
+  wrap_context: true
+  min_detection_rate: 85
+falsepos:
+  enabled: true
+  count: 100
+  wrap_context: true
+schedule:
+  cron: "0 6 * * *"
+  frequency: daily
+  time: "06:00"
+  timezone: America/Toronto
+output:
+  format: json
+  dir: ~/.evadex/results
+  retain_days: 30

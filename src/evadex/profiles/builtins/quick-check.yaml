@@ -1,0 +1,14 @@
+name: quick-check
+description: Fast sanity check — banking tier, text only, random evasion, no false-positive pass.
+scan:
+  tool: siphon-cli
+  tier: banking
+  strategy: text
+  scanner_label: quick-check
+  evasion_mode: random
+  wrap_context: true
+  concurrency: 20
+falsepos:
+  enabled: false
+output:
+  format: json

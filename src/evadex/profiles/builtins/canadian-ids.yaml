@@ -1,0 +1,48 @@
+name: canadian-ids
+description: Canadian identity documents — SIN, RAMQ, passport, all provincial health cards and driver's licences.
+scan:
+  tool: siphon-cli
+  strategy: text
+  scanner_label: canadian-ids
+  require_context: true
+  wrap_context: true
+  evasion_mode: exhaustive
+  min_detection_rate: 85
+  categories:
+    - sin
+    - ca_ramq
+    - ca_passport
+    - ca_ab_dl
+    - ca_ab_health
+    - ca_bc_carecard
+    - ca_bc_drivers
+    - ca_mb_drivers
+    - ca_mb_health
+    - ca_nb_drivers
+    - ca_nb_health
+    - ca_nl_drivers
+    - ca_nl_health
+    - ca_ns_drivers
+    - ca_ns_health
+    - ca_on_drivers
+    - ca_ontario_health
+    - ca_pei_drivers
+    - ca_pei_health
+    - ca_qc_drivers
+    - ca_sk_drivers
+    - ca_sk_health
+    - ca_nu_dl
+    - ca_nwt_dl
+    - ca_yt_dl
+    - ca_postal_code
+    - ca_pr_card
+falsepos:
+  enabled: true
+  count: 50
+  wrap_context: true
+  categories:
+    - sin
+    - ca_ramq
+output:
+  format: json
+  dir: ~/.evadex/results

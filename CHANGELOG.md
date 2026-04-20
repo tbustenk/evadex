@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.15.0] — 2026-04-20
+
+### Added
+
+- **Profiles** — named, saved evadex configurations under `~/.evadex/profiles/<name>.yaml` (override path with `EVADEX_PROFILES_DIR`). Each profile bundles scan flags, optional `falsepos`, `c2`, `schedule`, and `output` sections. Built-in profiles are shadowed by user copies with the same name.
+  - New CLI group: `evadex profile create|list|show|run|edit|delete|export|import`.
+  - `profile run` translates the profile into an `evadex scan` (and optionally `evadex falsepos`) subprocess invocation; multiple profiles can be chained in one command.
+  - `--save-as NAME` on `evadex scan` captures the resolved flag set (including auto-enabled `wrap_context`) into a user profile before running.
+  - Environment-variable substitution: `${VAR}` placeholders anywhere in string values are substituted at run time. `profile show` keeps them as literals unless `--expand-env` is passed.
+- **Five built-in profiles** shipped under `evadex.profiles.builtins`: `banking-daily` (daily Canadian banking check with weighted evasion + FP pass), `pci-dss` (credit card / IBAN / SWIFT / ABA at 90% detection), `canadian-ids` (SIN, RAMQ, all provincial DL / health cards, CA passport), `full-evasion` (full tier, adversarial, all file strategies), `quick-check` (banking text-only sanity check, random evasion).
+- **Scheduling** — new CLI group `evadex schedule add|list|remove|export|run-due`. evadex does not install into the system scheduler itself; instead `schedule export --format cron` emits a cron line and `--format windows-task` emits Task Scheduler XML. `schedule run-due` polls every profile and fires those whose cron matches the current minute (with a 5-minute reentry guard based on `last_run`).
+- **C2 integration hook** — profiles with a `c2:` section automatically forward `--c2-url` / `--c2-key` to scan and falsepos, so scheduled runs push results to Siphon-C2 without repeating the flags.
+
+### Verified
+
+- `evadex profile run quick-check-local` end-to-end: 9021 variants, 3348 detected (37.11%), 0 errors against the live Siphon binary. Profile's `last_run` stamp updated after the run.
+- 694 unit tests passing (no regressions); 86 new tests cover profile CRUD, built-in parity, runner argv assembly (value / boolean / multi-value flag shapes, env-var substitution, scan-to-falsepos config inheritance), cron parsing incl. Sunday-0/7 edge, `is_due` reentry guard, cron + Task Scheduler XML export, and Click wiring for every `profile` / `schedule` subcommand.
+
 ## [3.14.0] — 2026-04-20
 
 ### Added
