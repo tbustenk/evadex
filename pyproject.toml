@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "evadex"
-version = "3.15.0"
+version = "3.16.0"
 description = "Comprehensive DLP evasion test suite — scanner-agnostic, file-aware"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -67,6 +67,14 @@ data-formats = [
 # Python implementation; consume real-world RAR samples instead.
 archives = [
     "py7zr>=0.20,<2",
+]
+# HTTP bridge server for `evadex bridge` — exposes /v1/evadex/run,
+# /v1/evadex/metrics, /v1/evadex/generate so frontends (siphon-c2,
+# dashboards, automation) can drive evadex over HTTP.
+bridge = [
+    "fastapi>=0.110,<1",
+    "uvicorn[standard]>=0.27,<1",
+    "python-multipart>=0.0.9,<1",
 ]
 
 [project.urls]

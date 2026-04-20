@@ -1905,6 +1905,131 @@ The only exception is `evadex history --push-c2` without `--c2-url` / `EVADEX_C2
 
 ---
 
+## Bridge — HTTP server for siphon-c2
+
+The bridge is a complementary *pull* API: siphon-c2 (or any frontend) calls evadex over HTTP instead of evadex pushing to C2. It's designed for dashboard-driven workflows — operators click buttons in C2 and the bridge runs scans, generates files, and streams back metrics.
+
+**Install the optional extra** (FastAPI + uvicorn):
+
+```bash
+pip install evadex[bridge]
+```
+
+**Start the server:**
+
+```bash
+# defaults — 127.0.0.1:8081, open access
+evadex bridge
+
+# LAN access + API key
+evadex bridge --host 0.0.0.0 --port 8081 --api-key "$BRIDGE_KEY"
+
+# development — auto-reload on code changes
+evadex bridge --reload
+```
+
+When `--api-key` (or `EVADEX_BRIDGE_KEY`) is set, every endpoint except `GET /healthz` requires an `x-api-key` header. Without a key the bridge runs open — intended for trusted local networks only.
+
+CORS defaults to `*`. Lock it down with `--cors "https://c2.internal,https://ops.internal"` or `EVADEX_BRIDGE_CORS_ORIGINS`.
+
+### Endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/v1/evadex/run` | Trigger a scan in the background; returns a run_id immediately |
+| `GET`  | `/v1/evadex/run/{run_id}` | Poll run status + captured stdout / stderr tails |
+| `GET`  | `/v1/evadex/metrics` | Detection / FP / coverage aggregated from `results/audit.jsonl` |
+| `POST` | `/v1/evadex/generate` | Produce a synthetic test file and stream it back |
+| `GET`  | `/healthz` | Liveness probe — returns `{ok, version}`, no auth |
+
+### `POST /v1/evadex/run`
+
+```bash
+curl -sX POST http://localhost:8081/v1/evadex/run \
+  -H "x-api-key: $BRIDGE_KEY" -H "content-type: application/json" \
+  -d '{
+    "profile":       "banking-pci-ca",
+    "tier":          "banking",
+    "evasion_mode":  "weighted",
+    "tool":          "siphon-cli",
+    "exe":           "/usr/local/bin/siphon",
+    "scanner_label": "siphon-prod",
+    "categories":    ["PCI", "CRED"]
+  }'
+```
+
+Response (immediate, `202 Accepted`):
+
+```json
+{"run_id": "R-20260420T060000", "status": "queued",
+ "started_at": "2026-04-20T06:00:00Z"}
+```
+
+C2 coarse categories (`PCI`, `PII`, `PHI`, `CRED`, `SECRET`, `CRYPTO`) are expanded into evadex fine-grained categories before launching. See [`src/evadex/bridge/categories.py`](src/evadex/bridge/categories.py) for the mapping.
+
+### `GET /v1/evadex/metrics`
+
+```bash
+curl -s http://localhost:8081/v1/evadex/metrics -H "x-api-key: $BRIDGE_KEY"
+```
+
+```json
+{
+  "detection_rate":  87.1,
+  "detection_trend": [82.1, 84.3, 85.9, 87.1, 86.8, 87.1, 87.4, 87.1],
+  "fp_rate":  12.4,
+  "fp_trend": [45.2, 38.1, 22.3, 15.1, 12.4, 12.4, 11.8, 12.4],
+  "coverage":         88.0,
+  "patterns_tested":  489,
+  "patterns_total":   557,
+  "last_run":         "2026-04-20T06:00:00Z",
+  "last_run_id":      "R-20260420T060000",
+  "by_category": {
+    "PCI":  {"tp": 418, "fn": 2, "fp": 3, "recall": 99.5, "precision": 99.3},
+    "CRED": {"tp": 284, "fn": 1, "fp": 4, "recall": 99.6, "precision": 98.6}
+  },
+  "top_evasions": [
+    {"technique": "homoglyph_substitution", "success_rate": 82.4},
+    {"technique": "zero_width_space",        "success_rate": 91.2}
+  ],
+  "history": [
+    {"run_id": "R-20260420T060000", "when": "2026-04-20T06:00:00Z",
+     "profile": "banking-pci-ca", "detection_rate": 87.1}
+  ]
+}
+```
+
+Metrics are derived from `results/audit.jsonl` + the archive files it links. Override the log path with `?audit_log=…` or `EVADEX_BRIDGE_AUDIT_LOG`.
+
+### `POST /v1/evadex/generate`
+
+```bash
+curl -s -X POST http://localhost:8081/v1/evadex/generate \
+  -H "x-api-key: $BRIDGE_KEY" -H "content-type: application/json" \
+  -d '{
+    "format":       "xlsx",
+    "tier":         "banking",
+    "category":     "PCI",
+    "count":        250,
+    "evasion_rate": 0.3,
+    "language":     "en",
+    "template":     "statement"
+  }' -o test-cards.xlsx
+```
+
+The response is the generated file with an `application/octet-stream` `content-type`. `evasion_rate` accepts either `0.0–1.0` or `0–100` (auto-normalised so the C2 slider can pass either).
+
+### Environment variables
+
+| Var | Purpose |
+|---|---|
+| `EVADEX_BRIDGE_KEY` | Required `x-api-key` value |
+| `EVADEX_BRIDGE_CORS_ORIGINS` | Comma-separated CORS allow-list (default `*`) |
+| `EVADEX_BRIDGE_ROOT` | Working directory used for scans + results (default CWD) |
+| `EVADEX_BRIDGE_AUDIT_LOG` | Audit-log path override (default `results/audit.jsonl`) |
+
+---
+
 ## Output schema
 
 ### Top-level
