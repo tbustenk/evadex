@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.14.0] — 2026-04-20
+
+### Added
+
+- **New built-in adapter: `siphon-cli`** — subprocess wrapper around the [Polygon Siphon](https://github.com/oxide11/dlpscan) CLI (`siphon.exe` / `siphon`). Parallels `dlpscan-cli` but targets Siphon's command surface:
+  - Text strategy pipes the variant value via stdin to `siphon scan-text --format json`.
+  - File strategies write a mode-0600 temp file and run `siphon scan --format json <path>`, deleting the temp file on success or failure.
+  - `--cmd-style binary` (default) runs the binary directly; `--cmd-style cargo` wraps the invocation in `cargo run --release --bin siphon -- …` for development builds.
+  - Parses Siphon's match metadata into `ScanResult` enrichment fields: `confidence`, `sub_category`, and (for credit-card matches) `bin_brand`, `bin_card_type`, `bin_country`, `bin_issuer`.
+- **Auto-wrap-context for `siphon-cli`** — `--wrap-context` is now enabled by default for the siphon-cli adapter, mirroring the behaviour already applied to `dlpscan-cli --cmd-style rust`. Siphon's rules require keyword context to fire, so bare-value submissions under-report detection. Disable with `--no-wrap-context`.
+- **`bin_card_type`, `bin_issuer`, `sub_category` enrichment fields** on `ScanResult`, surfaced in the JSON output.
+
+### Verified
+
+- Live banking-tier run against Siphon (`target/release/siphon.exe`): 9021 variants, 3350 detected (37.14%), 0 errors, 612 results with BIN enrichment present.
+- False-positive suite (8 categories × 100 values, `--wrap-context`): 362 / 800 flagged (45.2%). Per-category breakdown captured in `results/falsepos/siphon_live_fp.json`.
+- 608 unit tests passing (no regressions); 17 new tests cover command assembly for every cmd-style, text/file response parsing, BIN-enrichment extraction, empty-response handling, and adapter config plumbing.
+
 ## [3.13.1] — 2026-04-19
 
 ### Fixed

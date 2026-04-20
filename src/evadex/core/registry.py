@@ -55,3 +55,4 @@ def load_builtins():
     import evadex.adapters.dlpscan_cli.adapter
     import evadex.adapters.presidio.adapter
     import evadex.adapters.siphon.adapter
+    import evadex.adapters.siphon_cli.adapter

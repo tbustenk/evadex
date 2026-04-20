@@ -6,10 +6,10 @@ from typing import Optional
 
 CONFIG_FILENAME = "evadex.yaml"
 
-VALID_TOOLS = {"dlpscan-cli", "dlpscan", "presidio"}
+VALID_TOOLS = {"dlpscan-cli", "siphon-cli", "siphon", "dlpscan", "presidio"}
 VALID_STRATEGIES = {"text", "docx", "pdf", "xlsx"}
 VALID_FORMATS = {"json", "html"}
-VALID_CMD_STYLES = {"python", "rust"}
+VALID_CMD_STYLES = {"python", "rust", "binary", "cargo"}
 VALID_CATEGORIES = {
     "credit_card", "ssn", "sin", "iban", "swift_bic", "aba_routing",
     "bitcoin", "ethereum", "us_passport", "au_tfn", "de_tax_id", "fr_insee",

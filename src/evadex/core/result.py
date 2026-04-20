@@ -1218,8 +1218,11 @@ class ScanResult:
     confidence: Optional[float] = None
     bin_brand: Optional[str] = None
     bin_country: Optional[str] = None
+    bin_card_type: Optional[str] = None
+    bin_issuer: Optional[str] = None
     entropy_classification: Optional[str] = None
     validator: Optional[str] = None
+    sub_category: Optional[str] = None
 
     @property
     def severity(self) -> SeverityLevel:
@@ -1238,7 +1241,8 @@ class ScanResult:
             "raw_response": self.raw_response,
         }
         for key in ("confidence", "bin_brand", "bin_country",
-                    "entropy_classification", "validator"):
+                    "bin_card_type", "bin_issuer",
+                    "entropy_classification", "validator", "sub_category"):
             val = getattr(self, key)
             if val is not None:
                 out[key] = val

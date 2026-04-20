@@ -80,10 +80,11 @@ async def _scan_values(
 @click.option("--url", default="http://localhost:8080", show_default=True,
               help="Base URL for HTTP-based adapters.")
 @click.option("--exe", "executable", default=None,
-              help="Path to scanner executable (dlpscan-cli only).")
+              help="Path to scanner executable (dlpscan-cli / siphon-cli).")
 @click.option("--cmd-style", "cmd_style", default=None,
-              type=click.Choice(["python", "rust"]),
-              help="Command format for dlpscan-cli: 'python' or 'rust'.")
+              type=click.Choice(["python", "rust", "binary", "cargo"]),
+              help="Command format. dlpscan-cli: 'python' or 'rust'. "
+                   "siphon-cli: 'binary' or 'cargo'.")
 @click.option("--timeout", default=30.0, show_default=True, type=float,
               help="Request timeout in seconds.")
 @click.option("--concurrency", default=5, show_default=True, type=int,
@@ -165,8 +166,9 @@ def falsepos(
         sys.exit(1)
 
     if not asyncio.run(adapter.health_check()):
-        if tool == "dlpscan-cli":
-            _exe_name = executable or "dlpscan"
+        if tool in ("dlpscan-cli", "siphon-cli"):
+            _default_exe = "siphon" if tool == "siphon-cli" else "dlpscan"
+            _exe_name = executable or _default_exe
             hint = (
                 f" Is [bold]{_exe_name}[/bold] installed and on PATH? "
                 "Use --exe to specify a different path."

@@ -228,7 +228,8 @@ def _print_summary(results, err_console):
                    "CLI flags override them. Auto-discovered from the current directory "
                    "if evadex.yaml exists and --config is not passed.")
 @click.option("--tool", "-t", default="dlpscan-cli", show_default=True,
-              help="DLP adapter to use. Built-in adapters: dlpscan-cli, dlpscan, presidio.")
+              help="DLP adapter to use. Built-in adapters: dlpscan-cli, siphon-cli, "
+                   "siphon, dlpscan, presidio.")
 @click.option("--input", "-i", "input_value", default=None,
               help="Single value to test (if omitted, runs all built-ins)")
 @click.option("--format", "-f", "fmt", type=click.Choice(["json", "html"]),
@@ -274,10 +275,12 @@ def _print_summary(results, err_console):
 @click.option("--scanner-label", "scanner_label", default="", show_default=False,
               help="Label for this scanner in JSON output (e.g. 'python-1.3.0' or 'rust-2.0.0')")
 @click.option("--exe", "executable", default=None, show_default=False,
-              help="Path to scanner executable (dlpscan-cli adapter only)")
+              help="Path to scanner executable (dlpscan-cli / siphon-cli adapters)")
 @click.option("--cmd-style", "cmd_style", default=None,
-              type=click.Choice(["python", "rust"]), show_default=False,
-              help="Command format for dlpscan-cli: 'python' (-f json) or 'rust' (--format json scan)")
+              type=click.Choice(["python", "rust", "binary", "cargo"]), show_default=False,
+              help="Command format. dlpscan-cli: 'python' (-f json) or 'rust' "
+                   "(--format json scan). siphon-cli: 'binary' (siphon) or 'cargo' "
+                   "(cargo run --release --bin siphon --).")
 @click.option("--min-detection-rate", "min_detection_rate", default=None, type=float,
               help="Exit with code 1 if detection rate falls below this threshold (0-100). "
                    "For CI/CD pipeline integration.")
@@ -389,14 +392,16 @@ def scan(
         if _is_default("c2_key") and cfg.c2_key is not None:
             c2_key = cfg.c2_key
 
-    # ── Auto-enable wrap_context for dlpscan-rs ───────────────────────────────
-    # dlpscan-rs requires surrounding context keywords to fire most rules.
-    # Submitting a bare value (no sentence context) produces artificially low
-    # detection rates that do not reflect real-world scanner behaviour.
-    # When --cmd-style rust is active and the user has not explicitly opted out
-    # with --no-wrap-context, enable context wrapping automatically.
+    # ── Auto-enable wrap_context for dlpscan-rs / siphon ──────────────────────
+    # Both Rust scanners require surrounding context keywords to fire most
+    # rules. Submitting a bare value (no sentence context) produces
+    # artificially low detection rates that do not reflect real-world scanner
+    # behaviour. Enable context wrapping automatically for --cmd-style rust
+    # (dlpscan-cli) and for --tool siphon-cli, unless the user has opted
+    # out with --no-wrap-context.
     effective_cmd_style = cmd_style or "python"
-    if not no_wrap_context and not wrap_context and effective_cmd_style == "rust":
+    _auto_wrap_tools = tool == "siphon-cli" or effective_cmd_style == "rust"
+    if not no_wrap_context and not wrap_context and _auto_wrap_tools:
         wrap_context = True
     if no_wrap_context:
         wrap_context = False
@@ -469,8 +474,9 @@ def scan(
 
     # Pre-flight health check
     if not asyncio.run(adapter.health_check()):
-        if tool == "dlpscan-cli":
-            _exe_name = executable or "dlpscan"
+        if tool in ("dlpscan-cli", "siphon-cli"):
+            _default_exe = "siphon" if tool == "siphon-cli" else "dlpscan"
+            _exe_name = executable or _default_exe
             hint = (
                 f" Is [bold]{_exe_name}[/bold] installed and on PATH? "
                 f"Use --exe to specify a different path."
@@ -532,7 +538,7 @@ def scan(
             )
 
     # Run engine with live progress bar on stderr
-    if tool == "dlpscan-cli":
+    if tool in ("dlpscan-cli", "siphon-cli"):
         err_console.print(f"[dim]Running evadex scan against [bold]{tool}[/bold]...[/dim]")
     else:
         err_console.print(f"[dim]Running evadex scan against [bold]{tool}[/bold] at {url}...[/dim]")

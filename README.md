@@ -579,12 +579,12 @@ evadex scan --config evadex.yaml --scanner-label staging
 
 | Key | Type | CLI equivalent | Description |
 |---|---|---|---|
-| `tool` | string | `--tool` | Adapter name (`dlpscan-cli`, `dlpscan`, `siphon`, `presidio`) |
+| `tool` | string | `--tool` | Adapter name (`dlpscan-cli`, `siphon-cli`, `dlpscan`, `siphon`, `presidio`) |
 | `strategy` | string or list | `--strategy` | Submission strategy: `text`, `docx`, `pdf`, `xlsx`. Use a list for multiple. |
 | `min_detection_rate` | number | `--min-detection-rate` | CI/CD gate threshold (0–100) |
 | `scanner_label` | string | `--scanner-label` | Label recorded in JSON `meta.scanner` |
 | `exe` | string or null | `--exe` | Path to scanner executable |
-| `cmd_style` | `python` or `rust` | `--cmd-style` | Command format for dlpscan-cli |
+| `cmd_style` | `python`/`rust`/`binary`/`cargo` | `--cmd-style` | Command format. dlpscan-cli: `python` or `rust`. siphon-cli: `binary` or `cargo`. |
 | `tier` | string | `--tier` | Payload tier: `banking` (default), `core`, `regional`, `full`. Ignored when `categories` is set. |
 | `categories` | list of strings | `--category` | Payload categories to test (overrides `tier`) |
 | `include_heuristic` | boolean | `--include-heuristic` | Include heuristic categories |
@@ -709,7 +709,7 @@ evadex scan [OPTIONS]
 | Flag | Default | Description |
 |---|---|---|
 | `--config` | *(auto-discovered)* | Path to `evadex.yaml` config file. Auto-discovered from current directory if present. CLI flags always override config values. |
-| `--tool`, `-t` | `dlpscan-cli` | Adapter to use. Built-in adapters: `dlpscan-cli`, `dlpscan`, `siphon`, `presidio`. |
+| `--tool`, `-t` | `dlpscan-cli` | Adapter to use. Built-in adapters: `dlpscan-cli`, `siphon-cli`, `dlpscan`, `siphon`, `presidio`. |
 | `--input`, `-i` | *(banking tier)* | Single value to test. If omitted, runs the banking tier (~80 payloads). Use `--tier` to change. Category is auto-detected (Luhn check, regex patterns for SSN/IBAN/AWS/JWT/email/phone). |
 | `--format`, `-f` | `json` | Output format: `json` or `html` |
 | `--output`, `-o` | stdout | Write report to file instead of stdout |
@@ -723,8 +723,8 @@ evadex scan [OPTIONS]
 | `--variant-group` | *(all)* | Limit to specific generator(s). Repeat for multiple. Values: `unicode_encoding`, `delimiter`, `splitting`, `leetspeak`, `regional_digits`, `structural`, `encoding`, `context_injection`, `unicode_whitespace`, `bidirectional`, `soft_hyphen`, `morse_code` |
 | `--include-heuristic` | off | Also run heuristic categories (`aws_key`, `jwt`, `github_token`, `stripe_key`, `slack_token`, `classification`). A warning is printed when enabled — see [Structured vs heuristic categories](#structured-vs-heuristic-categories). |
 | `--scanner-label` | *(empty)* | Label recorded in the JSON `meta.scanner` field. Use to tag a specific scanner version, e.g. `python-1.3.0` or `rust-2.0.0`. Useful when comparing results across scanner builds. |
-| `--exe` | `dlpscan` | Path to the scanner executable (dlpscan-cli adapter only). Use when `dlpscan` is not on `PATH` or you need to target a specific build. |
-| `--cmd-style` | `python` | Command format for dlpscan-cli: `python` (invokes `dlpscan -f json <file>`) or `rust` (invokes `dlpscan --format json scan <file>`). |
+| `--exe` | `dlpscan` / `siphon` | Path to the scanner executable (dlpscan-cli / siphon-cli adapters). Use when the binary is not on `PATH` or you need to target a specific build. |
+| `--cmd-style` | `python` / `binary` | Command format. dlpscan-cli: `python` (`dlpscan -f json <file>`) or `rust` (`dlpscan --format json scan <file>`). siphon-cli: `binary` (`siphon <args>`) or `cargo` (`cargo run --release --bin siphon -- <args>`). |
 | `--min-detection-rate` | *(off)* | Exit with code 1 if the detection rate falls below this threshold (0–100). Intended for CI/CD pipeline gating. Report is always written before the exit. |
 | `--baseline` | *(off)* | Save this run's JSON results to a file for future comparison. |
 | `--compare-baseline` | *(off)* | Compare this run against a previously saved baseline and print a regression summary to stderr. |
@@ -987,8 +987,8 @@ evadex falsepos [OPTIONS]
 | `--count` | `100` | Number of false positive values per category |
 | `--format`, `-f` | `table` | Output format: `table` (summary to stderr) or `json` (full report) |
 | `--output`, `-o` | stdout | Write JSON report to file |
-| `--exe` | `dlpscan` | Path to scanner executable (dlpscan-cli only) |
-| `--cmd-style` | `python` | Command format for dlpscan-cli: `python` or `rust` |
+| `--exe` | `dlpscan` / `siphon` | Path to scanner executable (dlpscan-cli / siphon-cli) |
+| `--cmd-style` | `python` / `binary` | dlpscan-cli: `python` or `rust`. siphon-cli: `binary` or `cargo`. |
 | `--timeout` | `30.0` | Request timeout in seconds |
 | `--concurrency` | `5` | Max concurrent scanner requests |
 | `--seed` | *(random)* | Integer seed for reproducible false positive values |
@@ -1530,6 +1530,48 @@ evadex entropy --tool siphon --mode all
 ```
 
 The command submits each high-entropy payload in three contexts — **bare** (value alone), **gated** (value next to `api_key:`), and **assignment** (`SECRET_TOKEN=value`) — and reports which context each category was caught in. It also runs the `entropy_evasion` generator and lists which evasion techniques defeated detection (split, comment-injection, concatenation, low-entropy mixing, double encoding, space breaking).
+
+### Built-in: `siphon-cli`
+
+Subprocess adapter for the [Polygon Siphon](https://github.com/oxide11/dlpscan) CLI (`siphon.exe` on Windows, `siphon` elsewhere). Mirrors `dlpscan-cli` but targets the Siphon command surface, so air-gapped or CI environments that can't stand up the HTTP server can still be scanned end-to-end.
+
+- **Text scanning**: the variant value is piped via stdin to `siphon scan-text --format json`.
+- **File scanning**: the generated document is written to a mode-0600 temp file, `siphon scan --format json <file>` is invoked, and the temp file is deleted even if the scan fails.
+
+```bash
+# Point --exe at a built siphon binary
+evadex scan --tool siphon-cli \
+  --exe C:/Users/me/dlpscan-rs/target/release/siphon.exe \
+  --tier banking --strategy text -o results/siphon_live.json
+
+# Or run Siphon through cargo — useful for iterating on scanner changes
+evadex scan --tool siphon-cli --cmd-style cargo --tier banking
+
+# False positive suite with keyword context (matches production doc-like input)
+evadex falsepos --tool siphon-cli \
+  --exe ./target/release/siphon.exe \
+  --count 100 --wrap-context --format json -o results/siphon_fp.json
+```
+
+**Flags:**
+
+| Flag | Default | Effect |
+|---|---|---|
+| `--exe` | `siphon` | Path to the Siphon binary. |
+| `--cmd-style` | `binary` | `binary` runs `siphon <args>` directly; `cargo` wraps the scanner in `cargo run --release --bin siphon -- <args>`. |
+| `--require-context` | off | Forwarded to Siphon as `--require-context`. |
+| `--wrap-context` | auto-on | Embeds the variant in a realistic keyword sentence before submission. Automatically enabled for `siphon-cli` (Siphon's rules require keyword context to fire). Disable with `--no-wrap-context`. |
+
+Enrichment fields populated from Siphon's match metadata (highest-confidence match wins when several overlap):
+
+| Field | Description |
+|---|---|
+| `confidence` | Recognizer confidence from 0.0 – 1.0 |
+| `sub_category` | Sub-category (e.g. `Visa`, `Mastercard`) |
+| `bin_brand` | Card-network brand for credit card findings |
+| `bin_card_type` | `Credit`, `Debit`, `Prepaid`, … |
+| `bin_country` | Issuing country from the BIN lookup |
+| `bin_issuer` | Issuing bank name |
 
 ### Adding a custom adapter
 
