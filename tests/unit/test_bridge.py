@@ -411,6 +411,80 @@ class TestGenerateEndpoint:
         r = client.post("/v1/evadex/generate", json={"format": "csv", "count": 1})
         assert r.status_code == 500
 
+    def test_generate_rejects_unknown_format(self, client: TestClient):
+        r = client.post("/v1/evadex/generate", json={"format": "exe"})
+        assert r.status_code == 400
+        assert "format" in r.json()["detail"]["error"]
+
+    def test_generate_rejects_path_traversal_template(self, client: TestClient):
+        """--template '../etc/passwd' must be rejected at the bridge,
+        not forwarded to evadex where a downstream loader might honour it."""
+        r = client.post(
+            "/v1/evadex/generate",
+            json={"format": "csv", "template": "../etc/passwd"},
+        )
+        assert r.status_code == 400
+        detail = r.json()["detail"]
+        assert "template" in detail["error"].lower()
+
+    def test_generate_rejects_non_numeric_count(self, client: TestClient):
+        r = client.post(
+            "/v1/evadex/generate",
+            json={"format": "csv", "count": "not-a-number"},
+        )
+        assert r.status_code == 400
+
+    def test_generate_cleans_up_tempfile_on_failure(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
+        """A failed subprocess must not leak the pre-allocated output
+        tempfile — we unlink it on every error path."""
+        from evadex.bridge import server as server_mod
+
+        captured_paths: list[Path] = []
+
+        class _Proc:
+            returncode = 1
+            stdout = ""
+            stderr = "failed to generate"
+
+        def _fake_run(argv, **kw):
+            for i, a in enumerate(argv):
+                if a == "--output":
+                    captured_paths.append(Path(argv[i + 1]))
+            # Deliberately do NOT write the output file — simulates a
+            # subprocess that crashed before flushing.
+            return _Proc()
+
+        monkeypatch.setattr(server_mod.subprocess, "run", _fake_run)
+        r = client.post("/v1/evadex/generate", json={"format": "csv", "count": 1})
+        assert r.status_code == 500
+        assert captured_paths, "expected generate to allocate an output path"
+        for p in captured_paths:
+            assert not p.exists(), f"tempfile leaked at {p}"
+
+
+# ── Metrics path-traversal hardening ────────────────────────────
+
+class TestMetricsPathTraversal:
+    def test_metrics_no_longer_accepts_audit_log_query(
+        self, audit_tree: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """The ``audit_log`` query param used to allow any file on disk
+        to be opened by the metrics parser. It must now be ignored —
+        callers configure via env only."""
+        monkeypatch.setenv("EVADEX_BRIDGE_ROOT", str(audit_tree))
+        monkeypatch.delenv("EVADEX_BRIDGE_KEY", raising=False)
+        app = create_app()
+        c = TestClient(app)
+        # Include a would-be traversal path as a query param — the
+        # response must be a 200 with the normal metrics shape; the
+        # param is ignored, not honoured.
+        r = c.get("/v1/evadex/metrics", params={"audit_log": "/etc/passwd"})
+        assert r.status_code == 200
+        body = r.json()
+        assert "detection_rate" in body  # normal shape preserved
+
 
 # ── CORS + auth ──────────────────────────────────────────────────
 
@@ -593,6 +667,34 @@ class TestSiphonExeResolution:
         detail = r.json()["detail"]
         assert "siphon binary not found" in detail["error"]
         assert "SIPHON_EXE" in detail["hint"]
+
+    def test_run_rejects_unknown_tier_with_400(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Enum allowlist on /v1/evadex/run returns a clean 400 rather
+        than letting a bogus value reach evadex's own validator."""
+        monkeypatch.setenv("EVADEX_BRIDGE_ROOT", str(tmp_path))
+        monkeypatch.setenv("SIPHON_EXE", "/fake/siphon")
+        runs_mod.reset()
+        app = create_app()
+        c = TestClient(app)
+        r = c.post("/v1/evadex/run", json={"tier": "ohno"})
+        assert r.status_code == 400
+        assert "tier" in r.json()["detail"]["error"]
+
+    def test_run_rejects_non_object_body(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setenv("EVADEX_BRIDGE_ROOT", str(tmp_path))
+        monkeypatch.setenv("SIPHON_EXE", "/fake/siphon")
+        runs_mod.reset()
+        app = create_app()
+        c = TestClient(app)
+        # FastAPI itself returns 422 for type violations on `body: dict`,
+        # but we exercise a list payload to confirm the response is an
+        # error (not a silent 200 or 500).
+        r = c.post("/v1/evadex/run", json=["not", "an", "object"])
+        assert r.status_code in (400, 422)
 
     def test_run_accepts_body_exe_override_even_when_auto_discovery_fails(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

@@ -46,4 +46,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 LABEL org.opencontainers.image.title="evadex-bridge" \
       org.opencontainers.image.description="evadex HTTP bridge — /v1/evadex/run, /metrics, /generate" \
-      org.opencontainers.image.version="3.16.0"
+      org.opencontainers.image.version="3.17.1"

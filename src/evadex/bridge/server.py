@@ -29,10 +29,10 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 try:
-    from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Request
+    from fastapi import Depends, FastAPI, Header, HTTPException
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import FileResponse, JSONResponse
 except ImportError as exc:  # pragma: no cover — handled by CLI command
@@ -43,6 +43,53 @@ except ImportError as exc:  # pragma: no cover — handled by CLI command
 from evadex.bridge import categories as cat
 from evadex.bridge import metrics as metrics_mod
 from evadex.bridge import runs as runs_mod
+
+
+# ── Input allowlists ────────────────────────────────────────────
+# Keep these small and explicit — every value here ends up as a
+# subprocess argv. Anything outside the allowlist is rejected with
+# 400 before the subprocess ever launches.
+_ALLOWED_FORMATS = {
+    "csv", "json", "xlsx", "docx", "pdf", "eml", "txt", "html",
+    "xml", "yaml", "yml", "sqlite", "parquet", "zip", "zip_nested",
+    "7z", "tar", "png", "jpg", "multi_barcode_png", "mbox", "ics", "warc",
+}
+_ALLOWED_LANGUAGES = {"en", "fr-CA"}
+_ALLOWED_TIERS = {"banking", "core", "regional", "full"}
+_ALLOWED_EVASION_MODES = {"random", "exhaustive", "weighted", "adversarial"}
+_ALLOWED_TOOLS = {"dlpscan-cli", "siphon-cli", "siphon", "dlpscan", "presidio"}
+_ALLOWED_CMD_STYLES = {"python", "rust", "binary", "cargo", "stdin"}
+# Template names are opaque strings but must not be paths. Reject
+# anything that could escape the templates dir or address the
+# filesystem directly.
+_SAFE_TEMPLATE_CHARS = set(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-."
+)
+
+
+def _bad_request(msg: str, **extra: object) -> HTTPException:
+    return HTTPException(status_code=400, detail={"error": msg, **extra})
+
+
+def _validate_template(name: str) -> str:
+    """Reject path-traversal or filesystem-pointing template names.
+
+    The CLI treats ``--template`` as an opaque identifier; the bridge is
+    the trust boundary, so we enforce that identity here rather than
+    hoping every downstream loader refuses ``../etc/passwd``.
+    """
+    if not isinstance(name, str) or not name:
+        raise _bad_request("template must be a non-empty string")
+    if any(ch not in _SAFE_TEMPLATE_CHARS for ch in name):
+        raise _bad_request(
+            "template contains disallowed characters",
+            template=name,
+            allowed="alphanumerics, '_', '-', '.'",
+        )
+    if name.startswith(".") or ".." in name:
+        raise _bad_request("template must not contain '..' or start with '.'",
+                           template=name)
+    return name
 
 
 # Version string surfaced in the OpenAPI doc + /healthz payload.
@@ -196,6 +243,34 @@ def create_app() -> FastAPI:
             profile, tier, evasion_mode, tool, exe, scanner_label,
             categories (list of C2 buckets or evadex fine cats), strategies.
         """
+        if not isinstance(body, dict):
+            raise _bad_request("request body must be a JSON object")
+
+        # Validate every enum-shaped field before it flows into argv. The
+        # subprocess uses argv-list form (no shell), so these checks are
+        # defence-in-depth against downstream evadex flag abuse rather
+        # than against shell injection.
+        for field, allowed in (
+            ("tier",         _ALLOWED_TIERS),
+            ("evasion_mode", _ALLOWED_EVASION_MODES),
+            ("tool",         _ALLOWED_TOOLS),
+            ("cmd_style",    _ALLOWED_CMD_STYLES),
+        ):
+            val = body.get(field)
+            if val is not None and val not in allowed:
+                raise _bad_request(
+                    f"unsupported {field}",
+                    **{field: val}, allowed=sorted(allowed),
+                )
+        for field in ("exe", "scanner_label"):
+            val = body.get(field)
+            if val is not None and not isinstance(val, str):
+                raise _bad_request(f"{field} must be a string or null")
+        if body.get("categories") is not None and not isinstance(body["categories"], list):
+            raise _bad_request("categories must be a list or null")
+        if body.get("strategies") is not None and not isinstance(body["strategies"], list):
+            raise _bad_request("strategies must be a list or null")
+
         # Resolve the scanner path if the request didn't override it. If
         # nothing is found anywhere in the priority chain, fail fast with
         # a clear error instead of letting the subprocess blow up.
@@ -249,10 +324,12 @@ def create_app() -> FastAPI:
 
     # ── GET /v1/evadex/metrics ──────────────────────────────────
     @app.get("/v1/evadex/metrics", dependencies=[Depends(_require_api_key)])
-    def get_metrics(
-        audit_log: Optional[str] = None,
-    ) -> dict:
-        path = audit_log or os.environ.get(
+    def get_metrics() -> dict:
+        # Hardcode the audit-log path to the default (or the operator's
+        # server-wide override via env). Accepting the path from the
+        # caller opened a file-read primitive — any authenticated client
+        # could point us at /etc/passwd and let the parser try it.
+        path = os.environ.get(
             "EVADEX_BRIDGE_AUDIT_LOG", metrics_mod.DEFAULT_AUDIT_LOG,
         )
         data = metrics_mod.build_metrics(repo_root=_repo_root(), audit_log=path)
@@ -284,22 +361,58 @@ def create_app() -> FastAPI:
             language    (str)   en | fr-CA
             template    (str)   evadex template name
         """
-        fmt = (body.get("format") or "csv").lower()
+        if not isinstance(body, dict):
+            raise _bad_request("request body must be a JSON object")
+
+        fmt = (body.get("format") or "csv")
+        if not isinstance(fmt, str):
+            raise _bad_request("format must be a string", format=fmt)
+        fmt = fmt.lower()
+        if fmt not in _ALLOWED_FORMATS:
+            raise _bad_request(
+                "unsupported format", format=fmt,
+                allowed=sorted(_ALLOWED_FORMATS),
+            )
+
         tier = body.get("tier")
+        if tier is not None and tier not in _ALLOWED_TIERS:
+            raise _bad_request(
+                "unsupported tier", tier=tier, allowed=sorted(_ALLOWED_TIERS),
+            )
+
         category = body.get("category")
-        count = int(body.get("count") or 100)
+        if category is not None and not isinstance(category, str):
+            raise _bad_request("category must be a string or null")
+
+        try:
+            count = int(body.get("count") or 100)
+        except (TypeError, ValueError):
+            raise _bad_request("count must be an integer", count=body.get("count"))
         count = max(1, min(count, 10_000))
+
         evasion_rate = body.get("evasion_rate")
         if evasion_rate is None:
             evasion_rate = 0.3
         else:
-            evasion_rate = float(evasion_rate)
+            try:
+                evasion_rate = float(evasion_rate)
+            except (TypeError, ValueError):
+                raise _bad_request(
+                    "evasion_rate must be numeric", evasion_rate=evasion_rate,
+                )
             if evasion_rate > 1.0:
                 # C2 slider sends 0–100.
                 evasion_rate = evasion_rate / 100.0
             evasion_rate = max(0.0, min(evasion_rate, 1.0))
+
         language = body.get("language") or "en"
-        template = body.get("template") or "generic"
+        if language not in _ALLOWED_LANGUAGES:
+            raise _bad_request(
+                "unsupported language", language=language,
+                allowed=sorted(_ALLOWED_LANGUAGES),
+            )
+
+        template = _validate_template(body.get("template") or "generic")
 
         # Translate C2 coarse bucket → evadex fine categories.
         evadex_cats: list[str] = []
@@ -310,7 +423,8 @@ def create_app() -> FastAPI:
                 evadex_cats = [category]
 
         # Resolve output path — temp file that FastAPI streams back. The
-        # caller cleans up via the FileResponse background task below.
+        # success path hands cleanup to a BackgroundTask; the failure
+        # paths must unlink explicitly so we don't leak on every 500.
         ext_map = {
             "sqlite": "db", "multi_barcode_png": "png", "zip_nested": "zip",
         }
@@ -335,14 +449,25 @@ def create_app() -> FastAPI:
         for c in evadex_cats:
             argv += ["--category", c]
 
-        proc = subprocess.run(
-            argv,
-            cwd=str(_repo_root()),
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-        )
+        try:
+            proc = subprocess.run(
+                argv,
+                cwd=str(_repo_root()),
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+        except OSError as exc:
+            _unlink_quietly(out_path)
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": "failed to launch evadex generate",
+                    "reason": str(exc),
+                },
+            )
+
         if proc.returncode != 0 or not out_path.is_file():
             detail = {
                 "error": "evadex generate failed",
@@ -350,6 +475,7 @@ def create_app() -> FastAPI:
                 "stderr": (proc.stderr or "")[-2048:],
                 "argv": argv[2:],  # hide the python exe
             }
+            _unlink_quietly(out_path)
             raise HTTPException(status_code=500, detail=detail)
 
         # Use a background task so the file is removed after FastAPI

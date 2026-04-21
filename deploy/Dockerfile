@@ -51,4 +51,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 LABEL org.opencontainers.image.title="evadex" \
       org.opencontainers.image.description="DLP evasion test suite — adversarial testing for Siphon" \
-      org.opencontainers.image.version="3.16.0"
+      org.opencontainers.image.version="3.17.1"

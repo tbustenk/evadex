@@ -15,10 +15,8 @@ from __future__ import annotations
 
 import os
 import shlex
-import shutil
 import subprocess
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 

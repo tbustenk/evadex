@@ -1,5 +1,38 @@
 # Changelog
 
+## [3.17.1] — 2026-04-21
+
+### Security
+
+- **Removed authenticated file-read via `/v1/evadex/metrics?audit_log=…`.** The query param used to be handed straight to `open()`, so anyone past the `x-api-key` check could point the parser at any file the server could read. The endpoint now ignores the param and uses the default path (overridable at startup via `EVADEX_BRIDGE_AUDIT_LOG` only).
+- **Template argument path-traversal guard.** `/v1/evadex/generate` now rejects template names containing `..`, path separators, or non-`[A-Za-z0-9_.-]` characters with a 400 before the subprocess launches. Prevents a crafted `--template ../etc/passwd` from being forwarded to downstream loaders.
+- **Enum allowlists on `/v1/evadex/run` and `/v1/evadex/generate`.** `tier`, `evasion_mode`, `tool`, `cmd_style`, `format`, `language` are validated against explicit sets; invalid values return 400 instead of being forwarded as argv tokens.
+
+### Fixed
+
+- **Generate endpoint no longer leaks temp files on failure.** Previously a non-zero subprocess exit (or an OSError launching it) returned 500 but left the pre-allocated output file on disk. Every error path now explicitly unlinks before raising.
+- **Clean 400s for malformed request bodies.** Non-numeric `count`/`evasion_rate` and non-object request bodies return a structured `{error, …}` 400 instead of bubbling a 500/ValueError.
+- **Dead imports removed** from `bridge/server.py`, `cli/commands/bridge.py`, `cli/commands/profile.py`, `cli/commands/schedule.py`, `profiles/schedule.py`.
+- **`evadex bridge --exe` help** updated to describe the full resolution chain (CLI → `SIPHON_EXE` → `bridge.exe` → auto-discovery → `PATH`).
+
+### Verified
+
+- 729 unit tests passing; 7 new bridge tests cover tier allowlist rejection, non-object body rejection, unknown-format rejection, path-traversal template rejection, non-numeric count rejection, tempfile cleanup on failure, and metrics query param being ignored.
+
+## [3.17.0] — 2026-04-21
+
+### Added
+
+- **Container deployment artefacts** under `deploy/`:
+  - `deploy/Dockerfile` — two-stage Python 3.11-slim build for one-shot runs (`scan`, `generate`, `profile`, …).
+  - `deploy/Dockerfile.bridge` — same base, defaults `CMD` to the FastAPI bridge on `:8081` so `docker run evadex:bridge` boots into server mode.
+  - Both images install the `bridge`, `barcodes`, `data-formats`, and `archives` extras, run as a non-root `evadex` user (uid/gid 1000 so a Kubernetes `securityContext.runAsUser: 1000` matches), and expose `/healthz` via the container `HEALTHCHECK`.
+- **`.dockerignore`** — excludes `results/`, `test_files/`, generated reports, venvs, and caches so `docker build` context stays small even on a busy working copy.
+
+### Verified
+
+- `create_app()` + `GET /healthz` smoke-tested via `starlette.TestClient`; returns 200 with the version payload. Full `docker build` validation was deferred (Docker Desktop not present on the dev host).
+
 ## [3.16.1] — 2026-04-21
 
 ### Fixed

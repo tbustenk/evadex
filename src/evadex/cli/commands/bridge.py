@@ -29,9 +29,11 @@ import click
                     "current working directory). Mirrors "
                     "EVADEX_BRIDGE_ROOT."))
 @click.option("--exe", default=None, type=click.Path(),
-              help=("Default scanner executable path forwarded as --exe "
-                    "on every `evadex scan` the bridge launches. "
-                    "Per-request `exe` in POST /v1/evadex/run overrides. "
+              help=("Path to the siphon binary. Highest-priority entry "
+                    "in the resolution chain — also checks SIPHON_EXE, "
+                    "bridge.exe in evadex.yaml, known install paths, "
+                    "and shutil.which('siphon') before giving up. "
+                    "Per-request `exe` in POST /v1/evadex/run still wins. "
                     "Mirrors EVADEX_BRIDGE_EXE."))
 @click.option("--cmd-style", default=None, metavar="STYLE",
               help=("Default scanner command style forwarded as "
@@ -53,7 +55,7 @@ def bridge(host: str, port: int, api_key: str | None, cors: str | None,
     Install the extra first: ``pip install evadex[bridge]``.
     """
     try:
-        import uvicorn  # noqa: F401
+        import uvicorn
     except ImportError:
         click.echo(
             "evadex bridge requires the [bridge] extra.\n"
@@ -99,7 +101,6 @@ def bridge(host: str, port: int, api_key: str | None, cors: str | None,
     if os.environ.get("EVADEX_BRIDGE_CMD_STYLE"):
         click.echo(f"scan cmd-style: {os.environ['EVADEX_BRIDGE_CMD_STYLE']}")
 
-    import uvicorn
     uvicorn.run(
         "evadex.bridge.server:app",
         host=host,

@@ -1947,11 +1947,11 @@ The bridge shells out to `siphon` for every scan. You no longer need to pass `--
    - `C:/Users/Ryzen5700/dlpscan-rs/target/release/siphon.exe`
 5. **`PATH` lookup** — `shutil.which('siphon')`
 
-When nothing is found the server still starts — `GET /v1/evadex/run` returns `503` with a clear `error`/`hint`/`searched` payload, and `GET /healthz` reports `{siphon_exe: null, siphon_found: false}` so health checks and UIs can surface the misconfiguration directly:
+When nothing is found the server still starts — `POST /v1/evadex/run` returns `503` with a clear `error`/`hint`/`searched` payload, and `GET /healthz` reports `{siphon_exe: null, siphon_found: false}` so health checks and UIs can surface the misconfiguration directly:
 
 ```bash
 curl -s http://localhost:8081/healthz
-# {"ok": true, "version": "3.16.1", "siphon_exe": "/usr/local/bin/siphon", "siphon_found": true}
+# {"ok": true, "version": "3.17.1", "siphon_exe": "/usr/local/bin/siphon", "siphon_found": true}
 ```
 
 Per-request `body.exe` on `POST /v1/evadex/run` still overrides everything above.
@@ -2023,7 +2023,7 @@ curl -s http://localhost:8081/v1/evadex/metrics -H "x-api-key: $BRIDGE_KEY"
 }
 ```
 
-Metrics are derived from `results/audit.jsonl` + the archive files it links. Override the log path with `?audit_log=…` or `EVADEX_BRIDGE_AUDIT_LOG`.
+Metrics are derived from `results/audit.jsonl` + the archive files it links. Override the log path with `EVADEX_BRIDGE_AUDIT_LOG`. The endpoint no longer accepts an `?audit_log=` query param — that was an authenticated file-read primitive and is gone as of 3.17.1.
 
 ### `POST /v1/evadex/generate`
 
@@ -2051,6 +2051,9 @@ The response is the generated file with an `application/octet-stream` `content-t
 | `EVADEX_BRIDGE_CORS_ORIGINS` | Comma-separated CORS allow-list (default `*`) |
 | `EVADEX_BRIDGE_ROOT` | Working directory used for scans + results (default CWD) |
 | `EVADEX_BRIDGE_AUDIT_LOG` | Audit-log path override (default `results/audit.jsonl`) |
+| `EVADEX_BRIDGE_EXE` | Siphon binary path — set when you pass `--exe`. Top of the resolution chain. |
+| `SIPHON_EXE` | Siphon binary path — direct override used when `EVADEX_BRIDGE_EXE` isn't set. |
+| `EVADEX_BRIDGE_CMD_STYLE` | Default `--cmd-style` forwarded on every scan (`binary`, `stdin`, `rust`, `python`, `cargo`). |
 
 ---
 
