@@ -1,6 +1,6 @@
 from typing import Iterator
 from evadex.core.registry import register_generator
-from evadex.core.result import PayloadCategory
+from evadex.core.result import PayloadCategory, Variant
 from evadex.variants.base import BaseVariantGenerator
 
 MINIMAL = {'a': '4', 'e': '3', 'i': '1', 'o': '0', 's': '5'}
