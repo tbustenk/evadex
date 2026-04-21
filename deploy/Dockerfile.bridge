@@ -1,0 +1,49 @@
+# evadex bridge — FastAPI/uvicorn HTTP service that drives evadex
+# from siphon-c2 and other frontends. Same build + runtime stages as
+# the main Dockerfile; only the default CMD differs so the container
+# comes up in server mode without an explicit `docker run` arg list.
+
+# ── Stage 1: Build ──────────────────────────────────────────────
+FROM python:3.11-slim AS builder
+
+WORKDIR /app
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml README.md LICENSE ./
+COPY src/ ./src/
+
+RUN pip install --no-cache-dir --prefix=/install ".[bridge,barcodes,data-formats,archives]"
+
+# ── Stage 2: Runtime ───────────────────────────────────────────
+FROM python:3.11-slim AS runtime
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates curl && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN groupadd -r evadex --gid 1000 && \
+    useradd -r -g evadex -u 1000 -s /bin/false evadex
+
+COPY --from=builder /install /usr/local
+COPY src/ /app/src/
+
+WORKDIR /app
+
+USER evadex
+
+EXPOSE 8081
+
+# Default to bridge-server mode. Override at `docker run` time if a
+# one-shot invocation is wanted (e.g. `docker run evadex:bridge scan ...`).
+ENTRYPOINT ["python", "-m", "evadex"]
+CMD ["bridge", "--host", "0.0.0.0", "--port", "8081"]
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -sf http://localhost:8081/healthz || exit 1
+
+LABEL org.opencontainers.image.title="evadex-bridge" \
+      org.opencontainers.image.description="evadex HTTP bridge — /v1/evadex/run, /metrics, /generate" \
+      org.opencontainers.image.version="3.16.0"

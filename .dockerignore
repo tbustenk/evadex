@@ -1,0 +1,60 @@
+# Don't ship dev-only byproducts into the build context. Keeps
+# `docker build` fast when the workspace has the usual sprawl of
+# report JSONs, generated test files, and local venvs.
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# evadex output / local scratch — not source
+*.html
+*.json
+!tests/fixtures/*.json
+evadex.yaml
+results/
+test_files/
+test_output/
+test_fresh.csv
+e2e_stderr.txt
+*_report.md
+*_latest_report.md
+*_evasions_detail.md
+evadex_regressions.py
+falsepos_*.json
+full_coverage_*.json
+
+# git / CI / docs not needed at runtime
+.git/
+.github/
+docs/
+*.md
+!README.md
+!LICENSE
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
