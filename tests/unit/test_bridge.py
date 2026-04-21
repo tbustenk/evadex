@@ -452,3 +452,173 @@ class TestCorsAndAuth:
         r = TestClient(app).get("/healthz")
         assert r.status_code == 200
         assert r.json()["ok"] is True
+
+
+# ── Siphon-exe resolution (v3.16.1) ─────────────────────────────
+
+class TestSiphonExeResolution:
+    """The bridge resolves the siphon binary via a documented priority
+    chain: CLI flag → SIPHON_EXE → bridge.exe → auto-discovery → PATH."""
+
+    @pytest.fixture(autouse=True)
+    def _clear_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        for var in ("EVADEX_BRIDGE_EXE", "SIPHON_EXE"):
+            monkeypatch.delenv(var, raising=False)
+
+    def test_auto_discovery_finds_local_release_binary(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """A freshly-built siphon under ./target/release/siphon.exe should
+        be picked up without any config, env, or flag."""
+        from evadex.bridge import server as server_mod
+
+        release_dir = tmp_path / "target" / "release"
+        release_dir.mkdir(parents=True)
+        fake_exe = release_dir / "siphon.exe"
+        fake_exe.write_text("# fake binary")
+
+        # Run resolution from inside the tmp repo root so the relative
+        # path "./target/release/siphon.exe" matches our fake layout.
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("EVADEX_BRIDGE_ROOT", str(tmp_path))
+
+        resolved = server_mod._resolve_siphon_exe()
+        assert resolved is not None
+        assert Path(resolved).name == "siphon.exe"
+        assert Path(resolved).resolve() == fake_exe.resolve()
+
+    def test_siphon_exe_env_overrides_auto_discovery(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """SIPHON_EXE must win over any on-disk auto-discovery result."""
+        from evadex.bridge import server as server_mod
+
+        # Stage an auto-discoverable binary so we can prove the env var
+        # actually takes precedence (not just that nothing else was found).
+        release_dir = tmp_path / "target" / "release"
+        release_dir.mkdir(parents=True)
+        (release_dir / "siphon.exe").write_text("# fake")
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("EVADEX_BRIDGE_ROOT", str(tmp_path))
+
+        override = tmp_path / "override-siphon.exe"
+        override.write_text("# override")
+        monkeypatch.setenv("SIPHON_EXE", str(override))
+
+        assert server_mod._resolve_siphon_exe() == str(override)
+
+    def test_cli_flag_env_beats_siphon_exe(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """EVADEX_BRIDGE_EXE (set by ``evadex bridge --exe``) wins over
+        SIPHON_EXE — operator intent on a specific run trumps the
+        shell-level default."""
+        from evadex.bridge import server as server_mod
+
+        monkeypatch.setenv("EVADEX_BRIDGE_EXE", "/from/cli/siphon")
+        monkeypatch.setenv("SIPHON_EXE", "/from/env/siphon")
+        assert server_mod._resolve_siphon_exe() == "/from/cli/siphon"
+
+    def test_config_exe_picked_up_when_env_unset(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """bridge.exe in evadex.yaml is consulted after env, before
+        auto-discovery."""
+        from evadex.bridge import server as server_mod
+
+        target = tmp_path / "siphon-from-config"
+        target.write_text("# fake")
+        (tmp_path / "evadex.yaml").write_text(
+            f"bridge:\n  exe: {target}\n", encoding="utf-8"
+        )
+        monkeypatch.setenv("EVADEX_BRIDGE_ROOT", str(tmp_path))
+
+        assert server_mod._resolve_siphon_exe() == str(target)
+
+    def test_healthz_reports_not_found_when_binary_missing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """With nothing configured and nothing on disk, healthz must
+        report siphon_found=false and siphon_exe=null — but still
+        return 200 so uptime probes stay green."""
+        from evadex.bridge import server as server_mod
+
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("EVADEX_BRIDGE_ROOT", str(tmp_path))
+        # Neutralise the absolute Windows auto-discovery path and PATH.
+        monkeypatch.setattr(
+            server_mod, "_SIPHON_AUTO_DISCOVERY_PATHS", (), raising=True,
+        )
+        monkeypatch.setattr(server_mod.shutil, "which", lambda *_a, **_k: None)
+
+        app = create_app()
+        r = TestClient(app).get("/healthz")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["ok"] is True
+        assert body["siphon_found"] is False
+        assert body["siphon_exe"] is None
+
+    def test_healthz_reports_found_when_env_set(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setenv("EVADEX_BRIDGE_ROOT", str(tmp_path))
+        monkeypatch.setenv("SIPHON_EXE", "/fake/siphon")
+        app = create_app()
+        body = TestClient(app).get("/healthz").json()
+        assert body["siphon_found"] is True
+        assert body["siphon_exe"] == "/fake/siphon"
+
+    def test_run_returns_clear_error_when_siphon_not_found(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """POST /v1/evadex/run with no resolvable exe and no override
+        must fail fast with 503 and a hint — not silently crash a
+        subprocess later."""
+        from evadex.bridge import server as server_mod
+
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("EVADEX_BRIDGE_ROOT", str(tmp_path))
+        monkeypatch.delenv("EVADEX_BRIDGE_KEY", raising=False)
+        monkeypatch.setattr(
+            server_mod, "_SIPHON_AUTO_DISCOVERY_PATHS", (), raising=True,
+        )
+        monkeypatch.setattr(server_mod.shutil, "which", lambda *_a, **_k: None)
+        runs_mod.reset()
+
+        app = create_app()
+        c = TestClient(app)
+        r = c.post("/v1/evadex/run", json={"tool": "siphon-cli"})
+        assert r.status_code == 503
+        detail = r.json()["detail"]
+        assert "siphon binary not found" in detail["error"]
+        assert "SIPHON_EXE" in detail["hint"]
+
+    def test_run_accepts_body_exe_override_even_when_auto_discovery_fails(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """body.exe bypasses the resolver — it goes straight to argv so
+        a per-request override still works when no siphon is installed."""
+        from evadex.bridge import server as server_mod
+
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("EVADEX_BRIDGE_ROOT", str(tmp_path))
+        monkeypatch.delenv("EVADEX_BRIDGE_KEY", raising=False)
+        monkeypatch.setattr(
+            server_mod, "_SIPHON_AUTO_DISCOVERY_PATHS", (), raising=True,
+        )
+        monkeypatch.setattr(server_mod.shutil, "which", lambda *_a, **_k: None)
+        runs_mod.reset()
+
+        async def _noop(run_id, argv, cwd):  # noqa: ARG001
+            runs_mod._RUNS[run_id]["status"] = runs_mod.STATUS_COMPLETED
+            runs_mod._RUNS[run_id]["exit_code"] = 0
+        monkeypatch.setattr(runs_mod, "_execute", _noop)
+
+        app = create_app()
+        c = TestClient(app)
+        r = c.post(
+            "/v1/evadex/run",
+            json={"tool": "siphon-cli", "exe": "/override/siphon"},
+        )
+        assert r.status_code == 202

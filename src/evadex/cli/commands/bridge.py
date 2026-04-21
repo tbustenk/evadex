@@ -81,8 +81,21 @@ def bridge(host: str, port: int, api_key: str | None, cors: str | None,
         "auth: " + ("x-api-key required" if os.environ.get("EVADEX_BRIDGE_KEY")
                     else "open (no API key set)")
     )
-    if os.environ.get("EVADEX_BRIDGE_EXE"):
-        click.echo(f"scan exe:      {os.environ['EVADEX_BRIDGE_EXE']}")
+    # Surface whichever siphon exe the server would pick up right now,
+    # using the same priority chain as /healthz. Helps the operator spot
+    # a misconfigured exe before the first scan arrives.
+    try:
+        from evadex.bridge.server import _resolve_siphon_exe
+        resolved = _resolve_siphon_exe()
+    except Exception:
+        resolved = None
+    if resolved:
+        click.echo(f"scan exe:       {resolved}")
+    else:
+        click.echo(
+            "scan exe:       NOT FOUND — set SIPHON_EXE, pass --exe, "
+            "add bridge.exe to evadex.yaml, or install siphon on PATH"
+        )
     if os.environ.get("EVADEX_BRIDGE_CMD_STYLE"):
         click.echo(f"scan cmd-style: {os.environ['EVADEX_BRIDGE_CMD_STYLE']}")
 

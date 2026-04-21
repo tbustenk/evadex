@@ -24,6 +24,7 @@ the bridge. Restrict via ``EVADEX_BRIDGE_CORS_ORIGINS`` (comma list).
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -77,6 +78,85 @@ def _repo_root() -> Path:
     return Path(os.environ.get("EVADEX_BRIDGE_ROOT") or Path.cwd())
 
 
+# Paths checked (in order) when no explicit siphon exe is configured.
+_SIPHON_AUTO_DISCOVERY_PATHS: tuple[str, ...] = (
+    "/usr/local/bin/siphon",
+    "/usr/bin/siphon",
+    "./target/release/siphon",
+    "./target/release/siphon.exe",
+    "C:/Users/Ryzen5700/dlpscan-rs/target/release/siphon.exe",
+)
+
+
+def _config_bridge_exe() -> Optional[str]:
+    """Read ``bridge.exe`` from ./evadex.yaml relative to _repo_root(), if any.
+
+    Returns None when the file is missing, can't be parsed, has no
+    ``bridge`` section, or the exe field is null. Silent on any error so
+    a broken config never crashes the server — the caller falls through
+    to auto-discovery.
+    """
+    try:
+        import yaml
+    except ImportError:
+        return None
+    candidate = _repo_root() / "evadex.yaml"
+    if not candidate.is_file():
+        return None
+    try:
+        with open(candidate, encoding="utf-8") as f:
+            raw = yaml.safe_load(f) or {}
+    except Exception:
+        return None
+    bridge = raw.get("bridge") if isinstance(raw, dict) else None
+    if not isinstance(bridge, dict):
+        return None
+    exe = bridge.get("exe")
+    return str(exe) if isinstance(exe, str) and exe else None
+
+
+def _resolve_siphon_exe() -> Optional[str]:
+    """Resolve the siphon binary path using the documented priority chain.
+
+    1. ``EVADEX_BRIDGE_EXE`` env var — set by the ``evadex bridge --exe`` CLI flag.
+    2. ``SIPHON_EXE`` env var — direct override.
+    3. ``bridge.exe`` key in ``evadex.yaml`` (relative to the scan root).
+    4. Known install paths — see :data:`_SIPHON_AUTO_DISCOVERY_PATHS`.
+    5. ``shutil.which('siphon')`` — PATH lookup.
+
+    Returns the absolute path string or None when nothing is found.
+    """
+    # 1. CLI --exe flag (plumbed into env by evadex.cli.commands.bridge).
+    cli_exe = os.environ.get("EVADEX_BRIDGE_EXE")
+    if cli_exe:
+        return cli_exe
+
+    # 2. SIPHON_EXE env var — intentionally separate from EVADEX_BRIDGE_EXE
+    # so users can point at siphon without knowing the bridge's internal
+    # env name.
+    env_exe = os.environ.get("SIPHON_EXE")
+    if env_exe:
+        return env_exe
+
+    # 3. evadex.yaml → bridge.exe.
+    cfg_exe = _config_bridge_exe()
+    if cfg_exe:
+        return cfg_exe
+
+    # 4. Known install paths.
+    for p in _SIPHON_AUTO_DISCOVERY_PATHS:
+        candidate = Path(p)
+        if candidate.is_file():
+            return str(candidate.resolve())
+
+    # 5. PATH lookup.
+    which = shutil.which("siphon")
+    if which:
+        return which
+
+    return None
+
+
 def create_app() -> FastAPI:
     """Build the FastAPI app. Kept as a factory so tests can isolate state."""
     app = FastAPI(
@@ -99,7 +179,13 @@ def create_app() -> FastAPI:
     # ── Health / version — unauthenticated, useful for uptime probes. ──
     @app.get("/healthz")
     def healthz() -> dict:
-        return {"ok": True, "version": _BRIDGE_VERSION}
+        exe = _resolve_siphon_exe()
+        return {
+            "ok":           True,
+            "version":      _BRIDGE_VERSION,
+            "siphon_exe":   exe,
+            "siphon_found": exe is not None,
+        }
 
     # ── POST /v1/evadex/run ─────────────────────────────────────
     @app.post("/v1/evadex/run", dependencies=[Depends(_require_api_key)])
@@ -110,6 +196,27 @@ def create_app() -> FastAPI:
             profile, tier, evasion_mode, tool, exe, scanner_label,
             categories (list of C2 buckets or evadex fine cats), strategies.
         """
+        # Resolve the scanner path if the request didn't override it. If
+        # nothing is found anywhere in the priority chain, fail fast with
+        # a clear error instead of letting the subprocess blow up.
+        if not body.get("exe"):
+            resolved_exe = _resolve_siphon_exe()
+            if resolved_exe is None:
+                raise HTTPException(
+                    status_code=503,
+                    detail={
+                        "error": "siphon binary not found",
+                        "hint": (
+                            "Set SIPHON_EXE, pass --exe on `evadex bridge`, "
+                            "add bridge.exe to evadex.yaml, or install siphon "
+                            "to a standard location (/usr/local/bin/siphon, "
+                            "./target/release/siphon)."
+                        ),
+                        "searched": list(_SIPHON_AUTO_DISCOVERY_PATHS),
+                    },
+                )
+            body = {**body, "exe": resolved_exe}
+
         # Translate C2 coarse buckets into fine evadex categories if the
         # frontend passed any. Anything that isn't a known bucket falls
         # through as-is so evadex's own validation catches typos.
@@ -148,7 +255,20 @@ def create_app() -> FastAPI:
         path = audit_log or os.environ.get(
             "EVADEX_BRIDGE_AUDIT_LOG", metrics_mod.DEFAULT_AUDIT_LOG,
         )
-        return metrics_mod.build_metrics(repo_root=_repo_root(), audit_log=path)
+        data = metrics_mod.build_metrics(repo_root=_repo_root(), audit_log=path)
+        # Surface scanner-binary status so the UI can show "siphon not
+        # found" alongside an empty metrics payload instead of looking
+        # like a silent outage. Historical metrics still render — just
+        # warn that future runs will fail until the exe is wired up.
+        exe = _resolve_siphon_exe()
+        data["siphon_exe"] = exe
+        data["siphon_found"] = exe is not None
+        if exe is None:
+            data["warning"] = (
+                "siphon binary not found — /v1/evadex/run will fail until "
+                "SIPHON_EXE, --exe, bridge.exe, or PATH is configured"
+            )
+        return data
 
     # ── POST /v1/evadex/generate ────────────────────────────────
     @app.post("/v1/evadex/generate", dependencies=[Depends(_require_api_key)])

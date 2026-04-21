@@ -1932,6 +1932,30 @@ When `--api-key` (or `EVADEX_BRIDGE_KEY`) is set, every endpoint except `GET /he
 
 CORS defaults to `*`. Lock it down with `--cors "https://c2.internal,https://ops.internal"` or `EVADEX_BRIDGE_CORS_ORIGINS`.
 
+### Scanner binary (`siphon`) resolution
+
+The bridge shells out to `siphon` for every scan. You no longer need to pass `--exe` on every start — the bridge resolves the binary using this priority chain:
+
+1. **CLI flag:** `evadex bridge --exe /path/to/siphon`
+2. **Env var:** `SIPHON_EXE=/path/to/siphon` (direct override)
+3. **Config:** `bridge.exe` in `evadex.yaml`
+4. **Auto-discovery** — the first of these that exists:
+   - `/usr/local/bin/siphon`
+   - `/usr/bin/siphon`
+   - `./target/release/siphon`
+   - `./target/release/siphon.exe`
+   - `C:/Users/Ryzen5700/dlpscan-rs/target/release/siphon.exe`
+5. **`PATH` lookup** — `shutil.which('siphon')`
+
+When nothing is found the server still starts — `GET /v1/evadex/run` returns `503` with a clear `error`/`hint`/`searched` payload, and `GET /healthz` reports `{siphon_exe: null, siphon_found: false}` so health checks and UIs can surface the misconfiguration directly:
+
+```bash
+curl -s http://localhost:8081/healthz
+# {"ok": true, "version": "3.16.1", "siphon_exe": "/usr/local/bin/siphon", "siphon_found": true}
+```
+
+Per-request `body.exe` on `POST /v1/evadex/run` still overrides everything above.
+
 ### Endpoints
 
 | Method | Path | Purpose |
@@ -1940,7 +1964,7 @@ CORS defaults to `*`. Lock it down with `--cors "https://c2.internal,https://ops
 | `GET`  | `/v1/evadex/run/{run_id}` | Poll run status + captured stdout / stderr tails |
 | `GET`  | `/v1/evadex/metrics` | Detection / FP / coverage aggregated from `results/audit.jsonl` |
 | `POST` | `/v1/evadex/generate` | Produce a synthetic test file and stream it back |
-| `GET`  | `/healthz` | Liveness probe — returns `{ok, version}`, no auth |
+| `GET`  | `/healthz` | Liveness probe — returns `{ok, version, siphon_exe, siphon_found}`, no auth |
 
 ### `POST /v1/evadex/run`
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.16.1] — 2026-04-21
+
+### Fixed
+
+- **Bridge siphon-exe auto-discovery** — `evadex bridge` no longer requires `--exe` on every start. The server resolves the scanner binary via a priority chain: `--exe` CLI flag (`EVADEX_BRIDGE_EXE`) → `SIPHON_EXE` env var → `bridge.exe` in `evadex.yaml` → filesystem search (`/usr/local/bin/siphon`, `/usr/bin/siphon`, `./target/release/siphon[.exe]`, `C:/Users/Ryzen5700/dlpscan-rs/target/release/siphon.exe`) → `PATH` lookup (`shutil.which`). When nothing is found the server still starts — `POST /v1/evadex/run` returns `503` with a clear `error`/`hint`/`searched` payload instead of crashing the subprocess later.
+
+### Added
+
+- **`/healthz` exposes `siphon_exe` and `siphon_found`** so dashboards and uptime probes can distinguish "bridge up" from "bridge up but misconfigured".
+- **`bridge:` section in `evadex.yaml`** (`host`, `port`, `exe`, `cmd_style`, `api_key`) — validated by `load_config`. `evadex init` now scaffolds the section.
+- **`/v1/evadex/metrics`** surfaces `siphon_exe`, `siphon_found`, and an explicit `warning` when the binary is missing.
+- Bridge startup log prints the resolved exe (or a `NOT FOUND` hint) so operators see the state before the first request arrives.
+
+### Verified
+
+- 8 new bridge unit tests: auto-discovery finds `./target/release/siphon.exe`; `SIPHON_EXE` overrides auto-discovery; `--exe`/`EVADEX_BRIDGE_EXE` beats `SIPHON_EXE`; `bridge.exe` config resolves when env is unset; `/healthz` reports `siphon_found=false` cleanly; `/v1/evadex/run` returns `503` with a hint when no siphon resolvable; `body.exe` still overrides a missing auto-discovery. All 35 bridge tests pass; 51 config tests pass.
+
 ## [3.16.0] — 2026-04-20
 
 ### Added
