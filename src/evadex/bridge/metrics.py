@@ -134,21 +134,46 @@ def _by_category_breakdown(archive: Optional[dict]) -> dict[str, dict]:
 def _top_evasions(entry: dict, archive: Optional[dict], limit: int = 5) -> list[dict]:
     """Return the evasion techniques with the highest success rates.
 
-    Prefers the ``technique_success_rates`` dict carried on the audit
-    entry (the source of truth the CLI writes). Falls back to parsing it
-    out of the archive's ``meta`` if the audit row doesn't have it.
+    Prefers ``technique_success_rates`` (either on the audit entry or in
+    the archive meta). Falls back to computing rates from the archive's
+    ``summary_by_technique`` map when the fraction field isn't present
+    — the ``build_scan_audit_entry`` path writes the counts but not the
+    pre-computed rates, so this fallback is the common case.
     """
     raw = entry.get("technique_success_rates") or {}
-    if not raw and archive:
-        raw = (archive.get("meta") or {}).get("technique_success_rates") or {}
-    items = []
-    for name, rate in raw.items():
-        try:
-            rate_f = float(rate)
-        except (TypeError, ValueError):
-            continue
-        # Stored as 0.0–1.0; C2 wants percent.
-        items.append({"technique": name, "success_rate": round(rate_f * 100.0, 1)})
+    archive_meta = (archive or {}).get("meta") or {}
+    if not raw:
+        raw = archive_meta.get("technique_success_rates") or {}
+    items: list[dict] = []
+    if raw:
+        for name, rate in raw.items():
+            try:
+                rate_f = float(rate)
+            except (TypeError, ValueError):
+                continue
+            items.append({"technique": name, "success_rate": round(rate_f * 100.0, 1)})
+    else:
+        # Compute from counts. "pass" means the scanner caught the
+        # variant, so from the evasion's perspective success = fail.
+        # But the existing field semantics (elsewhere in the code +
+        # C2 dashboard) treat "success_rate" as the scanner's catch
+        # rate for that technique — keep that.
+        by_tech = archive_meta.get("summary_by_technique") or {}
+        for name, counts in by_tech.items():
+            try:
+                passes = int(counts.get("pass", 0) or 0)
+                fails = int(counts.get("fail", 0) or 0)
+            except (TypeError, ValueError, AttributeError):
+                continue
+            denom = passes + fails
+            if denom <= 0:
+                continue
+            items.append({
+                "technique": name,
+                "success_rate": round(100.0 * passes / denom, 1),
+                "pass": passes,
+                "fail": fails,
+            })
     items.sort(key=lambda r: r["success_rate"], reverse=True)
     return items[:limit]
 
@@ -178,6 +203,71 @@ def _safe_str(v: Any) -> str:
     return "" if v is None else str(v)
 
 
+def _dedupe_scans(scans: list[dict]) -> list[dict]:
+    """Collapse runs of audit entries that point at the same archive file.
+
+    The CLI write-path used to produce one entry per writer invocation
+    rather than per scan, so a single run could leave many identical
+    lines behind in ``results/audit.jsonl``. Keep the first (earliest)
+    sighting for each archive_file — that's the authoritative write —
+    and drop the rest. Entries with no archive_file are kept as-is so
+    legacy rows aren't silently lost.
+    """
+    seen: dict[str, dict] = {}
+    loose: list[dict] = []
+    for e in scans:
+        key = e.get("archive_file")
+        if not key:
+            loose.append(e)
+            continue
+        if key not in seen:
+            seen[key] = e
+    deduped = list(seen.values()) + loose
+    deduped.sort(key=lambda e: e.get("timestamp") or "")
+    return deduped
+
+
+def _fp_match_key(entry: Optional[dict]) -> tuple[str, str]:
+    if not entry:
+        return ("", "")
+    return (
+        _safe_str(entry.get("scanner_label")),
+        _safe_str(entry.get("tool")),
+    )
+
+
+def _matching_fp_entries(
+    falsepos: list[dict], latest_scan: Optional[dict],
+) -> list[dict]:
+    """Return falsepos entries that pair with *latest_scan*.
+
+    Matches on ``(scanner_label, tool)`` — a falsepos run against a
+    different scanner has no bearing on the current scanner's FP rate.
+    If no scan is known yet, fall through and return everything so the
+    trend panel still renders historical FP data.
+    """
+    if not latest_scan:
+        return list(falsepos)
+    scan_label = _safe_str(latest_scan.get("scanner_label"))
+    scan_tool = _safe_str(latest_scan.get("tool"))
+    out: list[dict] = []
+    for e in falsepos:
+        fp_label = _safe_str(e.get("scanner_label"))
+        fp_tool = _safe_str(e.get("tool"))
+        if scan_label and fp_label == scan_label:
+            out.append(e)
+        elif scan_tool and fp_tool == scan_tool:
+            out.append(e)
+    return out
+
+
+def _latest_matching_fp(
+    falsepos: list[dict], latest_scan: Optional[dict],
+) -> Optional[dict]:
+    matches = _matching_fp_entries(falsepos, latest_scan)
+    return matches[-1] if matches else None
+
+
 def build_metrics(
     repo_root: Path | str = ".",
     audit_log: Path | str = DEFAULT_AUDIT_LOG,
@@ -194,7 +284,7 @@ def build_metrics(
         audit_path = repo_root / audit_path
 
     entries = _read_audit_entries(audit_path)
-    scans = _scan_entries(entries)
+    scans = _dedupe_scans(_scan_entries(entries))
     falsepos = _falsepos_entries(entries)
 
     # Trend + history pull from scan entries, newest last.
@@ -202,17 +292,32 @@ def build_metrics(
     detection_trend = [
         _detection_rate_of(e) or 0.0 for e in recent_scans[-TREND_LIMIT:]
     ]
-    fp_trend = [
-        float(e.get("fp_rate", 0.0) or 0.0) for e in falsepos[-TREND_LIMIT:]
-    ]
 
     # Latest scan drives "current" detection rate + breakdown + top evasions.
     latest_scan = scans[-1] if scans else None
-    latest_fp = falsepos[-1] if falsepos else None
     archive = _load_archive(repo_root, latest_scan) if latest_scan else None
 
+    # Pair the headline FP rate to the *same* scanner as the latest
+    # scan. Mixing a dlpscan-cli FP run with a siphon-cli scan produced
+    # misleading headline numbers (e.g. a narrow iban-only FP run
+    # surfaced as 100% FP against an unrelated scan).
+    latest_fp = _latest_matching_fp(falsepos, latest_scan)
+    fp_trend = [
+        float(e.get("fp_rate", 0.0) or 0.0)
+        for e in _matching_fp_entries(falsepos, latest_scan)[-TREND_LIMIT:]
+    ]
+
     detection_rate = _detection_rate_of(latest_scan) if latest_scan else 0.0
-    fp_rate = float(latest_fp.get("fp_rate", 0.0) or 0.0) if latest_fp else 0.0
+    # No matching falsepos run → return null so the UI can show "n/a"
+    # instead of a stale/misleading rate.
+    fp_rate: Optional[float]
+    if latest_fp is None:
+        fp_rate = None
+    else:
+        try:
+            fp_rate = float(latest_fp.get("fp_rate", 0.0) or 0.0)
+        except (TypeError, ValueError):
+            fp_rate = None
 
     coverage_pct, tested, total = _coverage(archive)
 
@@ -246,19 +351,21 @@ def build_metrics(
             "run_id": _run_id_for(e, i),
             "when": _safe_str(e.get("timestamp")),
             "profile": _safe_str(e.get("scanner_label") or e.get("tool") or ""),
+            "scanner": _safe_str(e.get("tool") or ""),
             "detection_rate": _detection_rate_of(e) or 0.0,
         })
 
     return {
         "detection_rate": detection_rate or 0.0,
         "detection_trend": detection_trend or [0.0] * TREND_LIMIT,
-        "fp_rate": fp_rate or 0.0,
+        "fp_rate": fp_rate,
         "fp_trend": fp_trend or [0.0] * TREND_LIMIT,
         "coverage": coverage_pct,
         "patterns_tested": tested,
         "patterns_total": total,
         "last_run": _safe_str(latest_scan.get("timestamp")) if latest_scan else "",
         "last_run_id": _run_id_for(latest_scan, 0) if latest_scan else "",
+        "last_run_scanner": _safe_str(latest_scan.get("tool")) if latest_scan else "",
         "by_category": by_category,
         "top_evasions": _top_evasions(latest_scan, archive) if latest_scan else [],
         "history": history,
