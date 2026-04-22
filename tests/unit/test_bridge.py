@@ -726,6 +726,108 @@ class TestSiphonExeResolution:
         assert r.status_code == 202
 
 
+# ── v3.18.1 — hardening: body-size, categories items, scanner_label ──
+
+class TestRequestSizeLimit:
+    def test_oversized_body_rejected_with_413(
+        self, client: TestClient,
+    ):
+        """A 2 MiB JSON body should be refused before the handler sees
+        it. Content-Length is used so we reject up front without
+        buffering the payload."""
+        big = "x" * (2 * 1024 * 1024)
+        r = client.post(
+            "/v1/evadex/run",
+            content=f'{{"scanner_label": "{big}"}}',
+            headers={"content-type": "application/json"},
+        )
+        assert r.status_code == 413
+        assert "request body too large" in r.json()["detail"]["error"]
+
+    def test_invalid_content_length_rejected(self, client: TestClient):
+        r = client.post(
+            "/v1/evadex/run",
+            content=b"{}",
+            headers={"content-length": "not-a-number",
+                     "content-type": "application/json"},
+        )
+        # Starlette's own header parser catches malformed CL before
+        # our middleware; either 400 or 422 is acceptable — it just
+        # must not crash with 500.
+        assert r.status_code < 500
+
+
+class TestScannerLabelHardening:
+    def test_very_long_label_rejected(self, client: TestClient):
+        r = client.post(
+            "/v1/evadex/run",
+            json={"scanner_label": "x" * 200, "tool": "siphon-cli"},
+        )
+        assert r.status_code == 400
+        assert "scanner_label" in r.json()["detail"]["error"]
+
+    def test_control_chars_in_label_rejected(self, client: TestClient):
+        for bad in ("foo\nbar", "foo\x1b[31mred", "foo\x00bar"):
+            r = client.post(
+                "/v1/evadex/run",
+                json={"scanner_label": bad, "tool": "siphon-cli"},
+            )
+            assert r.status_code == 400, (bad, r.json())
+
+    def test_printable_label_accepted(self, client: TestClient,
+                                       monkeypatch: pytest.MonkeyPatch):
+        async def _noop(run_id, argv, cwd):  # noqa: ARG001
+            runs_mod._RUNS[run_id]["status"] = runs_mod.STATUS_COMPLETED
+        monkeypatch.setattr(runs_mod, "_execute", _noop)
+        r = client.post(
+            "/v1/evadex/run",
+            json={"scanner_label": "siphon-prod-v2.1", "tool": "siphon-cli"},
+        )
+        assert r.status_code == 202
+
+
+class TestCategoryItemHardening:
+    def test_categories_item_must_be_string(self, client: TestClient):
+        r = client.post(
+            "/v1/evadex/run",
+            json={"categories": [123, "credit_card"]},
+        )
+        # Used to return 500 via AttributeError on c.upper() — now 400.
+        assert r.status_code == 400
+        assert "categories" in r.json()["detail"]["error"]
+
+    def test_categories_item_rejects_path_traversal(self, client: TestClient):
+        r = client.post(
+            "/v1/evadex/run",
+            json={"categories": ["credit_card", "../../etc/passwd"]},
+        )
+        assert r.status_code == 400
+        assert "categories" in r.json()["detail"]["error"]
+
+    def test_categories_item_rejects_very_long_value(self, client: TestClient):
+        r = client.post(
+            "/v1/evadex/run",
+            json={"categories": ["x" * 200]},
+        )
+        assert r.status_code == 400
+
+    def test_generate_category_rejects_path_traversal(self, client: TestClient):
+        r = client.post(
+            "/v1/evadex/generate",
+            json={"format": "csv", "count": 1, "category": "../secret"},
+        )
+        assert r.status_code == 400
+        assert "category" in r.json()["detail"]["error"]
+
+    def test_strategies_list_validated(self, client: TestClient):
+        r = client.post(
+            "/v1/evadex/run",
+            json={"strategies": ["text", "../bad"]},
+        )
+        assert r.status_code == 400
+        assert "strategies" in r.json()["detail"]["error"]
+
+
 # ── /v1/evadex/categories — dynamic catalog ─────────────────────────
 
 class TestCategoriesCatalogEndpoint:

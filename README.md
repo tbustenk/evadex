@@ -1960,11 +1960,15 @@ Per-request `body.exe` on `POST /v1/evadex/run` still overrides everything above
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/v1/evadex/run` | Trigger a scan in the background; returns a run_id immediately |
-| `GET`  | `/v1/evadex/run/{run_id}` | Poll run status + captured stdout / stderr tails |
-| `GET`  | `/v1/evadex/metrics` | Detection / FP / coverage aggregated from `results/audit.jsonl` |
-| `POST` | `/v1/evadex/generate` | Produce a synthetic test file and stream it back |
-| `GET`  | `/healthz` | Liveness probe — returns `{ok, version, siphon_exe, siphon_found}`, no auth |
+| `POST`   | `/v1/evadex/run` | Trigger a scan in the background; returns a run_id immediately |
+| `GET`    | `/v1/evadex/run/{run_id}` | Poll run status, live progress, captured stdout / stderr tails |
+| `DELETE` | `/v1/evadex/run/{run_id}` | Cancel a running scan — SIGTERM then SIGKILL after 5 s |
+| `GET`    | `/v1/evadex/metrics` | Detection / FP / coverage aggregated from `results/audit.jsonl` |
+| `GET`    | `/v1/evadex/categories` | Full catalog of registered payload categories, grouped for UIs |
+| `POST`   | `/v1/evadex/generate` | Produce a synthetic test file and stream it back |
+| `GET`    | `/healthz` | Liveness probe — returns `{ok, version, siphon_exe, siphon_found}`, no auth |
+
+Request bodies are capped at 1 MiB — oversized POSTs get `413 Payload Too Large` before any parsing.
 
 ### `POST /v1/evadex/run`
 
@@ -1972,13 +1976,20 @@ Per-request `body.exe` on `POST /v1/evadex/run` still overrides everything above
 curl -sX POST http://localhost:8081/v1/evadex/run \
   -H "x-api-key: $BRIDGE_KEY" -H "content-type: application/json" \
   -d '{
-    "profile":       "banking-pci-ca",
-    "tier":          "banking",
-    "evasion_mode":  "weighted",
-    "tool":          "siphon-cli",
-    "exe":           "/usr/local/bin/siphon",
-    "scanner_label": "siphon-prod",
-    "categories":    ["PCI", "CRED"]
+    "tier":              "banking",
+    "categories":        ["PCI", "CRED", "credit_card", "sin"],
+    "strategy":          "both",
+    "evasion_mode":      "weighted",
+    "evasion_rate":      0.3,
+    "technique_groups":  ["unicode_encoding", "encoding"],
+    "min_confidence":    0.5,
+    "require_context":   true,
+    "wrap_context":      true,
+    "min_detection_rate": 85,
+    "tool":              "siphon-cli",
+    "exe":               "/usr/local/bin/siphon",
+    "scanner_label":     "siphon-prod",
+    "save_as_profile":   "nightly-banking"
   }'
 ```
 
@@ -1989,7 +2000,78 @@ Response (immediate, `202 Accepted`):
  "started_at": "2026-04-20T06:00:00Z"}
 ```
 
-C2 coarse categories (`PCI`, `PII`, `PHI`, `CRED`, `SECRET`, `CRYPTO`) are expanded into evadex fine-grained categories before launching. See [`src/evadex/bridge/categories.py`](src/evadex/bridge/categories.py) for the mapping.
+Body fields — all optional, each validated against an allowlist, out-of-range values rejected with `400`:
+
+| Field | Type | Notes |
+|---|---|---|
+| `tier` | enum | `banking` / `core` / `regional` / `full` |
+| `categories` | list[str] | C2 coarse bucket (PCI/PII/…) **or** evadex fine id; each entry capped at 64 chars, alphanumerics + `_-` only |
+| `strategy` | enum | `text` / `file` / `both` (shorthand; `both` expands to text+file) |
+| `strategies` | list[str] | Explicit list — same allowlist as `strategy` |
+| `evasion_mode` | enum | `random` / `weighted` / `adversarial` / `exhaustive` |
+| `evasion_rate` | float | `0.0–1.0` or `0–100` (auto-normalised) |
+| `technique_group` | str | Single generator filter — `unicode_encoding`, `encoding`, etc. |
+| `technique_groups` | list[str] | Multi-select — one `--variant-group` per entry, deduped |
+| `min_confidence` | float | Confidence floor forwarded to adapter — must be `0.0–1.0` |
+| `require_context` | bool | Pass `--require-context` to rust adapter |
+| `wrap_context` | bool | Tri-state: `true` → `--wrap-context`, `false` → `--no-wrap-context` |
+| `min_detection_rate` | float | CI gate (`0–100`); exit non-zero when not met |
+| `tool` | enum | `siphon-cli` / `dlpscan-cli` / `siphon` / `dlpscan` / `presidio` |
+| `cmd_style` | enum | `python` / `rust` / `binary` / `cargo` / `stdin` |
+| `exe` | str | Path to the scanner binary (overrides auto-resolution) |
+| `scanner_label` | str | ≤ 100 chars, no control characters |
+| `save_as_profile` | str | Save flags as a named profile in `~/.evadex/profiles` — alphanumerics + `_-.` only |
+
+C2 coarse categories (`PCI`, `PII`, `PHI`, `CRED`, `SECRET`, `CRYPTO`, `CLASSIFIED`) expand into evadex fine-grained categories before launching. See [`src/evadex/bridge/categories.py`](src/evadex/bridge/categories.py) for the mapping.
+
+### `GET /v1/evadex/run/{run_id}`
+
+Returns run status plus live progress fields populated from the scan's `--progress-json` stderr stream:
+
+```json
+{
+  "run_id":       "R-20260420T060000",
+  "status":       "running",
+  "progress":     45.2,
+  "tested":       823,
+  "total":        1823,
+  "detected":     412,
+  "elapsed_s":    142.0,
+  "exit_code":    null,
+  "stdout":       "",
+  "stderr":       ""
+}
+```
+
+Terminal statuses: `completed`, `failed`, `cancelled`.
+
+### `DELETE /v1/evadex/run/{run_id}`
+
+Cancels an in-flight scan. The bridge sends `SIGTERM` to the subprocess and escalates to `SIGKILL` after a 5 s grace period. Idempotent on terminal runs (`completed` / `failed` / `cancelled`) — returns the current record without re-signalling. `404` on unknown `run_id`.
+
+### `GET /v1/evadex/categories`
+
+```bash
+curl -s http://localhost:8081/v1/evadex/categories -H "x-api-key: $BRIDGE_KEY"
+```
+
+```json
+{
+  "total":       495,
+  "group_order": ["Credit Cards", "Banking", "Canadian IDs", "US IDs", "European IDs",
+                  "Asia-Pacific IDs", "Latin America IDs", "Middle East & Africa IDs",
+                  "Healthcare", "Secrets & Credentials", "Crypto",
+                  "Classification", "Regulatory & Legal", "PII"],
+  "groups": {
+    "Credit Cards": ["card_expiry", "card_track", "card_track2", "cardholder_name",
+                     "credit_card", "masked_pan"],
+    "Banking":      ["aba_routing", "iban", "micr", "swift_bic", "..."],
+    "Canadian IDs": ["ca_passport", "ca_ramq", "sin", "..."]
+  }
+}
+```
+
+Enumerated from `evadex.core.result.PayloadCategory`, grouped by `evadex.bridge.categories.classify_category`. New categories show up in the UI automatically once they land in the enum.
 
 ### `GET /v1/evadex/metrics`
 

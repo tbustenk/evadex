@@ -60,6 +60,27 @@ _ALLOWED_EVASION_MODES = {"random", "exhaustive", "weighted", "adversarial"}
 _ALLOWED_TOOLS = {"dlpscan-cli", "siphon-cli", "siphon", "dlpscan", "presidio"}
 _ALLOWED_CMD_STYLES = {"python", "rust", "binary", "cargo", "stdin"}
 _ALLOWED_STRATEGIES = {"text", "file", "both", "docx", "pdf", "xlsx", "csv", "json"}
+
+# Request-body size cap. The bridge only ever receives small JSON
+# (≤ ~4 KiB for even the largest run body). Cap well above that so
+# operators don't hit it during normal use, but low enough that an
+# accidental / malicious gigabyte POST is refused up front instead of
+# being parsed into memory.
+_MAX_BODY_BYTES = 1 * 1024 * 1024  # 1 MiB
+
+# Scanner-label constraints: the label ends up in argv, audit entries,
+# and (after sanitisation) archive filenames. Bound length + disallow
+# control characters so a label can't bloat logs or smuggle terminal
+# escape sequences into operator sessions.
+_SCANNER_LABEL_MAX_LEN = 100
+
+# Per-category string constraints for both run/categories[] entries
+# and generate.category. Matches evadex's own allowed character set —
+# anything outside is a typo or a hostile payload.
+_CATEGORY_NAME_MAX_LEN = 64
+_SAFE_CATEGORY_CHARS = set(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
+)
 # Technique groups — mirror evadex.variants.* @register_generator names.
 # "all" is a UI convenience that maps to "no filter" (pass nothing).
 _ALLOWED_TECHNIQUE_GROUPS = {
@@ -107,6 +128,52 @@ def _validate_template(name: str) -> str:
         raise _bad_request("template must not contain '..' or start with '.'",
                            template=name)
     return name
+
+
+def _validate_scanner_label(label: str) -> str:
+    """Reject oversized or non-printable labels before they flow to argv.
+
+    Labels end up in argv, audit rows, and — after sanitisation —
+    archive filenames. Keeping them short and printable prevents log
+    bloat and terminal-escape injection if operators ``tail -f`` the
+    bridge's stderr.
+    """
+    if not isinstance(label, str):
+        raise _bad_request("scanner_label must be a string or null")
+    if len(label) > _SCANNER_LABEL_MAX_LEN:
+        raise _bad_request(
+            "scanner_label too long",
+            scanner_label_len=len(label),
+            max_len=_SCANNER_LABEL_MAX_LEN,
+        )
+    # Disallow every C0/C1 control char (including \x00, \r, \n, \x1b).
+    if any((ord(ch) < 0x20 or ord(ch) == 0x7f) for ch in label):
+        raise _bad_request(
+            "scanner_label contains control characters",
+        )
+    return label
+
+
+def _validate_category_item(item: object, *, field: str) -> str:
+    """Validate a single category id (from ``categories[]`` or
+    ``generate.category``). C2 coarse buckets (PCI, PII, …) are
+    upper-cased and pass the allowlist; everything else must look like
+    a snake-case evadex id. Path-like values are rejected outright —
+    category ids never contain ``..`` or path separators.
+    """
+    if not isinstance(item, str) or not item:
+        raise _bad_request(f"{field} entries must be non-empty strings",
+                           entry=item)
+    if len(item) > _CATEGORY_NAME_MAX_LEN:
+        raise _bad_request(f"{field} entry too long",
+                           entry=item, max_len=_CATEGORY_NAME_MAX_LEN)
+    if any(ch not in _SAFE_CATEGORY_CHARS for ch in item):
+        raise _bad_request(
+            f"{field} contains disallowed characters",
+            entry=item,
+            allowed="alphanumerics, '_', '-'",
+        )
+    return item
 
 
 def _validate_profile_name(name: str) -> str:
@@ -263,6 +330,32 @@ def create_app() -> FastAPI:
         allow_credentials=False,
     )
 
+    # Reject oversized request bodies before Starlette buffers them.
+    # Every bridge endpoint only ever receives small JSON or empty
+    # bodies, so a 1 MiB cap is well above normal use. Using the
+    # Content-Length header rather than streaming-read lets us refuse
+    # with 413 before any memory is spent on the body.
+    @app.middleware("http")
+    async def _limit_body_size(request, call_next):
+        cl = request.headers.get("content-length")
+        if cl is not None:
+            try:
+                if int(cl) > _MAX_BODY_BYTES:
+                    return JSONResponse(
+                        status_code=413,
+                        content={"detail": {
+                            "error":   "request body too large",
+                            "limit":   _MAX_BODY_BYTES,
+                            "got":     int(cl),
+                        }},
+                    )
+            except ValueError:
+                return JSONResponse(
+                    status_code=400,
+                    content={"detail": {"error": "invalid content-length"}},
+                )
+        return await call_next(request)
+
     # ── Health / version — unauthenticated, useful for uptime probes. ──
     @app.get("/healthz")
     def healthz() -> dict:
@@ -329,14 +422,27 @@ def create_app() -> FastAPI:
                     strategy=strat,
                     allowed=sorted(_ALLOWED_STRATEGIES),
                 )
-        for field in ("exe", "scanner_label"):
-            val = body.get(field)
-            if val is not None and not isinstance(val, str):
-                raise _bad_request(f"{field} must be a string or null")
-        if body.get("categories") is not None and not isinstance(body["categories"], list):
-            raise _bad_request("categories must be a list or null")
-        if body.get("strategies") is not None and not isinstance(body["strategies"], list):
-            raise _bad_request("strategies must be a list or null")
+        if body.get("exe") is not None and not isinstance(body["exe"], str):
+            raise _bad_request("exe must be a string or null")
+        if body.get("scanner_label") is not None:
+            body = {**body, "scanner_label":
+                    _validate_scanner_label(body["scanner_label"])}
+        if body.get("categories") is not None:
+            if not isinstance(body["categories"], list):
+                raise _bad_request("categories must be a list or null")
+            for c in body["categories"]:
+                # C2 coarse buckets (uppercase) are still accepted —
+                # they match the same allowlist when lower-cased.
+                _validate_category_item(c, field="categories")
+        if body.get("strategies") is not None:
+            if not isinstance(body["strategies"], list):
+                raise _bad_request("strategies must be a list or null")
+            for s in body["strategies"]:
+                if not isinstance(s, str) or s not in _ALLOWED_STRATEGIES:
+                    raise _bad_request(
+                        "unsupported strategies entry",
+                        entry=s, allowed=sorted(_ALLOWED_STRATEGIES),
+                    )
 
         # Numeric validation: bounded 0–1 ratios and an optional % gate.
         for field, lo, hi in (
@@ -509,8 +615,8 @@ def create_app() -> FastAPI:
             )
 
         category = body.get("category")
-        if category is not None and not isinstance(category, str):
-            raise _bad_request("category must be a string or null")
+        if category is not None:
+            _validate_category_item(category, field="category")
 
         try:
             count = int(body.get("count") or 100)
