@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.20.0] — 2026-04-22
+
+### Added
+
+- **Email-thread EML template.** `evadex generate --format eml --template email_thread` now produces a realistic 3–8 message conversation in a single `.eml` file, with quoted history, In-Reply-To / References threading headers, and sensitive values distributed across the chain so DLP scanners see them in conversational context.
+- **Improved MBOX generator.** `evadex generate --format mbox` now mixes read / unread (`Status: RO` vs `Status: O`), rotates senders and recipients independently, adds occasional CC headers, generates ~20 % of messages as multipart with a referenced (zero-byte) attachment part (`Content-Disposition: attachment; filename=…`), and ~10 % as phishing simulations with evasion-tier obfuscation (`X-Evadex-Simulation: phishing`).
+- **`evadex benchmark`** — new command that measures generate + scan performance across formats, reports average time / stdev / peak memory, and prints recommended `--concurrency` and format-specific count ceilings for the current machine. Optional `--json` for CI capture.
+- **`evadex doctor`** — environment health check. Validates Python version, siphon on PATH, each optional extra (`barcodes`, `data-formats`, `archives`, `bridge`), bridge reachability at `$EVADEX_BRIDGE_URL` (default `http://localhost:8081`), audit-log writability, profile availability. Exits non-zero on hard failures only; advisory warnings pass.
+- **Seed knowledge base for weighted evasion.** `evadex.feedback.seed_weights.SEED_WEIGHTS` — research-backed `{generator: bypass_probability}` estimates. `--evasion-mode weighted` now uses the seed table on cold-start instead of silently falling back to uniform random, and blends 70 % history + 30 % seed once audit data accumulates. Full rationale per technique documented in the README.
+- **`evadex report`** — generate a standalone, self-contained HTML report from a scan JSON (and optional falsepos JSON). Executive summary in plain English, detection-rate cards, per-category breakdown, top evasion techniques, recommendations. Phosphor/JetBrains-Mono theme matching Siphon C2. Includes an "Export JSON" button that downloads the raw data.
+- **`docs/techniques.md`** — canonical per-technique documentation (name, description, example, real-world context, detection fix) covering every generator family.
+- **`evadex list-techniques --verbose`** — surfaces the `docs/techniques.md` content on the CLI, including per-family seed bypass weight and rationale.
+
+### Changed
+
+- `--evasion-mode weighted` / `adversarial` no longer print a "falls back to random" warning on cold-start — the seed weights make the cold-start path meaningful.
+- Version bumped to 3.20.0.
+
 ## [3.17.1] — 2026-04-21
 
 ### Security

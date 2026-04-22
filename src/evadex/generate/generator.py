@@ -177,30 +177,42 @@ def _pick_variant(
     # ── Smart evasion-mode candidate ordering ─────────────────────────────
     # `applicable` at this point is the post-technique-group / auto-applicable
     # filter pool. Modes other than `random` reshape the order or filter the
-    # pool further. Cold-start (no history) falls back to random.
+    # pool further.
+    #
+    # Cold-start (no history) used to fall back to uniform random, which
+    # defeated the point of `--evasion-mode weighted` on a fresh install.
+    # v3.20.0: use the seed weights in `evadex.feedback.seed_weights` so
+    # cold-start still biases toward techniques that bypass generic DLP.
+    # Once audit history exists, blend 70 % history + 30 % seed so a
+    # handful of early scans cannot push the bias off a cliff.
+    from evadex.feedback.seed_weights import blend_with_history, SEED_WEIGHTS
     history = technique_history or {}
     if evasion_mode == "exhaustive":
         order = list(applicable)  # deterministic — first generator wins
-    elif evasion_mode == "adversarial" and history:
-        # Keep only generators whose historical scanner-detection rate is
-        # ≤ 0.5. Generators with no history default to "include" so a brand
-        # new technique gets a chance to be measured.
-        kept = [g for g in applicable if history.get(g.name, 0.0) <= 0.5]
+    elif evasion_mode == "adversarial":
+        # Keep only generators whose blended scanner-detection rate is
+        # ≤ 0.5. Generators with no data on either side default to
+        # 1 - SEED_WEIGHTS[name] (i.e. scanner pass rate implied by the
+        # seed bypass probability), then 0.5 if no seed either.
+        blended = blend_with_history(history or None,
+                                     generators=(g.name for g in applicable))
+        kept = [g for g in applicable if blended.get(g.name, 0.5) <= 0.5]
         if not kept:
             kept = list(applicable)  # fall back rather than emit nothing
         order = list(kept)
         rng.shuffle(order)
-    elif evasion_mode == "weighted" and history:
-        # Weight = 1 - pass_rate. Generators with no history default to 0.5
-        # so they get a chance to be measured but don't dominate.
-        weights = [1.0 - history.get(g.name, 0.5) for g in applicable]
+    elif evasion_mode == "weighted":
+        # Weight = 1 - pass_rate. Without history we lean on the seed
+        # bypass probabilities directly (= 1 - seed_pass in blend_with_history).
+        blended = blend_with_history(history or None,
+                                     generators=(g.name for g in applicable))
+        weights = [1.0 - blended.get(g.name, 0.5) for g in applicable]
         # Avoid all-zero weights (a 100 %-detected generator would otherwise
         # be impossible to pick at all, which makes history brittle).
         weights = [max(w, 0.05) for w in weights]
         order = rng.choices(applicable, weights=weights, k=len(applicable))
     else:
-        # `random` (the default), or `weighted` / `adversarial` with no
-        # history — uniform shuffle.
+        # `random` (the default) — uniform shuffle.
         order = list(applicable)
         rng.shuffle(order)
 

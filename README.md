@@ -1122,10 +1122,35 @@ Control how techniques are chosen for evasion variants based on what's worked hi
 |---|---|
 | `random` *(generate default)* | Uniform random across applicable techniques. |
 | `exhaustive` *(scan default)* | Every applicable variant is run / generated. |
-| `weighted` | Bias selection by `1 − historical_detection`. Techniques that have evaded best are picked more often. Falls back to random if no audit history exists. |
-| `adversarial` | Restrict to techniques whose historical detection is ≤ 50 %. In `evadex scan`, the variant-group filter narrows accordingly. Falls back to the full pool if the filter leaves no candidates. |
+| `weighted` | Bias selection by `1 − historical_detection`. Techniques that have evaded best are picked more often. Uses the seed knowledge base (see below) when no history exists, and blends 70 % history + 30 % seed once history is present. |
+| `adversarial` | Restrict to techniques whose blended detection is ≤ 50 %. In `evadex scan`, the variant-group filter narrows accordingly. Falls back to the full pool if the filter leaves no candidates. |
 
-Both `weighted` and `adversarial` read history from `--audit-log` (defaults to `results/audit.jsonl`). Run a few normal scans with `--audit-log` set first to build the history. Until then, `evadex techniques` shows a cold-start hint and `--evasion-mode weighted/adversarial` falls back to random with a warning.
+Both `weighted` and `adversarial` read history from `--audit-log` (defaults to `results/audit.jsonl`). If history is empty, evadex does **not** fall back to uniform random — it uses the research-backed seed weights in `evadex.feedback.seed_weights` so `--evasion-mode weighted` is useful on day one.
+
+#### Seed knowledge base *(v3.20.0)*
+
+`evadex.feedback.seed_weights.SEED_WEIGHTS` is a curated `{generator: bypass_probability}` table estimating how often each technique family slips past a generic DLP text scanner. Higher = better evasion. The numbers come from a mix of published DLP research (Microsoft Purview, Symantec DLP), our own pilot audit logs, and structural reasoning.
+
+| Generator | Weight | Rationale |
+|---|---:|---|
+| `unicode_whitespace` | 0.85 | Zero-width and non-breaking spaces split values without changing rendering; defeats scanners that tokenise on ASCII whitespace only. |
+| `unicode_encoding` | 0.82 | Homoglyphs / fullwidth digits are visually identical to ASCII but produce different bytes; most regex engines don't NFKC-normalise before matching. |
+| `barcode_evasion` | 0.88 | Data in QR / Code128 / Data Matrix images is invisible to scanners without OCR + barcode decoding. |
+| `archive_evasion` | 0.80 | Nested or non-standard compression evades any scanner without matching extractor support. |
+| `encoding_chains` | 0.78 | `base64(rot13(x))` defeats detectors that only decode one layer deep. |
+| `bidirectional` | 0.76 | RLO/LRO overrides reorder glyphs without changing codepoints — the preview shows a different value than the regex engine sees. |
+| `entropy_evasion` | 0.75 | Flattens entropy so secret scanners (common for API keys) see a "normal-looking" string. |
+| `encoding` | 0.70 | Single-layer encodings (base64, rot13, hex) still slip past matchers that only scan plain text. |
+| `soft_hyphen` | 0.68 | Soft hyphens render as nothing but are real bytes; scanners that strip obvious delimiters often miss them. |
+| `regional_digits` | 0.65 | Arabic-Indic, Devanagari, Thai digits are valid digits but `\d` in ASCII mode doesn't match them. |
+| `morse_code` | 0.65 | Unusual enough that few DLP products have a morse signature. |
+| `splitting` | 0.60 | Breaking a value across lines or columns bypasses single-line matchers. |
+| `structural` | 0.58 | Reversed / zero-padded values preserve digits but destroy anchored prefix/suffix patterns. |
+| `delimiter` | 0.55 | Non-standard delimiters remain readable but break fixed-format regex. |
+| `leetspeak` | 0.50 | Well-known; many scanners have leetspeak maps, so effectiveness is limited to naive detectors. |
+| `context_injection` | 0.40 | Helps with entropy/volume filters; the pattern matcher still sees the plain value. |
+
+Once audit history exists, the effective weight is `0.7 * empirical + 0.3 * seed`, so bad seed estimates are damped within a few runs.
 
 ```bash
 # Build history with a few baseline runs

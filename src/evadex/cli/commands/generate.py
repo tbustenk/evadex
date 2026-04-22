@@ -41,7 +41,8 @@ _TEMPLATE_CHOICES = click.Choice(
      "hr_record", "audit_report",
      "source_code", "config_file", "chat_log", "medical_record",
      "env_file", "secrets_file", "code_with_secrets",
-     "lsh_variants", "lsh_corpus"],
+     "lsh_variants", "lsh_corpus",
+     "email_thread"],
     case_sensitive=False,
 )
 
@@ -480,6 +481,11 @@ def generate(
         err_console.print(f"  seed: [dim]{seed}[/dim]")
 
     # ── Resolve --evasion-mode (load history if needed) ───────────────────────
+    #
+    # v3.20.0: cold-start no longer falls back to uniform random. The
+    # generator uses the seed knowledge base (evadex.feedback.seed_weights)
+    # when history is empty, and blends 70 % history + 30 % seed when it
+    # isn't. That keeps --evasion-mode weighted useful on day one.
     technique_history: dict | None = None
     em = evasion_mode.lower()
     if em in ("weighted", "adversarial"):
@@ -491,11 +497,9 @@ def generate(
             technique_history = {t: s.average_success for t, s in stats.items()}
         else:
             err_console.print(
-                f"[yellow]No technique history found in {audit_log} — "
-                f"--evasion-mode {em} falls back to random. "
-                f"Run a few scans with --audit-log set to build history.[/yellow]"
+                f"[dim]No technique history in {audit_log} — "
+                f"--evasion-mode {em} uses seed weights (cold-start).[/dim]"
             )
-            em = "random"
 
     # Build config with a placeholder fmt (overridden per-format during writing)
     config = GenerateConfig(
