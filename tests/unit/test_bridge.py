@@ -252,6 +252,61 @@ class TestRunEndpoint:
         r = client.get("/v1/evadex/run/R-DOES-NOT-EXIST")
         assert r.status_code == 404
 
+    def test_failed_run_surfaces_error_and_stream_aliases(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        """A failed subprocess should populate `error`, `stdout`, `stderr`
+        on the run-status response so the UI can show it directly."""
+        async def _fake_execute(run_id, argv, cwd):  # noqa: ARG001
+            rec = runs_mod._RUNS[run_id]
+            rec["status"] = runs_mod.STATUS_FAILED
+            rec["exit_code"] = 1
+            rec["stdout_tail"] = ""
+            rec["stderr_tail"] = (
+                "Tier: core\n"
+                "Health check failed for adapter 'siphon-cli'. "
+                "Is siphon installed and on PATH?\n"
+            )
+            rec["finished_at"] = "2026-04-20T23:07:12Z"
+        monkeypatch.setattr(runs_mod, "_execute", _fake_execute)
+
+        # Launch a run and wait for it to settle.
+        launch = client.post("/v1/evadex/run", json={"tool": "siphon-cli"})
+        run_id = launch.json()["run_id"]
+
+        # Fake executor is awaited on the event loop the TestClient spins up;
+        # subsequent GET sees the terminal state.
+        r = client.get(f"/v1/evadex/run/{run_id}")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["status"] == runs_mod.STATUS_FAILED
+        assert "error" in body
+        assert "siphon installed and on PATH" in body["error"]
+        # stdout/stderr aliases mirror stdout_tail/stderr_tail.
+        assert body["stdout"] == ""
+        assert "Health check failed" in body["stderr"]
+        assert body["stderr"] == body["stderr_tail"]
+        # Private exception field should never leak to clients.
+        assert "_exception" not in body
+
+    def test_failed_launch_python_exception_surfaces(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        """A Python-side launch failure (e.g. subprocess spawn error) still
+        populates the public `error` field."""
+        async def _boom(run_id, argv, cwd):  # noqa: ARG001
+            rec = runs_mod._RUNS[run_id]
+            rec["status"] = runs_mod.STATUS_FAILED
+            rec["_exception"] = "FileNotFoundError: python not on PATH"
+            rec["finished_at"] = "2026-04-20T23:07:12Z"
+        monkeypatch.setattr(runs_mod, "_execute", _boom)
+
+        launch = client.post("/v1/evadex/run", json={"tool": "siphon-cli"})
+        run_id = launch.json()["run_id"]
+        body = client.get(f"/v1/evadex/run/{run_id}").json()
+        assert body["status"] == runs_mod.STATUS_FAILED
+        assert body["error"] == "FileNotFoundError: python not on PATH"
+
 
 # ── /v1/evadex/generate ─────────────────────────────────────────
 
