@@ -726,6 +726,88 @@ class TestSiphonExeResolution:
         assert r.status_code == 202
 
 
+# ── /v1/evadex/categories — dynamic catalog ─────────────────────────
+
+class TestCategoriesCatalogEndpoint:
+    """GET /v1/evadex/categories should enumerate every registered
+    PayloadCategory and bucket them into display groups so the UI can
+    render the checkbox panel dynamically."""
+
+    def test_shape_has_groups_total_and_order(self, client: TestClient):
+        r = client.get("/v1/evadex/categories")
+        assert r.status_code == 200
+        body = r.json()
+        assert "groups" in body and isinstance(body["groups"], dict)
+        assert "total" in body and isinstance(body["total"], int)
+        assert "group_order" in body and isinstance(body["group_order"], list)
+        # Groups in the payload must match group_order.
+        assert set(body["groups"].keys()) == set(body["group_order"])
+
+    def test_total_equals_sum_of_group_sizes(self, client: TestClient):
+        body = client.get("/v1/evadex/categories").json()
+        summed = sum(len(v) for v in body["groups"].values())
+        assert body["total"] == summed
+
+    def test_every_payload_category_is_bucketed(self, client: TestClient):
+        """No category should vanish into the ether. Every enum value
+        apart from the ``unknown`` sentinel must appear in exactly one
+        group — otherwise the UI would silently drop it."""
+        from evadex.core.result import PayloadCategory
+
+        body = client.get("/v1/evadex/categories").json()
+        all_ids: set[str] = set()
+        for ids in body["groups"].values():
+            for i in ids:
+                assert i not in all_ids, f"{i} appears in more than one group"
+                all_ids.add(i)
+        expected = {m.value for m in PayloadCategory if m.value != "unknown"}
+        missing = expected - all_ids
+        extra = all_ids - expected
+        assert not missing, f"unbucketed categories: {sorted(missing)[:20]}"
+        assert not extra, f"unknown categories in catalog: {sorted(extra)[:20]}"
+
+    def test_canonical_groups_present(self, client: TestClient):
+        body = client.get("/v1/evadex/categories").json()
+        groups = body["groups"]
+        for g in ("Credit Cards", "Banking", "Canadian IDs", "US IDs",
+                  "European IDs", "Healthcare", "Crypto",
+                  "Secrets & Credentials", "Classification", "PII"):
+            assert g in groups, f"expected group {g!r} missing"
+            assert len(groups[g]) > 0, f"group {g!r} is empty"
+
+    def test_well_known_categories_land_in_expected_groups(
+        self, client: TestClient,
+    ):
+        body = client.get("/v1/evadex/categories").json()
+        groups = body["groups"]
+        assert "credit_card" in groups["Credit Cards"]
+        assert "iban" in groups["Banking"]
+        assert "sin" in groups["Canadian IDs"]
+        assert "ssn" in groups["US IDs"]
+        assert "aws_key" in groups["Secrets & Credentials"]
+        assert "bitcoin" in groups["Crypto"]
+        assert "ca_ramq" in groups["Healthcare"]
+
+    def test_ids_inside_each_group_sorted_alphabetically(
+        self, client: TestClient,
+    ):
+        body = client.get("/v1/evadex/categories").json()
+        for g, ids in body["groups"].items():
+            assert ids == sorted(ids), f"group {g!r} not sorted"
+
+    def test_auth_required_when_configured(self, audit_tree: Path,
+                                            monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setenv("EVADEX_BRIDGE_ROOT", str(audit_tree))
+        monkeypatch.setenv("EVADEX_BRIDGE_KEY", "secret-123")
+        app = create_app()
+        c = TestClient(app)
+        assert c.get("/v1/evadex/categories").status_code == 401
+        assert c.get(
+            "/v1/evadex/categories",
+            headers={"x-api-key": "secret-123"},
+        ).status_code == 200
+
+
 # ── v3.18.0 — granular scan params, progress, cancel ───────────────
 
 class TestGranularScanParams:

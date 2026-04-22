@@ -440,6 +440,16 @@ def create_app() -> FastAPI:
             view["status"] = result["status"]
         return {"run_id": run_id, **view}
 
+    # ── GET /v1/evadex/categories ───────────────────────────────
+    # Catalog of every registered payload category, grouped for the
+    # checkbox panel. Read at UI mount so new categories added to
+    # evadex appear automatically. Safe to serve unauthenticated would
+    # be fine too, but we keep it behind the same gate as the rest of
+    # the bridge so a single key protects the whole surface.
+    @app.get("/v1/evadex/categories", dependencies=[Depends(_require_api_key)])
+    def list_categories() -> dict:
+        return cat.group_all_categories()
+
     # ── GET /v1/evadex/metrics ──────────────────────────────────
     @app.get("/v1/evadex/metrics", dependencies=[Depends(_require_api_key)])
     def get_metrics() -> dict:
