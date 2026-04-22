@@ -34,6 +34,7 @@ _SECTION_TITLES: dict[PayloadCategory, str] = {
 def write_txt(entries: list[GeneratedEntry], path: str) -> None:
     from evadex.generate.writers import (
         _active_template, _active_noise_level, _active_density, _active_seed,
+        _active_language,
     )
 
     # If a non-generic template is active, use the template system
@@ -44,6 +45,7 @@ def write_txt(entries: list[GeneratedEntry], path: str) -> None:
             seed=_active_seed,
             noise_level=_active_noise_level,
             density=_active_density,
+            language=_active_language,
         )
         with open(path, "w", encoding="utf-8") as fh:
             fh.write("\n".join(lines))

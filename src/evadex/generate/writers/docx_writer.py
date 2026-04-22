@@ -81,6 +81,7 @@ def _add_table_section(doc: Document, entries: list[GeneratedEntry], cat: Payloa
 def write_docx(entries: list[GeneratedEntry], path: str) -> None:
     from evadex.generate.writers import (
         _active_template, _active_noise_level, _active_density, _active_seed,
+        _active_language,
     )
 
     doc = Document()
@@ -110,6 +111,7 @@ def write_docx(entries: list[GeneratedEntry], path: str) -> None:
             seed=_active_seed,
             noise_level=_active_noise_level,
             density=_active_density,
+            language=_active_language,
         )
         for line in lines:
             if line.startswith("===") or line.startswith("---"):

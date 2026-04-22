@@ -37,11 +37,20 @@ _CATEGORY_CHOICES = click.Choice(
 )
 _TIER_CHOICES = click.Choice(sorted(VALID_TIERS), case_sensitive=False)
 _TEMPLATE_CHOICES = click.Choice(
-    ["generic", "invoice", "statement", "hr_record", "audit_report",
+    ["generic", "invoice", "statement", "banking-statement", "banking_statement",
+     "hr_record", "audit_report",
      "source_code", "config_file", "chat_log", "medical_record",
-     "env_file", "secrets_file", "code_with_secrets", "lsh_variants"],
+     "env_file", "secrets_file", "code_with_secrets",
+     "lsh_variants", "lsh_corpus"],
     case_sensitive=False,
 )
+
+# Default similarity ladder when --lsh-variants is used without an
+# explicit distortion list. Each rate is chosen so the empirical
+# Jaccard vs the base document lands close to the round percentage
+# reported in the README / UI. Kept in descending similarity order
+# so file N-0 is the least distorted and N-(k-1) is the most.
+_LSH_DEFAULT_DISTORTIONS = [0.05, 0.10, 0.20, 0.30, 0.40]
 
 _VALID_BATCH_FORMATS = set(_ALL_FORMATS)
 
@@ -291,6 +300,31 @@ def _parse_key_float_pair(value: str) -> tuple[str, float]:
     ),
 )
 @click.option(
+    "--lsh-variants",
+    "lsh_variants",
+    default=5, show_default=True, type=int,
+    help=(
+        "Used only with --template lsh_corpus. Produces N near-duplicate "
+        "variants per base document at descending similarity levels "
+        "(~95%, 90%, 80%, 70%, 60% by default). --output must be a "
+        "directory; one file is written per (base, variant) pair. "
+        "Each variant keeps the base document's sensitive values "
+        "intact so the scanner's LSH engine can be evaluated across "
+        "similarity thresholds."
+    ),
+)
+@click.option(
+    "--lsh-distortions",
+    "lsh_distortions",
+    default=None, metavar="FLOAT,FLOAT,...",
+    help=(
+        "Optional comma-separated list of distortion rates (0.0–1.0) to "
+        "override the default LSH ladder. Example: --lsh-distortions "
+        "0.02,0.08,0.15,0.25,0.35. Length sets --lsh-variants; the two "
+        "flags are mutually exclusive."
+    ),
+)
+@click.option(
     "--barcode-type",
     "barcode_type",
     default="qr",
@@ -327,6 +361,8 @@ def generate(
     audit_log: str,
     template: str,
     noise_level: str,
+    lsh_variants: int,
+    lsh_distortions: str | None,
     barcode_type: str,
 ) -> None:
     """Generate test documents filled with synthetic sensitive data for DLP testing.
@@ -508,6 +544,139 @@ def generate(
         barcode_type=barcode_type,
         language=language,
     )
+
+    # ── lsh_corpus: multi-file output ─────────────────────────────────────────
+    # Produce ``count`` base documents × ``lsh_variants`` near-duplicates
+    # into an output directory. Each (base, variant) pair is rendered by
+    # the requested writer with the variant's distortion spliced onto
+    # the base's sensitive-value set so the scanner can be evaluated
+    # across similarity thresholds while the payload stays constant.
+    if template.lower() == "lsh_corpus":
+        from evadex.lsh import BASE_DOCUMENTS, distorted_variant, jaccard_similarity
+        import random as _random
+
+        # Resolve the distortion ladder — explicit flag overrides the
+        # default. Any parse error is a CLI-level UsageError so the
+        # operator sees it immediately.
+        if lsh_distortions:
+            try:
+                distortions = [float(x.strip()) for x in lsh_distortions.split(",")
+                               if x.strip()]
+            except ValueError as exc:
+                raise click.UsageError(
+                    f"--lsh-distortions must be a comma list of floats "
+                    f"(0.0–1.0): {exc}"
+                )
+            if not distortions or any(not (0.0 <= d <= 1.0) for d in distortions):
+                raise click.UsageError(
+                    "--lsh-distortions entries must be in [0.0, 1.0]."
+                )
+        else:
+            distortions = _LSH_DEFAULT_DISTORTIONS[:max(1, lsh_variants)]
+            # If caller asked for more variants than the default ladder
+            # provides, extrapolate linearly up to 0.5 distortion.
+            while len(distortions) < max(1, lsh_variants):
+                distortions.append(
+                    min(0.5, distortions[-1] + 0.1)
+                )
+
+        # Output must be a directory. If the caller passed a file path,
+        # treat it as the directory name (create it).
+        out_dir = Path(output)
+        if out_dir.suffix:
+            out_dir = out_dir.with_suffix("")
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        base_ids = list(BASE_DOCUMENTS.keys())
+        lsh_rng = _random.Random(seed if seed is not None else 0)
+        manifest: list[dict] = []
+
+        n_bases = max(1, count)
+        for b in range(n_bases):
+            base_id = base_ids[b % len(base_ids)]
+            base_text = BASE_DOCUMENTS[base_id]
+            # Share one sensitive-value sample across this base + all
+            # its variants so the scanner sees the same payload.
+            sensitive = entries[b % len(entries)].variant_value if entries else ""
+
+            for v_idx, rate in enumerate(distortions):
+                if rate == 0.0:
+                    variant_text = base_text
+                else:
+                    variant_text = distorted_variant(base_text, rate, lsh_rng)
+                if sensitive:
+                    variant_text = (
+                        f"{variant_text} Reference identifier: {sensitive}."
+                    )
+                empirical = jaccard_similarity(base_text, variant_text)
+
+                for write_fmt in formats:
+                    ext = _FORMAT_EXTENSION.get(write_fmt, write_fmt)
+                    fname = f"{base_id}_base{b:02d}_var{v_idx}.{ext}"
+                    out_path = str(out_dir / fname)
+
+                    # Wrap the variant text as a one-entry list so the
+                    # generic writer path renders it into the target
+                    # format. We reuse a single entry's metadata but
+                    # swap its embedded text for the variant prose.
+                    from copy import replace as _replace
+                    try:
+                        variant_entry = _replace(
+                            entries[b % len(entries)],
+                            embedded_text=variant_text,
+                        )
+                    except TypeError:
+                        # dataclasses.replace is in copy only on 3.13+ —
+                        # fall back to the stdlib ``dataclasses.replace``.
+                        from dataclasses import replace as _dc_replace
+                        variant_entry = _dc_replace(
+                            entries[b % len(entries)],
+                            embedded_text=variant_text,
+                        )
+
+                    writer = get_writer(write_fmt)
+                    try:
+                        writer([variant_entry], out_path)
+                    except OSError as exc:
+                        err_console.print(
+                            f"[red]Cannot write '{out_path}': {exc.strerror}[/red]"
+                        )
+                        sys.exit(1)
+                    except RuntimeError as exc:
+                        err_console.print(f"[red]{exc}[/red]")
+                        sys.exit(1)
+
+                    manifest.append({
+                        "file":        fname,
+                        "base":        base_id,
+                        "base_index":  b,
+                        "variant":     v_idx,
+                        "distortion":  round(rate, 4),
+                        "jaccard":     round(empirical, 4),
+                        "format":      write_fmt,
+                    })
+
+        # Manifest makes the corpus self-describing — the scanner
+        # can be evaluated against the manifest's jaccard column to
+        # compute precision/recall at each similarity threshold.
+        import json as _json
+        manifest_path = out_dir / "manifest.json"
+        manifest_path.write_text(
+            _json.dumps({
+                "base_documents": base_ids,
+                "variants":       len(distortions),
+                "distortions":    distortions,
+                "entries":        manifest,
+            }, indent=2),
+            encoding="utf-8",
+        )
+        err_console.print(
+            f"[green]✓ LSH corpus written:[/green] {out_dir}/ "
+            f"({len(manifest)} files, {len(distortions)} variants × "
+            f"{n_bases} bases × {len(formats)} formats)"
+        )
+        err_console.print(f"  manifest: {manifest_path}")
+        return
 
     for write_fmt in formats:
         # Determine output path: stem + extension for --formats, original path for --format
