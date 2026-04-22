@@ -112,11 +112,26 @@ def _build_scan_argv(body: dict) -> list[str]:
     for c in body.get("categories") or []:
         argv += ["--category", str(c)]
 
-    # technique_group: UI's "all" means no filter (don't pass anything).
-    # Any other value maps to --variant-group NAME.
-    tg = body.get("technique_group")
-    if tg and tg != "all":
-        argv += ["--variant-group", str(tg)]
+    # Technique-group filter: accept either the single-value
+    # ``technique_group`` (legacy / UI radio) or the list form
+    # ``technique_groups`` (UI checkbox panel). "all" or an empty list
+    # means no filter. Each entry becomes its own --variant-group NAME.
+    tg_values: list[str] = []
+    tgs = body.get("technique_groups")
+    if isinstance(tgs, list):
+        tg_values = [str(g) for g in tgs if g and g != "all"]
+    else:
+        single = body.get("technique_group")
+        if single and single != "all":
+            tg_values = [str(single)]
+    # Dedupe while preserving first-seen order so repeated UI selections
+    # don't inflate the argv.
+    _seen: set[str] = set()
+    for g in tg_values:
+        if g in _seen:
+            continue
+        _seen.add(g)
+        argv += ["--variant-group", g]
 
     # Confidence floor — threaded through to the adapter.
     mc = body.get("min_confidence")

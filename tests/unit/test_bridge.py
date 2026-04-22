@@ -813,6 +813,48 @@ class TestGranularScanParams:
         assert r.status_code == 400
         assert "technique_group" in r.json()["detail"]["error"]
 
+    def test_technique_groups_list_emits_multiple_variant_group_flags(self):
+        """Checkbox panel sends ``technique_groups`` as a list — each
+        entry must become its own --variant-group NAME in the argv."""
+        argv = runs_mod._build_scan_argv({
+            "technique_groups": ["unicode_encoding", "leetspeak", "splitting"],
+        })
+        positions = [i for i, a in enumerate(argv) if a == "--variant-group"]
+        assert len(positions) == 3
+        values = {argv[i + 1] for i in positions}
+        assert values == {"unicode_encoding", "leetspeak", "splitting"}
+
+    def test_technique_groups_empty_list_means_no_filter(self):
+        argv = runs_mod._build_scan_argv({"technique_groups": []})
+        assert "--variant-group" not in argv
+
+    def test_technique_groups_all_entry_is_treated_as_no_filter(self):
+        argv = runs_mod._build_scan_argv({"technique_groups": ["all"]})
+        assert "--variant-group" not in argv
+
+    def test_technique_groups_dedupes_repeated_entries(self):
+        """UI state bugs (double-toggle) shouldn't inflate the argv."""
+        argv = runs_mod._build_scan_argv({
+            "technique_groups": ["leetspeak", "leetspeak", "encoding"],
+        })
+        positions = [i for i, a in enumerate(argv) if a == "--variant-group"]
+        assert len(positions) == 2
+
+    def test_rejects_unknown_entry_in_technique_groups(self, client: TestClient):
+        r = client.post(
+            "/v1/evadex/run",
+            json={"technique_groups": ["unicode_encoding", "bogus_group"]},
+        )
+        assert r.status_code == 400
+        assert "technique_groups" in r.json()["detail"]["error"]
+
+    def test_technique_groups_must_be_a_list(self, client: TestClient):
+        r = client.post(
+            "/v1/evadex/run",
+            json={"technique_groups": "unicode_encoding"},
+        )
+        assert r.status_code == 400
+
     def test_rejects_out_of_range_min_confidence(self, client: TestClient):
         r = client.post("/v1/evadex/run", json={"min_confidence": 1.5})
         assert r.status_code == 400

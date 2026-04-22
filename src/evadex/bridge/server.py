@@ -307,6 +307,18 @@ def create_app() -> FastAPI:
                     f"unsupported {field}",
                     **{field: val}, allowed=sorted(allowed),
                 )
+        # technique_groups: multi-select variant of technique_group.
+        # Each entry validated against the same allowlist.
+        tgs = body.get("technique_groups")
+        if tgs is not None:
+            if not isinstance(tgs, list):
+                raise _bad_request("technique_groups must be a list or null")
+            for g in tgs:
+                if not isinstance(g, str) or g not in _ALLOWED_TECHNIQUE_GROUPS:
+                    raise _bad_request(
+                        "unsupported technique_groups entry",
+                        entry=g, allowed=sorted(_ALLOWED_TECHNIQUE_GROUPS),
+                    )
         # strategy: single-value shorthand from the UI ("text" / "file" /
         # "both"). Expanded to the CLI's repeated --strategy flag below.
         strat = body.get("strategy")
