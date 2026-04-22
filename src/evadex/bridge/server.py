@@ -59,6 +59,23 @@ _ALLOWED_TIERS = {"banking", "core", "regional", "full"}
 _ALLOWED_EVASION_MODES = {"random", "exhaustive", "weighted", "adversarial"}
 _ALLOWED_TOOLS = {"dlpscan-cli", "siphon-cli", "siphon", "dlpscan", "presidio"}
 _ALLOWED_CMD_STYLES = {"python", "rust", "binary", "cargo", "stdin"}
+_ALLOWED_STRATEGIES = {"text", "file", "both", "docx", "pdf", "xlsx", "csv", "json"}
+# Technique groups — mirror evadex.variants.* @register_generator names.
+# "all" is a UI convenience that maps to "no filter" (pass nothing).
+_ALLOWED_TECHNIQUE_GROUPS = {
+    "all",
+    "unicode_encoding", "unicode_whitespace", "delimiter", "splitting",
+    "encoding", "encoding_chains", "leetspeak", "regional_digits",
+    "structural", "morse_code", "soft_hyphen", "bidirectional",
+    "archive_evasion", "barcode_evasion", "context_injection",
+    "entropy_evasion",
+}
+# Profile names follow the same opaque-identifier rule as templates:
+# filesystem-safe alphanumerics only. Rejecting paths keeps the save
+# location inside ~/.evadex/profiles.
+_SAFE_PROFILE_CHARS = set(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-."
+)
 # Template names are opaque strings but must not be paths. Reject
 # anything that could escape the templates dir or address the
 # filesystem directly.
@@ -89,6 +106,29 @@ def _validate_template(name: str) -> str:
     if name.startswith(".") or ".." in name:
         raise _bad_request("template must not contain '..' or start with '.'",
                            template=name)
+    return name
+
+
+def _validate_profile_name(name: str) -> str:
+    """Reject path-traversal and filesystem-pointing profile names.
+
+    Same trust-boundary rules as :func:`_validate_template` — the
+    ``--save-as`` flag writes into ``~/.evadex/profiles`` so a value
+    containing ``..`` or path separators could escape that directory.
+    """
+    if not isinstance(name, str) or not name:
+        raise _bad_request("save_as_profile must be a non-empty string")
+    if any(ch not in _SAFE_PROFILE_CHARS for ch in name):
+        raise _bad_request(
+            "save_as_profile contains disallowed characters",
+            save_as_profile=name,
+            allowed="alphanumerics, '_', '-', '.'",
+        )
+    if name.startswith(".") or ".." in name:
+        raise _bad_request(
+            "save_as_profile must not contain '..' or start with '.'",
+            save_as_profile=name,
+        )
     return name
 
 
@@ -241,7 +281,11 @@ def create_app() -> FastAPI:
 
         Accepted body keys (all optional, defaults applied per-field):
             profile, tier, evasion_mode, tool, exe, scanner_label,
-            categories (list of C2 buckets or evadex fine cats), strategies.
+            categories (list of C2 buckets or evadex fine cats), strategies,
+            strategy (single — shorthand; expanded to strategies),
+            evasion_rate, technique_group, min_confidence,
+            require_context, wrap_context, min_detection_rate,
+            save_as_profile.
         """
         if not isinstance(body, dict):
             raise _bad_request("request body must be a JSON object")
@@ -251,16 +295,27 @@ def create_app() -> FastAPI:
         # defence-in-depth against downstream evadex flag abuse rather
         # than against shell injection.
         for field, allowed in (
-            ("tier",         _ALLOWED_TIERS),
-            ("evasion_mode", _ALLOWED_EVASION_MODES),
-            ("tool",         _ALLOWED_TOOLS),
-            ("cmd_style",    _ALLOWED_CMD_STYLES),
+            ("tier",            _ALLOWED_TIERS),
+            ("evasion_mode",    _ALLOWED_EVASION_MODES),
+            ("tool",            _ALLOWED_TOOLS),
+            ("cmd_style",       _ALLOWED_CMD_STYLES),
+            ("technique_group", _ALLOWED_TECHNIQUE_GROUPS),
         ):
             val = body.get(field)
             if val is not None and val not in allowed:
                 raise _bad_request(
                     f"unsupported {field}",
                     **{field: val}, allowed=sorted(allowed),
+                )
+        # strategy: single-value shorthand from the UI ("text" / "file" /
+        # "both"). Expanded to the CLI's repeated --strategy flag below.
+        strat = body.get("strategy")
+        if strat is not None:
+            if not isinstance(strat, str) or strat not in _ALLOWED_STRATEGIES:
+                raise _bad_request(
+                    "unsupported strategy",
+                    strategy=strat,
+                    allowed=sorted(_ALLOWED_STRATEGIES),
                 )
         for field in ("exe", "scanner_label"):
             val = body.get(field)
@@ -270,6 +325,39 @@ def create_app() -> FastAPI:
             raise _bad_request("categories must be a list or null")
         if body.get("strategies") is not None and not isinstance(body["strategies"], list):
             raise _bad_request("strategies must be a list or null")
+
+        # Numeric validation: bounded 0–1 ratios and an optional % gate.
+        for field, lo, hi in (
+            ("min_confidence",     0.0, 1.0),
+            ("evasion_rate",       0.0, 100.0),  # accepts 0–1 or 0–100
+            ("min_detection_rate", 0.0, 100.0),
+        ):
+            val = body.get(field)
+            if val is None:
+                continue
+            try:
+                num = float(val)
+            except (TypeError, ValueError):
+                raise _bad_request(f"{field} must be numeric", **{field: val})
+            if field == "evasion_rate" and num > 1.0:
+                # UI slider sends 0–100; the normalized value stays bounded.
+                num = num / 100.0
+                hi = 1.0
+            if not (lo <= num <= hi):
+                raise _bad_request(
+                    f"{field} must be in [{lo}, {hi}]",
+                    **{field: val},
+                )
+            body = {**body, field: num}
+
+        for field in ("require_context", "wrap_context"):
+            val = body.get(field)
+            if val is not None and not isinstance(val, bool):
+                raise _bad_request(f"{field} must be boolean or null")
+
+        save_as = body.get("save_as_profile")
+        if save_as is not None:
+            body = {**body, "save_as_profile": _validate_profile_name(save_as)}
 
         # Resolve the scanner path if the request didn't override it. If
         # nothing is found anywhere in the priority chain, fail fast with
@@ -321,6 +409,24 @@ def create_app() -> FastAPI:
         if rec is None:
             raise HTTPException(status_code=404, detail=f"unknown run_id {run_id!r}")
         return {"run_id": run_id, **rec}
+
+    # ── DELETE /v1/evadex/run/{run_id} ──────────────────────────
+    # Cancel a running scan. SIGTERM first, SIGKILL after the grace
+    # period expires. Idempotent — repeat calls on a terminal run just
+    # return the current record without re-signalling.
+    @app.delete("/v1/evadex/run/{run_id}", dependencies=[Depends(_require_api_key)])
+    async def cancel(run_id: str) -> dict:
+        if runs_mod.get_run(run_id) is None:
+            raise HTTPException(status_code=404, detail=f"unknown run_id {run_id!r}")
+        result = await runs_mod.cancel_run(run_id)
+        # Strip private fields the way get_run() does — cancel_run
+        # returns the raw record which still has _proc etc.
+        view = runs_mod.get_run(run_id) or {}
+        # Preserve the "status" cancel_run computed even if the view
+        # was captured mid-transition.
+        if result.get("status") and result["status"] != "unknown":
+            view["status"] = result["status"]
+        return {"run_id": run_id, **view}
 
     # ── GET /v1/evadex/metrics ──────────────────────────────────
     @app.get("/v1/evadex/metrics", dependencies=[Depends(_require_api_key)])

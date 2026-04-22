@@ -724,3 +724,319 @@ class TestSiphonExeResolution:
             json={"tool": "siphon-cli", "exe": "/override/siphon"},
         )
         assert r.status_code == 202
+
+
+# ── v3.18.0 — granular scan params, progress, cancel ───────────────
+
+class TestGranularScanParams:
+    """Bridge must forward all the new UI-granular fields to the CLI and
+    reject anything outside the allowlist with a clean 400."""
+
+    def test_all_fields_flow_into_argv(self, client: TestClient,
+                                        monkeypatch: pytest.MonkeyPatch):
+        captured: dict = {}
+
+        def _fake_launch(body, cwd=None):
+            captured["body"] = body
+            captured["argv"] = runs_mod._build_scan_argv(body)
+            return {
+                "run_id": "R-TEST", "status": runs_mod.STATUS_QUEUED,
+                "started_at": "2026-04-20T00:00:00Z", "finished_at": None,
+                "argv": captured["argv"], "request": body, "exit_code": None,
+                "stdout_tail": "", "stderr_tail": "",
+            }
+        monkeypatch.setattr(runs_mod, "launch", _fake_launch)
+
+        r = client.post("/v1/evadex/run", json={
+            "tier": "banking",
+            "categories": ["credit_card", "sin", "iban"],
+            "strategy": "both",
+            "evasion_mode": "weighted",
+            "evasion_rate": 0.3,
+            "technique_group": "unicode_encoding",
+            "min_confidence": 0.5,
+            "require_context": True,
+            "wrap_context": True,
+            "min_detection_rate": 85,
+            "scanner_label": "siphon-prod",
+            "save_as_profile": "my-profile",
+        })
+        assert r.status_code == 202
+        argv = captured["argv"]
+        # Scope
+        assert argv[argv.index("--tier") + 1] == "banking"
+        # "both" → repeated --strategy text + file
+        strat_positions = [i for i, a in enumerate(argv) if a == "--strategy"]
+        assert len(strat_positions) == 2
+        assert {argv[i + 1] for i in strat_positions} == {"text", "file"}
+        # Evasion
+        assert argv[argv.index("--evasion-mode") + 1] == "weighted"
+        assert argv[argv.index("--variant-group") + 1] == "unicode_encoding"
+        # Quality
+        assert argv[argv.index("--min-confidence") + 1] == "0.5"
+        assert argv[argv.index("--min-detection-rate") + 1] == "85.0"
+        assert "--require-context" in argv
+        assert "--wrap-context" in argv
+        # Output
+        assert argv[argv.index("--scanner-label") + 1] == "siphon-prod"
+        assert argv[argv.index("--save-as") + 1] == "my-profile"
+        # Progress channel is always enabled so the bridge can report live.
+        assert "--progress-json" in argv
+
+    def test_technique_group_all_does_not_add_filter(self,
+                                                      client: TestClient):
+        argv = runs_mod._build_scan_argv({"tier": "core", "technique_group": "all"})
+        assert "--variant-group" not in argv
+
+    def test_wrap_context_false_maps_to_no_wrap(self):
+        argv = runs_mod._build_scan_argv({"wrap_context": False})
+        assert "--no-wrap-context" in argv
+        assert "--wrap-context" not in argv
+
+    def test_evasion_rate_accepts_0_to_100(self, client: TestClient,
+                                            monkeypatch: pytest.MonkeyPatch):
+        captured: dict = {}
+        def _fake_launch(body, cwd=None):
+            captured["body"] = body
+            return {"run_id": "R", "status": "queued",
+                    "started_at": "2026-04-20T00:00:00Z", "finished_at": None,
+                    "argv": [], "request": body, "exit_code": None,
+                    "stdout_tail": "", "stderr_tail": ""}
+        monkeypatch.setattr(runs_mod, "launch", _fake_launch)
+
+        r = client.post("/v1/evadex/run", json={"evasion_rate": 30})
+        assert r.status_code == 202
+        assert captured["body"]["evasion_rate"] == pytest.approx(0.3)
+
+    def test_rejects_unknown_technique_group(self, client: TestClient):
+        r = client.post("/v1/evadex/run", json={"technique_group": "made_up"})
+        assert r.status_code == 400
+        assert "technique_group" in r.json()["detail"]["error"]
+
+    def test_rejects_out_of_range_min_confidence(self, client: TestClient):
+        r = client.post("/v1/evadex/run", json={"min_confidence": 1.5})
+        assert r.status_code == 400
+        assert "min_confidence" in r.json()["detail"]["error"]
+
+    def test_rejects_path_traversal_in_profile(self, client: TestClient):
+        r = client.post(
+            "/v1/evadex/run",
+            json={"save_as_profile": "../../etc/passwd"},
+        )
+        assert r.status_code == 400
+
+    def test_save_as_profile_passes_through_to_argv(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch,
+    ):
+        """UI toggle for save_as_profile should surface as --save-as."""
+        captured: dict = {}
+        def _fake_launch(body, cwd=None):
+            captured["argv"] = runs_mod._build_scan_argv(body)
+            return {"run_id": "R", "status": "queued",
+                    "started_at": "2026-04-20T00:00:00Z", "finished_at": None,
+                    "argv": captured["argv"], "request": body, "exit_code": None,
+                    "stdout_tail": "", "stderr_tail": ""}
+        monkeypatch.setattr(runs_mod, "launch", _fake_launch)
+        r = client.post("/v1/evadex/run", json={"save_as_profile": "banking-nightly"})
+        assert r.status_code == 202
+        argv = captured["argv"]
+        assert argv[argv.index("--save-as") + 1] == "banking-nightly"
+
+
+class TestProgressParsing:
+    """--progress-json lines emitted by the scan CLI should feed
+    live progress fields on the run record."""
+
+    def test_progress_line_updates_run_record(self):
+        rec = {"status": "running"}
+        line = '{"progress": 45.2, "tested": 823, "total": 1823, "detected": 412, "elapsed_s": 142.0}'
+        runs_mod._on_progress_line(rec, line)
+        assert rec["progress"] == 45.2
+        assert rec["tested"] == 823
+        assert rec["total"] == 1823
+        assert rec["detected"] == 412
+        assert rec["elapsed_s"] == 142.0
+
+    def test_non_json_stderr_is_ignored(self):
+        rec = {"status": "running", "progress": 12.5}
+        runs_mod._on_progress_line(rec, "Running evadex scan against siphon-cli...")
+        assert rec["progress"] == 12.5  # unchanged
+
+    def test_progress_exposed_in_get_run(self):
+        runs_mod.reset()
+        runs_mod._RUNS["R-X"] = {
+            "status": "running",
+            "started_at": "2026-04-20T00:00:00Z",
+            "finished_at": None,
+            "argv": [], "request": {},
+            "exit_code": None,
+            "stdout_tail": "", "stderr_tail": "",
+            "progress": 45.2, "tested": 823, "total": 1823,
+            "detected": 412, "elapsed_s": 142.0,
+        }
+        view = runs_mod.get_run("R-X")
+        assert view["progress"] == 45.2
+        assert view["tested"] == 823
+        # Private plumbing must never leak.
+        for k in ("_proc", "_cancel_requested", "_exception"):
+            assert k not in view
+
+
+class TestCancelEndpoint:
+    """DELETE /v1/evadex/run/{id} should terminate the subprocess and
+    mark the run as cancelled.
+
+    The cancel path is tested directly against :func:`runs_mod.cancel_run`
+    using a fake subprocess — the TestClient spins up a fresh event loop
+    per request, which would rebind ``asyncio.Event`` across loops.
+    """
+
+    def test_cancel_unknown_run_returns_404(self, client: TestClient):
+        r = client.delete("/v1/evadex/run/R-NOPE")
+        assert r.status_code == 404
+
+    def test_cancel_run_terminates_and_marks_cancelled(self):
+        import asyncio
+
+        async def run_test():
+            runs_mod.reset()
+            rec = {
+                "status":       runs_mod.STATUS_RUNNING,
+                "started_at":   runs_mod._now(),
+                "finished_at":  None,
+                "argv":         [], "request": {},
+                "exit_code":    None,
+                "stdout_tail":  "", "stderr_tail":  "",
+                "progress":     12.0, "tested": 100, "total": 1000,
+                "detected":     45, "elapsed_s": 5.0,
+            }
+
+            class _FakeProc:
+                def __init__(self):
+                    self.returncode = None
+                    self.terminated = False
+                    self._evt = asyncio.Event()
+
+                def terminate(self):
+                    self.terminated = True
+                    self.returncode = -15
+                    self._evt.set()
+
+                def kill(self):
+                    self.returncode = -9
+                    self._evt.set()
+
+                async def wait(self):
+                    await self._evt.wait()
+                    return self.returncode
+
+            proc = _FakeProc()
+            rec["_proc"] = proc
+            runs_mod._RUNS["R-CANCEL"] = rec
+
+            # Simulate the _execute coroutine that watches for cancel
+            # and marks the run terminal after wait() returns.
+            async def _fake_exec():
+                rc = await proc.wait()
+                rec["exit_code"] = rc
+                rec["status"] = (
+                    runs_mod.STATUS_CANCELLED
+                    if rec.get("_cancel_requested")
+                    else runs_mod.STATUS_COMPLETED
+                )
+                rec["finished_at"] = runs_mod._now()
+                rec.pop("_proc", None)
+
+            exec_task = asyncio.create_task(_fake_exec())
+            result = await runs_mod.cancel_run("R-CANCEL")
+            await exec_task
+
+            assert proc.terminated is True
+            assert result["status"] == runs_mod.STATUS_CANCELLED
+            assert rec["status"] == runs_mod.STATUS_CANCELLED
+            # Run view must not leak internals.
+            view = runs_mod.get_run("R-CANCEL")
+            for k in ("_proc", "_cancel_requested", "_exception"):
+                assert k not in view
+
+        asyncio.run(run_test())
+
+    def test_cancel_run_escalates_to_sigkill_after_grace(self,
+                                                          monkeypatch: pytest.MonkeyPatch):
+        """A child that ignores SIGTERM gets SIGKILLed after the grace
+        expires — the run still ends up as cancelled."""
+        import asyncio
+        monkeypatch.setattr(runs_mod, "_CANCEL_GRACE_S", 0.1)
+
+        async def run_test():
+            runs_mod.reset()
+            rec = {
+                "status":      runs_mod.STATUS_RUNNING,
+                "started_at":  runs_mod._now(),
+                "finished_at": None,
+                "argv":        [], "request": {},
+                "exit_code":   None,
+                "stdout_tail": "", "stderr_tail": "",
+            }
+
+            class _StubbornProc:
+                def __init__(self):
+                    self.returncode = None
+                    self.killed = False
+                    self._evt = asyncio.Event()
+
+                def terminate(self):  # ignored — simulates a hung child
+                    pass
+
+                def kill(self):
+                    self.killed = True
+                    self.returncode = -9
+                    self._evt.set()
+
+                async def wait(self):
+                    await self._evt.wait()
+                    return self.returncode
+
+            proc = _StubbornProc()
+            rec["_proc"] = proc
+            runs_mod._RUNS["R-STUBBORN"] = rec
+
+            async def _fake_exec():
+                rc = await proc.wait()
+                rec["exit_code"] = rc
+                rec["status"] = (
+                    runs_mod.STATUS_CANCELLED
+                    if rec.get("_cancel_requested")
+                    else runs_mod.STATUS_COMPLETED
+                )
+                rec["finished_at"] = runs_mod._now()
+                rec.pop("_proc", None)
+
+            exec_task = asyncio.create_task(_fake_exec())
+            result = await runs_mod.cancel_run("R-STUBBORN")
+            await exec_task
+
+            assert proc.killed is True
+            assert result["status"] == runs_mod.STATUS_CANCELLED
+
+        asyncio.run(run_test())
+
+    def test_cancel_run_idempotent_on_terminal_run(self):
+        """Cancel on a completed run returns current state, doesn't
+        re-signal, doesn't error."""
+        import asyncio
+
+        async def run_test():
+            runs_mod.reset()
+            runs_mod._RUNS["R-DONE"] = {
+                "status":       runs_mod.STATUS_COMPLETED,
+                "started_at":   runs_mod._now(),
+                "finished_at":  runs_mod._now(),
+                "argv":         [], "request": {},
+                "exit_code":    0,
+                "stdout_tail":  "", "stderr_tail":  "",
+            }
+            result = await runs_mod.cancel_run("R-DONE")
+            assert result["status"] == runs_mod.STATUS_COMPLETED
+
+        asyncio.run(run_test())

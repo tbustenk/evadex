@@ -1,6 +1,7 @@
 import asyncio
 import json
 import sys
+import time
 from collections import defaultdict
 import click
 from click.core import ParameterSource
@@ -318,6 +319,16 @@ def _print_summary(results, err_console):
               help="Save the flags used for this run as a named profile in "
                    "~/.evadex/profiles before executing. Future runs can use "
                    "'evadex profile run NAME' with the same config.")
+@click.option("--min-confidence", "min_confidence", default=None, type=float,
+              help="Confidence floor passed to the scanner adapter (0.0–1.0). "
+                   "Matches below this score are ignored by the adapter before "
+                   "evadex sees them. Useful for tuning FP/recall tradeoff.")
+@click.option("--progress-json", "progress_json", is_flag=True, default=False,
+              help="Emit one JSON progress record per tick to stderr — used by "
+                   "the bridge to surface live progress to the C2 UI. Format: "
+                   "{\"progress\": float, \"tested\": int, \"total\": int, "
+                   "\"detected\": int, \"elapsed_s\": float}. Implies "
+                   "suppression of the Rich TTY progress bar.")
 def scan(
     ctx,
     config_path, tool, input_value, fmt, output, url, api_key, timeout,
@@ -327,6 +338,7 @@ def scan(
     save_baseline, compare_baseline, audit_log, feedback_report,
     require_context, wrap_context, no_wrap_context,
     c2_url, c2_key, save_as,
+    min_confidence, progress_json,
 ):
     """Run DLP evasion tests."""
     load_builtins()
@@ -527,6 +539,8 @@ def scan(
         config["require_context"] = True
     if wrap_context:
         config["wrap_context"] = True
+    if min_confidence is not None:
+        config["min_confidence"] = float(min_confidence)
     try:
         adapter = get_adapter(tool, config)
     except KeyError as e:
@@ -611,11 +625,45 @@ def scan(
         TimeElapsedColumn(),
         console=err_console,
         transient=True,
+        disable=progress_json,
     )
     progress_task_id = None
 
+    # --progress-json book-keeping: stderr JSON records for the bridge.
+    # Throttled so we never emit more than once per 200 ms during a
+    # fast local run — the bridge only polls every 3 s anyway.
+    _progress_state = {
+        "start":       time.time(),
+        "last_emit":   0.0,
+        "detected":    0,
+    }
+    _min_emit_interval_s = 0.2
+
+    def _emit_progress(completed: int, total: int, *, force: bool = False) -> None:
+        now = time.time()
+        if not force and (now - _progress_state["last_emit"]) < _min_emit_interval_s:
+            return
+        _progress_state["last_emit"] = now
+        pct = round(100.0 * completed / total, 1) if total else 0.0
+        record = {
+            "progress":  pct,
+            "tested":    int(completed),
+            "total":     int(total),
+            "detected":  int(_progress_state["detected"]),
+            "elapsed_s": round(now - _progress_state["start"], 1),
+        }
+        try:
+            sys.stderr.write(json.dumps(record) + "\n")
+            sys.stderr.flush()
+        except Exception:
+            pass
+
     def on_result(result, completed, total):
-        if progress_task_id is not None:
+        # Tally detections for the progress JSON stream. A "pass"
+        # severity means the scanner caught the variant.
+        if getattr(getattr(result, "severity", None), "value", None) == "pass":
+            _progress_state["detected"] += 1
+        if progress_task_id is not None and not progress_json:
             label = result.payload.label
             progress.update(
                 progress_task_id,
@@ -623,6 +671,8 @@ def scan(
                 total=total,
                 description=f"[dim]{label[:35]}[/dim]",
             )
+        if progress_json:
+            _emit_progress(completed, total)
 
     engine = Engine(
         adapter=adapter,
@@ -635,6 +685,10 @@ def scan(
     with progress:
         progress_task_id = progress.add_task("[dim]Starting...[/dim]", total=None)
         results = engine.run(payloads)
+        if progress_json:
+            # Final tick so the bridge sees 100% regardless of throttling.
+            total_done = len(results)
+            _emit_progress(total_done, total_done, force=True)
 
     # Summary
     total, passes, fails, errors, pass_rate = _print_summary(results, err_console)

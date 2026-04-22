@@ -204,25 +204,42 @@ def _safe_str(v: Any) -> str:
 
 
 def _dedupe_scans(scans: list[dict]) -> list[dict]:
-    """Collapse runs of audit entries that point at the same archive file.
+    """Collapse repeated audit lines that describe the same scan write.
 
-    The CLI write-path used to produce one entry per writer invocation
-    rather than per scan, so a single run could leave many identical
-    lines behind in ``results/audit.jsonl``. Keep the first (earliest)
-    sighting for each archive_file — that's the authoritative write —
-    and drop the rest. Entries with no archive_file are kept as-is so
-    legacy rows aren't silently lost.
+    The CLI write-path used to emit one audit line per writer invocation
+    rather than per scan, so a single run could leave many effectively
+    identical lines behind in ``results/audit.jsonl``. A duplicate here
+    means *all* of the summary fields match — not just the archive path,
+    because two legitimately separate scans can overwrite the same
+    ``results/scans/scan_<label>.json`` when run back-to-back with the
+    same scanner label.
+
+    Collapse key: ``(archive_file, scanner_label, tool, total, pass,
+    fail, pass_rate)``. Anything missing from the row falls through as a
+    loose entry so older rows aren't silently lost.
     """
-    seen: dict[str, dict] = {}
+    seen: set[tuple] = set()
     loose: list[dict] = []
+    out: list[dict] = []
     for e in scans:
-        key = e.get("archive_file")
-        if not key:
+        archive = e.get("archive_file")
+        if not archive:
             loose.append(e)
             continue
-        if key not in seen:
-            seen[key] = e
-    deduped = list(seen.values()) + loose
+        key = (
+            archive,
+            e.get("scanner_label") or "",
+            e.get("tool") or "",
+            e.get("total"),
+            e.get("pass"),
+            e.get("fail"),
+            e.get("pass_rate"),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(e)
+    deduped = out + loose
     deduped.sort(key=lambda e: e.get("timestamp") or "")
     return deduped
 
@@ -308,16 +325,20 @@ def build_metrics(
     ]
 
     detection_rate = _detection_rate_of(latest_scan) if latest_scan else 0.0
-    # No matching falsepos run → return null so the UI can show "n/a"
-    # instead of a stale/misleading rate.
+    # fp_rate semantics:
+    #   - scan + matching falsepos → its rate (numeric)
+    #   - scan but no matching falsepos → null (UI shows "n/a")
+    #   - no scan at all (cold start) → 0.0 (well-formed empty response)
     fp_rate: Optional[float]
-    if latest_fp is None:
-        fp_rate = None
-    else:
+    if latest_fp is not None:
         try:
             fp_rate = float(latest_fp.get("fp_rate", 0.0) or 0.0)
         except (TypeError, ValueError):
             fp_rate = None
+    elif latest_scan is None:
+        fp_rate = 0.0
+    else:
+        fp_rate = None
 
     coverage_pct, tested, total = _coverage(archive)
 
