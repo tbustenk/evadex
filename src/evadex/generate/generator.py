@@ -185,7 +185,7 @@ def _pick_variant(
     # cold-start still biases toward techniques that bypass generic DLP.
     # Once audit history exists, blend 70 % history + 30 % seed so a
     # handful of early scans cannot push the bias off a cliff.
-    from evadex.feedback.seed_weights import blend_with_history, SEED_WEIGHTS
+    from evadex.feedback.seed_weights import blend_with_history
     history = technique_history or {}
     if evasion_mode == "exhaustive":
         order = list(applicable)  # deterministic — first generator wins

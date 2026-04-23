@@ -24,7 +24,7 @@ from __future__ import annotations
 import base64
 import datetime
 import random
-from email.utils import format_datetime, formataddr, make_msgid
+from email.utils import format_datetime, formataddr
 
 from evadex.generate.generator import GeneratedEntry
 

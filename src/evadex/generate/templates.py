@@ -478,7 +478,6 @@ def format_hr_record(
         lines.append(f"  {noise}")
     lines.append("")
 
-    fields_by_employee = max(1, len(entries) // 5 or 1)
     emp_counter = rng.randint(10_000, 99_000)
 
     for i, e in enumerate(entries):
@@ -796,8 +795,8 @@ def format_config_file(
                 "Application Configuration — CONFIDENTIAL",
                 "Configuration applicative — CONFIDENTIEL",
             ),
-            f"# " + C(f"Generated: {today.isoformat()}",
-                     f"Généré le: {today.isoformat()}"),
+            "# " + C(f"Generated: {today.isoformat()}",
+                    f"Généré le: {today.isoformat()}"),
             "# " + C(
                 "Loaded by boot.sh via `set -o allexport && . .env`",
                 "Chargée par boot.sh via `set -o allexport && . .env`",
@@ -837,7 +836,7 @@ def format_config_file(
             comment = f"  # evasion: {e.technique}" if e.technique else ""
             lines.append(f"{key}={e.variant_value}{comment}")
             if noise_level == "high":
-                lines.append(f"# " + C(
+                lines.append("# " + C(
                     f"Last rotated: {today.isoformat()}",
                     f"Dernière rotation: {today.isoformat()}",
                 ))
@@ -846,8 +845,8 @@ def format_config_file(
         lines += [
             "; " + C("Application Configuration — CONFIDENTIAL",
                     "Configuration applicative — CONFIDENTIEL"),
-            f"; " + C(f"Generated: {today.isoformat()}",
-                     f"Généré le: {today.isoformat()}"),
+            "; " + C(f"Generated: {today.isoformat()}",
+                    f"Généré le: {today.isoformat()}"),
             "",
             "[database]",
             "host = db-prod.bnc-secure.ca",
@@ -877,8 +876,8 @@ def format_config_file(
         lines += [
             "# " + C("Application Configuration — CONFIDENTIAL",
                     "Configuration applicative — CONFIDENTIEL"),
-            f"# " + C(f"Generated: {today.isoformat()}",
-                     f"Généré le: {today.isoformat()}"),
+            "# " + C(f"Generated: {today.isoformat()}",
+                    f"Généré le: {today.isoformat()}"),
             "",
             "spring:",
             "  application:",

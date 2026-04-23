@@ -1,5 +1,38 @@
 # Changelog
 
+## [3.20.1] — 2026-04-23
+
+### Fixed
+
+- **LSH corpus variants were rendered identically on docx/txt/eml outputs.** The multi-file LSH loop splices a distorted variant into the entry's `embedded_text`, but docx/txt/eml writers short-circuit to `apply_template()` whenever `_active_template != "generic"` — and that path re-renders from `category` + `variant_value`, ignoring `embedded_text`. Every variant therefore collapsed back to byte-identical documents (Jaccard = 1.0). The LSH branch now switches the writer config to `generic` so the distorted text reaches disk.
+- **`copy.replace` ImportError on Python 3.11.** The function was added in 3.13; the `try/except TypeError` fallback never fired because the import itself raised `ImportError`. Swapped to `dataclasses.replace` (stdlib since 3.7).
+- **`evadex report` now emits a friendly error on invalid JSON** instead of a raw `json.decoder.JSONDecodeError` traceback. Exit code is 1.
+- **`evadex generate --template lsh_corpus` now emits a friendly error when the output directory cannot be created** (e.g. permission denied) instead of a raw `PermissionError` traceback. Exit code is 1.
+
+### Changed
+
+- CI runs unit tests against both Python 3.11 and 3.13 (matrix) so version-specific regressions fail in CI instead of at release time.
+- Dead-code removal: unused imports (`Optional`, `Path`, `PayloadCategory`, `make_msgid`, `SEED_WEIGHTS`) and unused locals (`passes` in `report.py`, `fields_by_employee` in `templates.py`).
+- README updated to document `evadex benchmark`, `evadex doctor`, `evadex report`, `list-techniques --verbose`, `--template lsh_corpus` (plus `--lsh-variants` / `--lsh-distortions`), `--language fr-CA`, and the `banking-statement` alias — sections that shipped in v3.19.0/v3.20.0 but were never added to the README.
+- CHANGELOG backfilled with a missing v3.19.0 entry.
+
+### Verified
+
+- 788 unit tests passing on Python 3.14 (local) and via the CI matrix on 3.11 + 3.13. pyflakes clean across `cli/commands/`, `generate/templates.py`, `generate/generator.py`, `lsh/`, and the archive/mbox writers.
+
+## [3.19.0] — 2026-04-22
+
+### Added
+
+- **Realistic document templates.** `evadex generate --template` now accepts `banking-statement` (alias for the existing `statement`), and existing templates (`statement`, `hr_record`, `invoice`, `source_code`, `config_file`, `medical_record`) were rewritten with production-grade content — authentic Canadian banking boilerplate, realistic employee records with salary/manager/tenure fields, invoice layouts with HST columns, source-code templates that embed real-shaped secrets (AWS keys, Stripe keys, DB passwords) alongside `TODO`/`FIXME` comments, and config files that randomly choose ENV/INI/YAML dialects.
+- **Canadian French template support** via `--language fr-CA`. Formatters for `statement`/`banking-statement`, `hr_record`, `invoice`, `medical_record`, `source_code`, and `config_file` switch to authentic Quebec French labels, business context (Desjardins, BNC, Caisse populaire), and regulatory boilerplate (Loi 25, LPRPDE).
+- **LSH corpus generator.** `evadex generate --template lsh_corpus --count N --lsh-variants K` produces `N × K` near-duplicate documents — one per (base, distortion rate) pair — plus a `manifest.json` that records each file's empirical Jaccard to its base. Custom distortion ladders via `--lsh-distortions 0.05,0.1,0.2,0.3`. Use for testing a scanner's LSH document-similarity engine.
+- **Siphon scan-results integration.** When Siphon is the adapter, evadex captures and archives the scanner's raw response JSON alongside each result so false positives can be triaged without re-running the scan.
+
+### Changed
+
+- Version bumped to 3.19.0.
+
 ## [3.20.0] — 2026-04-22
 
 ### Added

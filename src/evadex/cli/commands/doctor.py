@@ -23,7 +23,6 @@ import socket
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 from urllib.error import URLError
 from urllib.request import urlopen
 

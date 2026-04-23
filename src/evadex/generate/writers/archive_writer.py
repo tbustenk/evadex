@@ -28,10 +28,7 @@ import io
 import json
 import random
 import zipfile
-from pathlib import Path
-from typing import Optional
 
-from evadex.core.result import PayloadCategory
 from evadex.generate.generator import GeneratedEntry
 
 

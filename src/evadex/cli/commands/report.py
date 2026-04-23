@@ -141,8 +141,20 @@ _JS = r"""
 
 
 def _load_json(path: Path) -> dict:
-    with open(path, encoding="utf-8") as fh:
-        return json.load(fh)
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
+    except json.JSONDecodeError as exc:
+        err_console.print(
+            f"[red]Cannot parse '{path}': invalid JSON "
+            f"({exc.msg} at line {exc.lineno}, column {exc.colno}).[/red]"
+        )
+        raise SystemExit(1) from None
+    except OSError as exc:
+        err_console.print(
+            f"[red]Cannot read '{path}': {exc.strerror}.[/red]"
+        )
+        raise SystemExit(1) from None
 
 
 def _is_scan_json(doc: dict) -> bool:
@@ -176,7 +188,6 @@ def _escape(s: object) -> str:
 def _executive_summary(scan: dict, falsepos: dict | None) -> str:
     meta = scan["meta"]
     total = meta["total"]
-    passes = meta["pass"]
     fails = meta["fail"]
     detection = meta.get("pass_rate", 0.0)
     scanner = meta.get("scanner", "unknown scanner")
