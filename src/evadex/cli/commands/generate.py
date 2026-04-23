@@ -559,6 +559,21 @@ def generate(
         from evadex.lsh import BASE_DOCUMENTS, distorted_variant, jaccard_similarity
         import random as _random
 
+        # Writers that honour templates (docx/txt/eml) re-render from the
+        # entry's category/variant_value rather than its ``embedded_text``,
+        # which would collapse every LSH variant back to the same base text.
+        # Switch to the generic template for the LSH loop so the distorted
+        # variant_text we splice into ``embedded_text`` is what ends up on
+        # disk.
+        set_writer_config(
+            template="generic",
+            noise_level=noise_level,
+            density=density,
+            seed=seed,
+            barcode_type=barcode_type,
+            language=language,
+        )
+
         # Resolve the distortion ladder — explicit flag overrides the
         # default. Any parse error is a CLI-level UsageError so the
         # operator sees it immediately.
