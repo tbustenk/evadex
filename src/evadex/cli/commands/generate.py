@@ -623,20 +623,11 @@ def generate(
                     # generic writer path renders it into the target
                     # format. We reuse a single entry's metadata but
                     # swap its embedded text for the variant prose.
-                    from copy import replace as _replace
-                    try:
-                        variant_entry = _replace(
-                            entries[b % len(entries)],
-                            embedded_text=variant_text,
-                        )
-                    except TypeError:
-                        # dataclasses.replace is in copy only on 3.13+ —
-                        # fall back to the stdlib ``dataclasses.replace``.
-                        from dataclasses import replace as _dc_replace
-                        variant_entry = _dc_replace(
-                            entries[b % len(entries)],
-                            embedded_text=variant_text,
-                        )
+                    import dataclasses
+                    variant_entry = dataclasses.replace(
+                        entries[b % len(entries)],
+                        embedded_text=variant_text,
+                    )
 
                     writer = get_writer(write_fmt)
                     try:
