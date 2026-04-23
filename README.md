@@ -1122,10 +1122,35 @@ Control how techniques are chosen for evasion variants based on what's worked hi
 |---|---|
 | `random` *(generate default)* | Uniform random across applicable techniques. |
 | `exhaustive` *(scan default)* | Every applicable variant is run / generated. |
-| `weighted` | Bias selection by `1 − historical_detection`. Techniques that have evaded best are picked more often. Falls back to random if no audit history exists. |
-| `adversarial` | Restrict to techniques whose historical detection is ≤ 50 %. In `evadex scan`, the variant-group filter narrows accordingly. Falls back to the full pool if the filter leaves no candidates. |
+| `weighted` | Bias selection by `1 − historical_detection`. Techniques that have evaded best are picked more often. Uses the seed knowledge base (see below) when no history exists, and blends 70 % history + 30 % seed once history is present. |
+| `adversarial` | Restrict to techniques whose blended detection is ≤ 50 %. In `evadex scan`, the variant-group filter narrows accordingly. Falls back to the full pool if the filter leaves no candidates. |
 
-Both `weighted` and `adversarial` read history from `--audit-log` (defaults to `results/audit.jsonl`). Run a few normal scans with `--audit-log` set first to build the history. Until then, `evadex techniques` shows a cold-start hint and `--evasion-mode weighted/adversarial` falls back to random with a warning.
+Both `weighted` and `adversarial` read history from `--audit-log` (defaults to `results/audit.jsonl`). If history is empty, evadex does **not** fall back to uniform random — it uses the research-backed seed weights in `evadex.feedback.seed_weights` so `--evasion-mode weighted` is useful on day one.
+
+#### Seed knowledge base *(v3.20.0)*
+
+`evadex.feedback.seed_weights.SEED_WEIGHTS` is a curated `{generator: bypass_probability}` table estimating how often each technique family slips past a generic DLP text scanner. Higher = better evasion. The numbers come from a mix of published DLP research (Microsoft Purview, Symantec DLP), our own pilot audit logs, and structural reasoning.
+
+| Generator | Weight | Rationale |
+|---|---:|---|
+| `unicode_whitespace` | 0.85 | Zero-width and non-breaking spaces split values without changing rendering; defeats scanners that tokenise on ASCII whitespace only. |
+| `unicode_encoding` | 0.82 | Homoglyphs / fullwidth digits are visually identical to ASCII but produce different bytes; most regex engines don't NFKC-normalise before matching. |
+| `barcode_evasion` | 0.88 | Data in QR / Code128 / Data Matrix images is invisible to scanners without OCR + barcode decoding. |
+| `archive_evasion` | 0.80 | Nested or non-standard compression evades any scanner without matching extractor support. |
+| `encoding_chains` | 0.78 | `base64(rot13(x))` defeats detectors that only decode one layer deep. |
+| `bidirectional` | 0.76 | RLO/LRO overrides reorder glyphs without changing codepoints — the preview shows a different value than the regex engine sees. |
+| `entropy_evasion` | 0.75 | Flattens entropy so secret scanners (common for API keys) see a "normal-looking" string. |
+| `encoding` | 0.70 | Single-layer encodings (base64, rot13, hex) still slip past matchers that only scan plain text. |
+| `soft_hyphen` | 0.68 | Soft hyphens render as nothing but are real bytes; scanners that strip obvious delimiters often miss them. |
+| `regional_digits` | 0.65 | Arabic-Indic, Devanagari, Thai digits are valid digits but `\d` in ASCII mode doesn't match them. |
+| `morse_code` | 0.65 | Unusual enough that few DLP products have a morse signature. |
+| `splitting` | 0.60 | Breaking a value across lines or columns bypasses single-line matchers. |
+| `structural` | 0.58 | Reversed / zero-padded values preserve digits but destroy anchored prefix/suffix patterns. |
+| `delimiter` | 0.55 | Non-standard delimiters remain readable but break fixed-format regex. |
+| `leetspeak` | 0.50 | Well-known; many scanners have leetspeak maps, so effectiveness is limited to naive detectors. |
+| `context_injection` | 0.40 | Helps with entropy/volume filters; the pattern matcher still sees the plain value. |
+
+Once audit history exists, the effective weight is `0.7 * empirical + 0.3 * seed`, so bad seed estimates are damped within a few runs.
 
 ```bash
 # Build history with a few baseline runs
@@ -1932,15 +1957,43 @@ When `--api-key` (or `EVADEX_BRIDGE_KEY`) is set, every endpoint except `GET /he
 
 CORS defaults to `*`. Lock it down with `--cors "https://c2.internal,https://ops.internal"` or `EVADEX_BRIDGE_CORS_ORIGINS`.
 
+### Scanner binary (`siphon`) resolution
+
+The bridge shells out to `siphon` for every scan. You no longer need to pass `--exe` on every start — the bridge resolves the binary using this priority chain:
+
+1. **CLI flag:** `evadex bridge --exe /path/to/siphon`
+2. **Env var:** `SIPHON_EXE=/path/to/siphon` (direct override)
+3. **Config:** `bridge.exe` in `evadex.yaml`
+4. **Auto-discovery** — the first of these that exists:
+   - `/usr/local/bin/siphon`
+   - `/usr/bin/siphon`
+   - `./target/release/siphon`
+   - `./target/release/siphon.exe`
+   - `C:/Users/Ryzen5700/dlpscan-rs/target/release/siphon.exe`
+5. **`PATH` lookup** — `shutil.which('siphon')`
+
+When nothing is found the server still starts — `POST /v1/evadex/run` returns `503` with a clear `error`/`hint`/`searched` payload, and `GET /healthz` reports `{siphon_exe: null, siphon_found: false}` so health checks and UIs can surface the misconfiguration directly:
+
+```bash
+curl -s http://localhost:8081/healthz
+# {"ok": true, "version": "3.17.1", "siphon_exe": "/usr/local/bin/siphon", "siphon_found": true}
+```
+
+Per-request `body.exe` on `POST /v1/evadex/run` still overrides everything above.
+
 ### Endpoints
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/v1/evadex/run` | Trigger a scan in the background; returns a run_id immediately |
-| `GET`  | `/v1/evadex/run/{run_id}` | Poll run status + captured stdout / stderr tails |
-| `GET`  | `/v1/evadex/metrics` | Detection / FP / coverage aggregated from `results/audit.jsonl` |
-| `POST` | `/v1/evadex/generate` | Produce a synthetic test file and stream it back |
-| `GET`  | `/healthz` | Liveness probe — returns `{ok, version}`, no auth |
+| `POST`   | `/v1/evadex/run` | Trigger a scan in the background; returns a run_id immediately |
+| `GET`    | `/v1/evadex/run/{run_id}` | Poll run status, live progress, captured stdout / stderr tails |
+| `DELETE` | `/v1/evadex/run/{run_id}` | Cancel a running scan — SIGTERM then SIGKILL after 5 s |
+| `GET`    | `/v1/evadex/metrics` | Detection / FP / coverage aggregated from `results/audit.jsonl` |
+| `GET`    | `/v1/evadex/categories` | Full catalog of registered payload categories, grouped for UIs |
+| `POST`   | `/v1/evadex/generate` | Produce a synthetic test file and stream it back |
+| `GET`    | `/healthz` | Liveness probe — returns `{ok, version, siphon_exe, siphon_found}`, no auth |
+
+Request bodies are capped at 1 MiB — oversized POSTs get `413 Payload Too Large` before any parsing.
 
 ### `POST /v1/evadex/run`
 
@@ -1948,13 +2001,20 @@ CORS defaults to `*`. Lock it down with `--cors "https://c2.internal,https://ops
 curl -sX POST http://localhost:8081/v1/evadex/run \
   -H "x-api-key: $BRIDGE_KEY" -H "content-type: application/json" \
   -d '{
-    "profile":       "banking-pci-ca",
-    "tier":          "banking",
-    "evasion_mode":  "weighted",
-    "tool":          "siphon-cli",
-    "exe":           "/usr/local/bin/siphon",
-    "scanner_label": "siphon-prod",
-    "categories":    ["PCI", "CRED"]
+    "tier":              "banking",
+    "categories":        ["PCI", "CRED", "credit_card", "sin"],
+    "strategy":          "both",
+    "evasion_mode":      "weighted",
+    "evasion_rate":      0.3,
+    "technique_groups":  ["unicode_encoding", "encoding"],
+    "min_confidence":    0.5,
+    "require_context":   true,
+    "wrap_context":      true,
+    "min_detection_rate": 85,
+    "tool":              "siphon-cli",
+    "exe":               "/usr/local/bin/siphon",
+    "scanner_label":     "siphon-prod",
+    "save_as_profile":   "nightly-banking"
   }'
 ```
 
@@ -1965,7 +2025,78 @@ Response (immediate, `202 Accepted`):
  "started_at": "2026-04-20T06:00:00Z"}
 ```
 
-C2 coarse categories (`PCI`, `PII`, `PHI`, `CRED`, `SECRET`, `CRYPTO`) are expanded into evadex fine-grained categories before launching. See [`src/evadex/bridge/categories.py`](src/evadex/bridge/categories.py) for the mapping.
+Body fields — all optional, each validated against an allowlist, out-of-range values rejected with `400`:
+
+| Field | Type | Notes |
+|---|---|---|
+| `tier` | enum | `banking` / `core` / `regional` / `full` |
+| `categories` | list[str] | C2 coarse bucket (PCI/PII/…) **or** evadex fine id; each entry capped at 64 chars, alphanumerics + `_-` only |
+| `strategy` | enum | `text` / `file` / `both` (shorthand; `both` expands to text+file) |
+| `strategies` | list[str] | Explicit list — same allowlist as `strategy` |
+| `evasion_mode` | enum | `random` / `weighted` / `adversarial` / `exhaustive` |
+| `evasion_rate` | float | `0.0–1.0` or `0–100` (auto-normalised) |
+| `technique_group` | str | Single generator filter — `unicode_encoding`, `encoding`, etc. |
+| `technique_groups` | list[str] | Multi-select — one `--variant-group` per entry, deduped |
+| `min_confidence` | float | Confidence floor forwarded to adapter — must be `0.0–1.0` |
+| `require_context` | bool | Pass `--require-context` to rust adapter |
+| `wrap_context` | bool | Tri-state: `true` → `--wrap-context`, `false` → `--no-wrap-context` |
+| `min_detection_rate` | float | CI gate (`0–100`); exit non-zero when not met |
+| `tool` | enum | `siphon-cli` / `dlpscan-cli` / `siphon` / `dlpscan` / `presidio` |
+| `cmd_style` | enum | `python` / `rust` / `binary` / `cargo` / `stdin` |
+| `exe` | str | Path to the scanner binary (overrides auto-resolution) |
+| `scanner_label` | str | ≤ 100 chars, no control characters |
+| `save_as_profile` | str | Save flags as a named profile in `~/.evadex/profiles` — alphanumerics + `_-.` only |
+
+C2 coarse categories (`PCI`, `PII`, `PHI`, `CRED`, `SECRET`, `CRYPTO`, `CLASSIFIED`) expand into evadex fine-grained categories before launching. See [`src/evadex/bridge/categories.py`](src/evadex/bridge/categories.py) for the mapping.
+
+### `GET /v1/evadex/run/{run_id}`
+
+Returns run status plus live progress fields populated from the scan's `--progress-json` stderr stream:
+
+```json
+{
+  "run_id":       "R-20260420T060000",
+  "status":       "running",
+  "progress":     45.2,
+  "tested":       823,
+  "total":        1823,
+  "detected":     412,
+  "elapsed_s":    142.0,
+  "exit_code":    null,
+  "stdout":       "",
+  "stderr":       ""
+}
+```
+
+Terminal statuses: `completed`, `failed`, `cancelled`.
+
+### `DELETE /v1/evadex/run/{run_id}`
+
+Cancels an in-flight scan. The bridge sends `SIGTERM` to the subprocess and escalates to `SIGKILL` after a 5 s grace period. Idempotent on terminal runs (`completed` / `failed` / `cancelled`) — returns the current record without re-signalling. `404` on unknown `run_id`.
+
+### `GET /v1/evadex/categories`
+
+```bash
+curl -s http://localhost:8081/v1/evadex/categories -H "x-api-key: $BRIDGE_KEY"
+```
+
+```json
+{
+  "total":       495,
+  "group_order": ["Credit Cards", "Banking", "Canadian IDs", "US IDs", "European IDs",
+                  "Asia-Pacific IDs", "Latin America IDs", "Middle East & Africa IDs",
+                  "Healthcare", "Secrets & Credentials", "Crypto",
+                  "Classification", "Regulatory & Legal", "PII"],
+  "groups": {
+    "Credit Cards": ["card_expiry", "card_track", "card_track2", "cardholder_name",
+                     "credit_card", "masked_pan"],
+    "Banking":      ["aba_routing", "iban", "micr", "swift_bic", "..."],
+    "Canadian IDs": ["ca_passport", "ca_ramq", "sin", "..."]
+  }
+}
+```
+
+Enumerated from `evadex.core.result.PayloadCategory`, grouped by `evadex.bridge.categories.classify_category`. New categories show up in the UI automatically once they land in the enum.
 
 ### `GET /v1/evadex/metrics`
 
@@ -1999,7 +2130,7 @@ curl -s http://localhost:8081/v1/evadex/metrics -H "x-api-key: $BRIDGE_KEY"
 }
 ```
 
-Metrics are derived from `results/audit.jsonl` + the archive files it links. Override the log path with `?audit_log=…` or `EVADEX_BRIDGE_AUDIT_LOG`.
+Metrics are derived from `results/audit.jsonl` + the archive files it links. Override the log path with `EVADEX_BRIDGE_AUDIT_LOG`. The endpoint no longer accepts an `?audit_log=` query param — that was an authenticated file-read primitive and is gone as of 3.17.1.
 
 ### `POST /v1/evadex/generate`
 
@@ -2027,6 +2158,9 @@ The response is the generated file with an `application/octet-stream` `content-t
 | `EVADEX_BRIDGE_CORS_ORIGINS` | Comma-separated CORS allow-list (default `*`) |
 | `EVADEX_BRIDGE_ROOT` | Working directory used for scans + results (default CWD) |
 | `EVADEX_BRIDGE_AUDIT_LOG` | Audit-log path override (default `results/audit.jsonl`) |
+| `EVADEX_BRIDGE_EXE` | Siphon binary path — set when you pass `--exe`. Top of the resolution chain. |
+| `SIPHON_EXE` | Siphon binary path — direct override used when `EVADEX_BRIDGE_EXE` isn't set. |
+| `EVADEX_BRIDGE_CMD_STYLE` | Default `--cmd-style` forwarded on every scan (`binary`, `stdin`, `rust`, `python`, `cargo`). |
 
 ---
 

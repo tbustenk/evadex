@@ -28,8 +28,21 @@ import click
               help=("Directory evadex scans against (defaults to the "
                     "current working directory). Mirrors "
                     "EVADEX_BRIDGE_ROOT."))
+@click.option("--exe", default=None, type=click.Path(),
+              help=("Path to the siphon binary. Highest-priority entry "
+                    "in the resolution chain — also checks SIPHON_EXE, "
+                    "bridge.exe in evadex.yaml, known install paths, "
+                    "and shutil.which('siphon') before giving up. "
+                    "Per-request `exe` in POST /v1/evadex/run still wins. "
+                    "Mirrors EVADEX_BRIDGE_EXE."))
+@click.option("--cmd-style", default=None, metavar="STYLE",
+              help=("Default scanner command style forwarded as "
+                    "--cmd-style on every scan (e.g. 'binary', 'stdin'). "
+                    "Per-request `cmd_style` overrides. Mirrors "
+                    "EVADEX_BRIDGE_CMD_STYLE."))
 def bridge(host: str, port: int, api_key: str | None, cors: str | None,
-           reload: bool, root: str | None) -> None:
+           reload: bool, root: str | None,
+           exe: str | None, cmd_style: str | None) -> None:
     """Start the evadex HTTP bridge.
 
     Exposes three endpoints the siphon-c2 dashboard calls:
@@ -42,7 +55,7 @@ def bridge(host: str, port: int, api_key: str | None, cors: str | None,
     Install the extra first: ``pip install evadex[bridge]``.
     """
     try:
-        import uvicorn  # noqa: F401
+        import uvicorn
     except ImportError:
         click.echo(
             "evadex bridge requires the [bridge] extra.\n"
@@ -60,14 +73,34 @@ def bridge(host: str, port: int, api_key: str | None, cors: str | None,
         os.environ["EVADEX_BRIDGE_CORS_ORIGINS"] = cors
     if root:
         os.environ["EVADEX_BRIDGE_ROOT"] = str(root)
+    if exe:
+        os.environ["EVADEX_BRIDGE_EXE"] = str(exe)
+    if cmd_style:
+        os.environ["EVADEX_BRIDGE_CMD_STYLE"] = cmd_style
 
     click.echo(f"evadex bridge listening on http://{host}:{port}")
     click.echo(
         "auth: " + ("x-api-key required" if os.environ.get("EVADEX_BRIDGE_KEY")
                     else "open (no API key set)")
     )
+    # Surface whichever siphon exe the server would pick up right now,
+    # using the same priority chain as /healthz. Helps the operator spot
+    # a misconfigured exe before the first scan arrives.
+    try:
+        from evadex.bridge.server import _resolve_siphon_exe
+        resolved = _resolve_siphon_exe()
+    except Exception:
+        resolved = None
+    if resolved:
+        click.echo(f"scan exe:       {resolved}")
+    else:
+        click.echo(
+            "scan exe:       NOT FOUND — set SIPHON_EXE, pass --exe, "
+            "add bridge.exe to evadex.yaml, or install siphon on PATH"
+        )
+    if os.environ.get("EVADEX_BRIDGE_CMD_STYLE"):
+        click.echo(f"scan cmd-style: {os.environ['EVADEX_BRIDGE_CMD_STYLE']}")
 
-    import uvicorn
     uvicorn.run(
         "evadex.bridge.server:app",
         host=host,

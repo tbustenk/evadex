@@ -18,7 +18,6 @@ from __future__ import annotations
 import shlex
 import sys
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Optional
 from xml.sax.saxutils import escape
 

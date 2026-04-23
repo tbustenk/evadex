@@ -25,7 +25,6 @@ from evadex.profiles import (
     list_builtin_profiles,
     list_profiles,
     load_profile,
-    profile_path,
     save_profile,
 )
 from evadex.profiles.schedule import (

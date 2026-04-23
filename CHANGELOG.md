@@ -1,5 +1,73 @@
 # Changelog
 
+## [3.20.0] — 2026-04-22
+
+### Added
+
+- **Email-thread EML template.** `evadex generate --format eml --template email_thread` now produces a realistic 3–8 message conversation in a single `.eml` file, with quoted history, In-Reply-To / References threading headers, and sensitive values distributed across the chain so DLP scanners see them in conversational context.
+- **Improved MBOX generator.** `evadex generate --format mbox` now mixes read / unread (`Status: RO` vs `Status: O`), rotates senders and recipients independently, adds occasional CC headers, generates ~20 % of messages as multipart with a referenced (zero-byte) attachment part (`Content-Disposition: attachment; filename=…`), and ~10 % as phishing simulations with evasion-tier obfuscation (`X-Evadex-Simulation: phishing`).
+- **`evadex benchmark`** — new command that measures generate + scan performance across formats, reports average time / stdev / peak memory, and prints recommended `--concurrency` and format-specific count ceilings for the current machine. Optional `--json` for CI capture.
+- **`evadex doctor`** — environment health check. Validates Python version, siphon on PATH, each optional extra (`barcodes`, `data-formats`, `archives`, `bridge`), bridge reachability at `$EVADEX_BRIDGE_URL` (default `http://localhost:8081`), audit-log writability, profile availability. Exits non-zero on hard failures only; advisory warnings pass.
+- **Seed knowledge base for weighted evasion.** `evadex.feedback.seed_weights.SEED_WEIGHTS` — research-backed `{generator: bypass_probability}` estimates. `--evasion-mode weighted` now uses the seed table on cold-start instead of silently falling back to uniform random, and blends 70 % history + 30 % seed once audit data accumulates. Full rationale per technique documented in the README.
+- **`evadex report`** — generate a standalone, self-contained HTML report from a scan JSON (and optional falsepos JSON). Executive summary in plain English, detection-rate cards, per-category breakdown, top evasion techniques, recommendations. Phosphor/JetBrains-Mono theme matching Siphon C2. Includes an "Export JSON" button that downloads the raw data.
+- **`docs/techniques.md`** — canonical per-technique documentation (name, description, example, real-world context, detection fix) covering every generator family.
+- **`evadex list-techniques --verbose`** — surfaces the `docs/techniques.md` content on the CLI, including per-family seed bypass weight and rationale.
+
+### Changed
+
+- `--evasion-mode weighted` / `adversarial` no longer print a "falls back to random" warning on cold-start — the seed weights make the cold-start path meaningful.
+- Version bumped to 3.20.0.
+
+## [3.17.1] — 2026-04-21
+
+### Security
+
+- **Removed authenticated file-read via `/v1/evadex/metrics?audit_log=…`.** The query param used to be handed straight to `open()`, so anyone past the `x-api-key` check could point the parser at any file the server could read. The endpoint now ignores the param and uses the default path (overridable at startup via `EVADEX_BRIDGE_AUDIT_LOG` only).
+- **Template argument path-traversal guard.** `/v1/evadex/generate` now rejects template names containing `..`, path separators, or non-`[A-Za-z0-9_.-]` characters with a 400 before the subprocess launches. Prevents a crafted `--template ../etc/passwd` from being forwarded to downstream loaders.
+- **Enum allowlists on `/v1/evadex/run` and `/v1/evadex/generate`.** `tier`, `evasion_mode`, `tool`, `cmd_style`, `format`, `language` are validated against explicit sets; invalid values return 400 instead of being forwarded as argv tokens.
+
+### Fixed
+
+- **Generate endpoint no longer leaks temp files on failure.** Previously a non-zero subprocess exit (or an OSError launching it) returned 500 but left the pre-allocated output file on disk. Every error path now explicitly unlinks before raising.
+- **Clean 400s for malformed request bodies.** Non-numeric `count`/`evasion_rate` and non-object request bodies return a structured `{error, …}` 400 instead of bubbling a 500/ValueError.
+- **Dead imports removed** from `bridge/server.py`, `cli/commands/bridge.py`, `cli/commands/profile.py`, `cli/commands/schedule.py`, `profiles/schedule.py`.
+- **`evadex bridge --exe` help** updated to describe the full resolution chain (CLI → `SIPHON_EXE` → `bridge.exe` → auto-discovery → `PATH`).
+
+### Verified
+
+- 729 unit tests passing; 7 new bridge tests cover tier allowlist rejection, non-object body rejection, unknown-format rejection, path-traversal template rejection, non-numeric count rejection, tempfile cleanup on failure, and metrics query param being ignored.
+
+## [3.17.0] — 2026-04-21
+
+### Added
+
+- **Container deployment artefacts** under `deploy/`:
+  - `deploy/Dockerfile` — two-stage Python 3.11-slim build for one-shot runs (`scan`, `generate`, `profile`, …).
+  - `deploy/Dockerfile.bridge` — same base, defaults `CMD` to the FastAPI bridge on `:8081` so `docker run evadex:bridge` boots into server mode.
+  - Both images install the `bridge`, `barcodes`, `data-formats`, and `archives` extras, run as a non-root `evadex` user (uid/gid 1000 so a Kubernetes `securityContext.runAsUser: 1000` matches), and expose `/healthz` via the container `HEALTHCHECK`.
+- **`.dockerignore`** — excludes `results/`, `test_files/`, generated reports, venvs, and caches so `docker build` context stays small even on a busy working copy.
+
+### Verified
+
+- `create_app()` + `GET /healthz` smoke-tested via `starlette.TestClient`; returns 200 with the version payload. Full `docker build` validation was deferred (Docker Desktop not present on the dev host).
+
+## [3.16.1] — 2026-04-21
+
+### Fixed
+
+- **Bridge siphon-exe auto-discovery** — `evadex bridge` no longer requires `--exe` on every start. The server resolves the scanner binary via a priority chain: `--exe` CLI flag (`EVADEX_BRIDGE_EXE`) → `SIPHON_EXE` env var → `bridge.exe` in `evadex.yaml` → filesystem search (`/usr/local/bin/siphon`, `/usr/bin/siphon`, `./target/release/siphon[.exe]`, `C:/Users/Ryzen5700/dlpscan-rs/target/release/siphon.exe`) → `PATH` lookup (`shutil.which`). When nothing is found the server still starts — `POST /v1/evadex/run` returns `503` with a clear `error`/`hint`/`searched` payload instead of crashing the subprocess later.
+
+### Added
+
+- **`/healthz` exposes `siphon_exe` and `siphon_found`** so dashboards and uptime probes can distinguish "bridge up" from "bridge up but misconfigured".
+- **`bridge:` section in `evadex.yaml`** (`host`, `port`, `exe`, `cmd_style`, `api_key`) — validated by `load_config`. `evadex init` now scaffolds the section.
+- **`/v1/evadex/metrics`** surfaces `siphon_exe`, `siphon_found`, and an explicit `warning` when the binary is missing.
+- Bridge startup log prints the resolved exe (or a `NOT FOUND` hint) so operators see the state before the first request arrives.
+
+### Verified
+
+- 8 new bridge unit tests: auto-discovery finds `./target/release/siphon.exe`; `SIPHON_EXE` overrides auto-discovery; `--exe`/`EVADEX_BRIDGE_EXE` beats `SIPHON_EXE`; `bridge.exe` config resolves when env is unset; `/healthz` reports `siphon_found=false` cleanly; `/v1/evadex/run` returns `503` with a hint when no siphon resolvable; `body.exe` still overrides a missing auto-discovery. All 35 bridge tests pass; 51 config tests pass.
+
 ## [3.16.0] — 2026-04-20
 
 ### Added

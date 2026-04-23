@@ -26,7 +26,12 @@ KNOWN_KEYS = {
     "c2_url", "c2_key",
     # Smart evasion selection (v3.13.0+)
     "evasion_mode",
+    # HTTP bridge server settings (v3.16.1+)
+    "bridge",
 }
+
+# Keys accepted inside the optional top-level ``bridge:`` mapping.
+BRIDGE_KEYS = {"host", "port", "exe", "cmd_style", "api_key"}
 
 DEFAULT_CONFIG_YAML = """\
 # evadex configuration file
@@ -67,6 +72,16 @@ format: json
 # 'adversarial' = restrict to techniques with ≤ 50% historical detection.
 # Reads history from audit_log above. Cold-start falls back to random.
 # evasion_mode: random
+
+# Bridge server configuration — only read when running `evadex bridge`.
+# All keys are optional; the bridge falls back to env vars, then to
+# built-in defaults / siphon auto-discovery.
+bridge:
+  host: 0.0.0.0
+  port: 8081
+  exe: null          # path to siphon binary — auto-discovered if null
+  cmd_style: binary  # binary or cargo
+  api_key: null      # set via EVADEX_BRIDGE_KEY env var in production
 """
 
 
@@ -94,6 +109,9 @@ class EvadexConfig:
     c2_url: Optional[str] = None
     c2_key: Optional[str] = None
     evasion_mode: Optional[str] = None
+    # HTTP bridge server settings — only consulted by `evadex bridge` and
+    # the FastAPI app. Not used by `evadex scan`.
+    bridge: Optional[dict] = None
 
 
 def find_config() -> Optional[Path]:
@@ -320,5 +338,34 @@ def load_config(path: "str | Path") -> EvadexConfig:
                 f"got: {val!r}"
             )
         cfg.evasion_mode = val
+
+    if "bridge" in raw:
+        val = raw["bridge"]
+        if val is None:
+            cfg.bridge = None
+        elif not isinstance(val, dict):
+            raise click.UsageError(
+                f"Config 'bridge' must be a mapping, got: {type(val).__name__}"
+            )
+        else:
+            unknown_br = set(val.keys()) - BRIDGE_KEYS
+            if unknown_br:
+                raise click.UsageError(
+                    f"Unknown bridge key(s): {', '.join(sorted(unknown_br))}. "
+                    f"Valid: {', '.join(sorted(BRIDGE_KEYS))}"
+                )
+            port = val.get("port")
+            if port is not None and (not isinstance(port, int) or not (1 <= port <= 65535)):
+                raise click.UsageError(
+                    f"Config 'bridge.port' must be an int 1-65535, got: {port!r}"
+                )
+            for k in ("host", "exe", "cmd_style", "api_key"):
+                v = val.get(k)
+                if v is not None and not isinstance(v, str):
+                    raise click.UsageError(
+                        f"Config 'bridge.{k}' must be a string or null, "
+                        f"got: {type(v).__name__}"
+                    )
+            cfg.bridge = dict(val)
 
     return cfg
