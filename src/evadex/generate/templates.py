@@ -511,7 +511,7 @@ def format_hr_record(
                 lines.append(f"  Date d'embauche:          {start.isoformat()}  ({start_days_ago // 365} ans, {(start_days_ago % 365) // 30} mois)")
                 lines.append(f"  Statut:                   {status}")
                 lines.append(f"  Rémunération annuelle:    {salary:,} $ CAD")
-                lines.append(f"  Dépôt direct — banque:    Institution 006 · Transit 12345")
+                lines.append("  Dépôt direct — banque:    Institution 006 · Transit 12345")
                 lines.append(f"  Dépôt direct — compte:    ****{rng.randint(1000, 9999)}")
                 lines.append("  Champs sensibles extraits ci-dessous:")
             else:
@@ -530,7 +530,7 @@ def format_hr_record(
                 lines.append(f"  Hire date:                {start.isoformat()}  ({start_days_ago // 365}y {(start_days_ago % 365) // 30}m tenure)")
                 lines.append(f"  Employment status:        {status}")
                 lines.append(f"  Base salary:              CAD ${salary:,.2f} / year")
-                lines.append(f"  Direct deposit institution: 003 · Transit: 00006")
+                lines.append("  Direct deposit institution: 003 · Transit: 00006")
                 lines.append(f"  Direct deposit account:   ****{rng.randint(1000, 9999)}")
                 lines.append("  Sensitive fields extracted below:")
 

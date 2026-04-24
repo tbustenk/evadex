@@ -21,7 +21,11 @@ from rich.console import Console
 
 from evadex.core.registry import load_builtins, get_adapter
 from evadex.core.result import Payload, PayloadCategory, Variant
-from evadex.falsepos.generators import FALSEPOS_GENERATORS, wrap_with_context
+from evadex.falsepos.generators import (
+    FALSEPOS_GENERATORS,
+    is_match_relevant,
+    wrap_with_context,
+)
 
 err_console = Console(stderr=True)
 
@@ -34,12 +38,20 @@ async def _scan_values(
     values: list[str],
     concurrency: int,
     wrap_context: bool = False,
+    strict_category: bool = True,
 ) -> list[tuple[str, bool]]:
     """Scan *values* through *adapter* and return (value, was_flagged) pairs.
 
     When *wrap_context* is True, each value is embedded in a category-specific
     keyword sentence before submission — the scanner sees realistic surrounding
     text while the reported value remains the original invalid value.
+
+    When *strict_category* is True (default), a match only counts as an FP
+    when the scanner's (sub_)category is on the relevance list for
+    *cat_name*. This prevents wrap-template prose from triggering unrelated
+    scanner rules (e.g. a Corporate-Classification hit on "do not
+    distribute") from being counted as a *cat_name* false positive. Pass
+    ``strict_category=False`` for the legacy "any match counts" semantics.
     """
     sem = asyncio.Semaphore(concurrency)
 
@@ -57,9 +69,13 @@ async def _scan_values(
             var = Variant(submit_text, "falsepos", "falsepos_value", "False positive test value", strategy="text")
             try:
                 result = await adapter.submit(p, var)
-                return v, result.detected
             except Exception:
                 return v, False
+            if not strict_category:
+                return v, result.detected
+            matches = result.raw_response.get("matches", []) if isinstance(result.raw_response, dict) else []
+            flagged = any(is_match_relevant(cat_name, m) for m in matches)
+            return v, flagged
 
     return list(await asyncio.gather(*[_one(v) for v in values]))
 
@@ -98,6 +114,12 @@ async def _scan_values(
               help="Embed each invalid value in a realistic category-specific sentence before "
                    "submitting. Simulates how sensitive data appears in real documents. "
                    "Use with --require-context for the most realistic false positive measurement.")
+@click.option("--no-strict-category", "no_strict_category", is_flag=True, default=False,
+              help="Disable category-relevance filtering. By default a match only counts as "
+                   "an FP for the tested category when the scanner's sub_category is on the "
+                   "relevance list (e.g. 'USA SSN' for ssn). Pass --no-strict-category to "
+                   "revert to the legacy 'any match counts' semantics — useful when probing "
+                   "what the scanner actually fires on.")
 @click.option("--c2-url", "c2_url", default=None, envvar="EVADEX_C2_URL",
               help="Siphon-C2 management-plane URL. The false-positive report is pushed "
                    "to POST /v1/evadex/falsepos. Failures log a warning; never fail the run.")
@@ -117,6 +139,7 @@ def falsepos(
     seed: Optional[int],
     require_context: bool,
     wrap_context: bool,
+    no_strict_category: bool,
     c2_url: Optional[str],
     c2_key: Optional[str],
 ) -> None:
@@ -201,7 +224,11 @@ def falsepos(
         values = gen_fn(count, seed=seed)
 
         scan_pairs = asyncio.run(
-            _scan_values(adapter, cat_name, values, concurrency, wrap_context=wrap_context)
+            _scan_values(
+                adapter, cat_name, values, concurrency,
+                wrap_context=wrap_context,
+                strict_category=not no_strict_category,
+            )
         )
 
         flagged_values = [v for v, detected in scan_pairs if detected]
@@ -237,6 +264,7 @@ def falsepos(
         "count_per_category": count,
         "require_context": require_context,
         "wrap_context": wrap_context,
+        "strict_category": not no_strict_category,
         "mode": mode_label,
         "total_tested": total_tested,
         "total_flagged": total_flagged,

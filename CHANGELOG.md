@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.20.3] — 2026-04-23
+
+### Added
+
+- **`docs/siphon-findings-2026-04-23.md`** — handoff report for the Siphon developer with six findings surfaced during v3.20.2 testing (Quebec HC shadowed by ISIN, Chile RUN/RUT ungated, MRN keyword leak, SSN context gate never fires, SSN regex has no area-code validation, Quebec HC regex has no structural validation). Each finding includes a minimal reproduction, impact assessment, and suggested fix with file+line refs into `dlpscan-rs/crates/siphon-core`.
+- **`evadex falsepos --no-strict-category`** — opt-out flag for the new category-relevance filter. Default is strict-on; the flag reverts to the pre-v3.20.3 "any match counts" semantics for ad-hoc probing of what the scanner fires on.
+
+### Fixed
+
+- **`evadex falsepos` counted cross-category matches as FPs for the tested category.** Under `--wrap-context`, a trigger phrase in the wrap template (e.g. `"do not distribute"`) fires the scanner's unrelated rule (Corporate Classification), which then got credited as an SSN false positive. Added `RELEVANT_SCANNER_LABELS` in `evadex.falsepos.generators` — a per-category set of acceptable Siphon `sub_category` / `category` strings. Matches outside the relevance set no longer count. Categories covered: `credit_card`, `ssn`, `sin`, `iban`, `email`, `phone`, `ca_ramq`, `entropy`. Overall FP rate dropped from 22.8 % → 12.5 % on the previous sweep because the cross-category counts are gone. Flag the JSON report now carries `strict_category: true/false` so downstream consumers can tell which counting rule produced the numbers.
+- **Bridge `_SIPHON_AUTO_DISCOVERY_PATHS` contained a hard-coded developer absolute path** (`C:/Users/Ryzen5700/dlpscan-rs/target/release/siphon.exe`). Replaced with `_sibling_dlpscan_rs_paths()`, which computes `<workspace>/dlpscan-rs/target/release/siphon[.exe]` at import time from the evadex package location. Portable across developer machines; unchanged behaviour on this host. Bridge unit tests pass without modification (the sibling paths are still appended to the same `_SIPHON_AUTO_DISCOVERY_PATHS` tuple, which tests can still monkey-patch to `()`).
+- **pyflakes F541** on two `f""`-without-placeholders lines in `templates.py` hr_record formatter — converted to plain strings.
+
+### Verified
+
+- 795 unit tests passing (7 new tests covering `is_match_relevant` behaviour: on-target match, off-target match, MRN-isn't-RAMQ, case-insensitive, `category` fallback, unknown-category permissive default, registry coverage).
+- End-to-end falsepos sweep (8 cats × n=50, seed 42, siphon-cfb7def): overall FP 22.8 % → 12.5 % with strict-category on. `--no-strict-category` reproduces the old numbers.
+
 ## [3.20.2] — 2026-04-23
 
 ### Fixed — detection floor

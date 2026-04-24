@@ -331,6 +331,68 @@ def wrap_with_context(cat_name: str, value: str) -> str:
     return template.replace("{value}", value)
 
 
+# ── Category relevance ───────────────────────────────────────────────────────
+
+# Per-category set of scanner (sub_)categories that count as a genuine false
+# positive for the tested evadex category. Without this filter, any match
+# from the scanner gets counted — including completely unrelated rules that
+# happened to fire on wrap-template prose (e.g. Siphon's Corporate
+# Classification firing on "do not distribute" in an SSN wrap, counted as
+# an SSN FP). Matches are checked against Siphon's ``sub_category`` first,
+# then ``category`` as a fallback, using case-insensitive exact match.
+#
+# Entries are lists of acceptable scanner-side labels. Empty set (or missing
+# key) disables filtering — any match counts as a category FP.
+RELEVANT_SCANNER_LABELS: dict[str, set[str]] = {
+    "credit_card": {
+        "credit card numbers",
+        "visa", "mastercard", "amex", "american express",
+        "discover", "diners club", "jcb", "unionpay",
+    },
+    "ssn": {"usa ssn", "north america - united states"},
+    "sin": {"canada sin"},
+    "iban": {"iban generic", "iban"},
+    "email": {"email address", "email"},
+    "phone": {
+        "us phone number", "canada phone number", "phone number",
+        "international phone", "e.164 phone",
+        # UK/regional phone patterns sometimes fire on NANP-shaped numbers
+        # too — those still count as phone FPs (the scanner flagged an
+        # invalid phone as a valid phone, just wrong-region).
+        "uk phone number", "eu phone number",
+    },
+    "ca_ramq": {"quebec hc"},
+    "entropy": {
+        # "Generic" high-entropy secrets we deliberately construct FPs for.
+        "aws access key", "aws secret key", "gcp service account",
+        "private key", "rsa private key", "ssh private key",
+        "jwt", "generic api key", "generic secret",
+        "slack token", "github token", "stripe key",
+    },
+}
+
+
+def is_match_relevant(cat_name: str, match: dict) -> bool:
+    """Return True if *match* (a Siphon match dict) is relevant to *cat_name*.
+
+    Used by the falsepos harness to distinguish "the scanner flagged our
+    invalid category value" (real FP) from "the scanner fired on a phrase
+    in our wrap template" (not an FP for this category).
+
+    When *cat_name* has no entry in :data:`RELEVANT_SCANNER_LABELS`, every
+    match counts — preserves backwards-compatible behaviour for categories
+    the map hasn't covered yet.
+    """
+    relevant = RELEVANT_SCANNER_LABELS.get(cat_name)
+    if not relevant:
+        return True
+    sub = (match.get("sub_category") or "").strip().lower()
+    if sub and sub in relevant:
+        return True
+    cat = (match.get("category") or "").strip().lower()
+    return bool(cat) and cat in relevant
+
+
 # ── Registry ──────────────────────────────────────────────────────────────────
 
 FALSEPOS_GENERATORS: dict[str, "Callable[[int, Optional[int]], list[str]]"] = {
