@@ -744,6 +744,131 @@ def create_app() -> FastAPI:
             background=cleanup,
         )
 
+    # ── POST /v1/evadex/report ──────────────────────────────────
+    @app.post("/v1/evadex/report", dependencies=[Depends(_require_api_key)])
+    def generate_report(body: dict) -> FileResponse:
+        """Generate an HTML report from a completed scan and return it as a download.
+
+        Body keys:
+            run_id          (str)   scan run ID to generate report for
+            include_falsepos(bool)  whether to include false positive data (default: True)
+        """
+        if not isinstance(body, dict):
+            raise _bad_request("request body must be a JSON object")
+
+        run_id = body.get("run_id")
+        if not isinstance(run_id, str) or not run_id:
+            raise _bad_request("run_id must be a non-empty string")
+
+        include_falsepos = bool(body.get("include_falsepos", True))
+
+        # Get the run record to find the output file
+        run_record = runs_mod.get_run(run_id)
+        if run_record is None:
+            raise HTTPException(status_code=404, detail=f"unknown run_id {run_id!r}")
+
+        if run_record.get("status") != "completed":
+            raise _bad_request(f"run {run_id} is not completed (status: {run_record.get('status')})")
+
+        # Find the scan output file in the results directory
+        # Look for results/scans/scan_*.json or similar patterns
+        repo_root = _repo_root()
+        scan_files = []
+
+        # Check common scan output locations
+        scan_dirs = [
+            repo_root / "results" / "scans",
+            repo_root / "results",
+            repo_root
+        ]
+
+        for scan_dir in scan_dirs:
+            if scan_dir.is_dir():
+                # Look for files with the run timestamp in the name
+                ts_part = run_id.replace("R-", "")  # Extract timestamp part
+                for pattern in [f"*{ts_part}*.json", "scan_*.json", "*scan*.json"]:
+                    scan_files.extend(scan_dir.glob(pattern))
+
+        if not scan_files:
+            # Try to find the most recent scan file as fallback
+            for scan_dir in scan_dirs:
+                if scan_dir.is_dir():
+                    recent_scans = sorted(scan_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+                    if recent_scans:
+                        scan_files = [recent_scans[0]]
+                        break
+
+        if not scan_files:
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": "scan output file not found",
+                    "run_id": run_id,
+                    "searched_dirs": [str(d) for d in scan_dirs if d.exists()]
+                }
+            )
+
+        scan_file = scan_files[0]  # Use the first/most recent match
+
+        # Generate temporary output file for the HTML report
+        tmp = tempfile.NamedTemporaryFile(
+            prefix="evadex-report-", suffix=".html", delete=False
+        )
+        tmp.close()
+        report_path = Path(tmp.name)
+
+        # Build evadex report command
+        argv = [
+            sys.executable, "-m", "evadex", "report",
+            str(scan_file),
+            "--output", str(report_path)
+        ]
+
+        # TODO: Add false positive file if include_falsepos is True
+        # For now, just generate with the scan file
+
+        try:
+            proc = subprocess.run(
+                argv,
+                cwd=str(repo_root),
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+        except OSError as exc:
+            _unlink_quietly(report_path)
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": "failed to launch evadex report",
+                    "reason": str(exc),
+                },
+            )
+
+        if proc.returncode != 0 or not report_path.is_file():
+            detail = {
+                "error": "evadex report failed",
+                "exit_code": proc.returncode,
+                "stderr": (proc.stderr or "")[-2048:],
+                "argv": argv[2:],  # hide the python exe
+            }
+            _unlink_quietly(report_path)
+            raise HTTPException(status_code=500, detail=detail)
+
+        # Use a background task so the file is removed after FastAPI
+        # finishes streaming it to the client.
+        from starlette.background import BackgroundTask
+
+        cleanup = BackgroundTask(_unlink_quietly, report_path)
+        filename = f"evadex_report_{run_id}.html"
+        return FileResponse(
+            path=str(report_path),
+            filename=filename,
+            media_type="text/html",
+            background=cleanup,
+        )
+
     return app
 
 

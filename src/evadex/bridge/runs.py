@@ -264,6 +264,30 @@ def _on_progress_line(rec: dict, text: str) -> None:
         return
     if not isinstance(payload, dict):
         return
+
+    # Handle individual test results for live output
+    if "test_result" in payload:
+        result = payload["test_result"]
+        if isinstance(result, dict) and all(k in result for k in ["category", "technique", "value", "matched"]):
+            # Initialize recent_results if not present
+            if "recent_results" not in rec:
+                rec["recent_results"] = []
+
+            # Add new result and maintain last 20 items
+            rec["recent_results"].append({
+                "category": str(result["category"]),
+                "technique": str(result["technique"]),
+                "value": str(result["value"])[:100],  # Truncate long values
+                "matched": bool(result["matched"]),
+                "confidence": result.get("confidence")
+            })
+
+            # Keep only last 20 results
+            if len(rec["recent_results"]) > 20:
+                rec["recent_results"] = rec["recent_results"][-20:]
+        return
+
+    # Handle progress updates
     if "progress" not in payload and "tested" not in payload:
         return
     # Only overwrite when the new value is strictly newer — each tick
@@ -409,6 +433,8 @@ def launch(body: dict, cwd: Optional[str] = None) -> dict:
         "total":        0,
         "detected":     0,
         "elapsed_s":    0.0,
+        # Live test results for frontend display
+        "recent_results": [],
     }
     _RUNS[run_id] = record
     asyncio.create_task(_execute(run_id, argv, cwd))
