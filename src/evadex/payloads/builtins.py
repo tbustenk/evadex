@@ -97,7 +97,7 @@ BUILTIN_PAYLOADS = [
     # --- Remaining provincial driver's licences ---
     Payload("AB-123-456-789", PayloadCategory.CA_MB_DRIVERS, "Manitoba driver's licence (2 letters + dashes + 9 digits)"),
     Payload("12345678",       PayloadCategory.CA_SK_DRIVERS, "Saskatchewan driver's licence"),
-    Payload("AB1234567",      PayloadCategory.CA_NS_DRIVERS, "Nova Scotia driver's licence (2 letters + 7 digits)"),
+    Payload("ABCDE123456789", PayloadCategory.CA_NS_DRIVERS, "Nova Scotia driver's licence (5 letters + 9 digits)"),
     Payload("1234567",        PayloadCategory.CA_NB_DRIVERS, "New Brunswick driver's licence"),
     Payload("123456",         PayloadCategory.CA_PEI_DRIVERS, "PEI driver's licence"),
     Payload("A123456789",     PayloadCategory.CA_NL_DRIVERS, "Newfoundland driver's licence"),

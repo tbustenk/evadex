@@ -86,10 +86,14 @@ def test_sk_drivers_payload_format():
 def test_ns_drivers_payload_format():
     payloads = get_payloads({PayloadCategory.CA_NS_DRIVERS})
     assert payloads
-    pattern = re.compile(r'^[A-Z]{2}\d{7}$')
+    # Nova Scotia DL is 5 uppercase letters + 9 digits. Earlier releases
+    # had 2+7 here, but that never matched Siphon's NS pattern
+    # (\b[A-Z]{5}\d{9}\b) and drove the category to a 3 % detection
+    # floor during reliability testing.
+    pattern = re.compile(r'^[A-Z]{5}\d{9}$')
     for p in payloads:
         assert pattern.match(p.value), (
-            f"NS driver's licence should be LL + 7 digits: {p.value!r}"
+            f"NS driver's licence should be 5 letters + 9 digits: {p.value!r}"
         )
 
 

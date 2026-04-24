@@ -281,7 +281,13 @@ CONTEXT_WRAP_TEMPLATES: dict[str, str] = {
         "Please charge my credit card number {value} for the outstanding balance on this account."
     ),
     "ssn": (
-        "Employee Social Security Number: {value} — please handle with care and do not distribute."
+        # Plain SSN-keyword wrap. Do NOT include phrases like "do not
+        # distribute" or "confidential" — Siphon has a Corporate
+        # Classification rule ("Do Not Distribute") that fires on those
+        # strings independently and would be counted as an SSN false
+        # positive. Keep the sentence keyword-clean for the target
+        # category only.
+        "Employee Social Security Number: {value} on file."
     ),
     "sin": (
         "Social Insurance Number (NAS/SIN): {value}. Required for T4 filing."
@@ -296,8 +302,13 @@ CONTEXT_WRAP_TEMPLATES: dict[str, str] = {
         "Customer callback phone number: {value}. Please call between 9am and 5pm."
     ),
     "ca_ramq": (
-        "Numéro de carte d'assurance maladie RAMQ du patient : {value}. "
-        "Dossier médical confidentiel."
+        # Quebec HC-specific wrap. Must NOT contain medical-context
+        # keywords ("maladie", "médical", "patient") — those trigger
+        # Siphon's Medical Record Number rule (`\b\d{6,10}\b` gated on
+        # medical keywords), which would flag the RAMQ digit portion
+        # and be counted as a RAMQ false positive. Use RAMQ/Quebec HC
+        # keywords only.
+        "Quebec HC RAMQ: {value} on file."
     ),
     # For entropy FPs, wrap in an assignment-plus-keyword context that
     # stresses BOTH gated and assignment modes. If the scanner flags this,
