@@ -194,10 +194,21 @@ _FAMILY_DOCS: dict[str, dict[str, str]] = {
 }
 
 
-def _render_verbose_generator(gen, sample: str) -> None:
+def _render_verbose_generator(
+    gen,
+    sample: str,
+    observed_rates: dict | None = None,
+) -> None:
     """Print one generator family in full detail — header prose, seed
-    weight, then every technique with description + example."""
-    from evadex.feedback.seed_weights import SEED_WEIGHTS, SEED_WEIGHT_RATIONALE
+    weight, then every technique with description + example + evasion rate.
+
+    When *observed_rates* contains audit history for a technique the column
+    shows the observed rate; otherwise it falls back to ``TECHNIQUE_SEED_WEIGHTS``
+    (labelled "estimated") so the operator can always see a number.
+    """
+    from evadex.feedback.seed_weights import (
+        SEED_WEIGHTS, SEED_WEIGHT_RATIONALE, TECHNIQUE_SEED_WEIGHTS,
+    )
 
     fam = _FAMILY_DOCS.get(gen.name, {})
     weight = SEED_WEIGHTS.get(gen.name)
@@ -235,15 +246,39 @@ def _render_verbose_generator(gen, sample: str) -> None:
     table = Table(show_header=True, header_style="bold dim", border_style="dim")
     table.add_column("Technique", style="cyan", min_width=28)
     table.add_column("Description", min_width=36)
-    table.add_column("Example output", style="green", min_width=24, overflow="fold")
+    table.add_column("Evasion rate", justify="right", min_width=18)
+    table.add_column("Example output", style="green", min_width=20, overflow="fold")
 
+    observed_rates = observed_rates or {}
     for technique, (desc, output) in sorted(seen.items()):
-        # Trim very long outputs so the terminal stays readable, but
-        # keep enough to see the encoding.
-        display = output if len(output) <= 48 else output[:45] + "..."
-        table.add_row(technique, desc, display)
+        display = output if len(output) <= 44 else output[:41] + "..."
+        hist = observed_rates.get(technique)
+        if hist is not None:
+            evasion = 100.0 * (1.0 - hist["avg"])
+            evasion_cell = (
+                f"[red]{evasion:4.1f}%[/red] [dim](observed · {hist['runs']})[/dim]"
+            )
+        else:
+            seed_bypass = TECHNIQUE_SEED_WEIGHTS.get(technique)
+            if seed_bypass is None:
+                seed_bypass = SEED_WEIGHTS.get(gen.name, 0.5)
+            evasion_cell = f"[yellow]{seed_bypass*100:4.1f}%[/yellow] [dim](estimated · seed)[/dim]"
+        table.add_row(technique, desc, evasion_cell, display)
     console.print(table)
     console.print()
+
+
+def _load_observed_rates(audit_log: str) -> dict:
+    """Return {technique: {"avg": scanner_detection_rate, "runs": n}}."""
+    from evadex.feedback.technique_history import has_history, load_technique_history
+
+    if not has_history(audit_log):
+        return {}
+    stats = load_technique_history(audit_log)
+    return {
+        t: {"avg": s.average_success, "runs": s.runs}
+        for t, s in stats.items() if s.runs > 0
+    }
 
 
 @click.command("list-techniques")
@@ -258,11 +293,18 @@ def _render_verbose_generator(gen, sample: str) -> None:
     default=False,
     help=(
         "Show full per-family documentation: description, example, "
-        "real-world context, detection fix, and seed bypass weight. "
+        "real-world context, detection fix, seed bypass weight, and "
+        "observed evasion rate from audit history when available. "
         "Mirrors docs/techniques.md."
     ),
 )
-def list_techniques(filter_gen: str | None, verbose: bool) -> None:
+@click.option(
+    "--audit-log",
+    default="results/audit.jsonl",
+    show_default=True,
+    help="Path to audit.jsonl — used by --verbose to surface observed evasion rates.",
+)
+def list_techniques(filter_gen: str | None, verbose: bool, audit_log: str) -> None:
     """List all registered evasion generators and their techniques."""
     load_builtins()
     generators = all_generators()
@@ -279,12 +321,19 @@ def list_techniques(filter_gen: str | None, verbose: bool) -> None:
     sample = "4532015112830366"
 
     if verbose:
+        observed_rates = _load_observed_rates(audit_log)
         for gen in generators:
-            _render_verbose_generator(gen, sample)
+            _render_verbose_generator(gen, sample, observed_rates)
         console.print(
             f"[dim]{len(generators)} generator family(ies) — "
             f"see docs/techniques.md for full reference[/dim]"
         )
+        if not observed_rates:
+            console.print(
+                f"[dim]No audit history found at {audit_log}. Observed "
+                f"evasion rates fall back to seed estimates. Run a few scans "
+                f"with --audit-log set to populate history.[/dim]"
+            )
         return
 
     total = 0

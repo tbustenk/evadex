@@ -1,5 +1,36 @@
 # Changelog
 
+## [3.21.0] — 2026-04-24
+
+### Added — scan speed
+
+- **`evadex scan --fast`** — trims the variant pool to the top 5 highest-bypass techniques per generator family and drops techniques whose blended bypass weight is below 10 %. On the banking tier this cuts the variant count from 9,022 to ~4,400 (≈50 % reduction) without audit history; with history the blend (70 % observed / 30 % seed) drops more techniques. `src/evadex/feedback/fast_mode.py:pick_fast_techniques`.
+- **Live Rich progress bar** — stderr progress shows `category · technique · detected N · evaded N · elapsed · ETA`. Replaces the previous silent run. Suppressed under `--verbose` (per-variant lines would scroll past the bar) and `--progress-json` (bridge JSON stream takes over).
+- **Throughput line** — `Throughput: N variants in Ts (R variants/sec at concurrency C)` printed after the summary so the operator can see whether subprocess overhead is dominating.
+
+### Added — granularity
+
+- **`--verbose` / `-v` on `evadex scan`** — live per-variant output: `✓ credit_card · homoglyph · 4532О15112830366 · detected (0.95)` for passes, `✗ credit_card · base64_partial · NDUzMjAxNQ== · evaded` for fails.
+- **Per-technique JSON granularity** — `meta.summary_by_technique[tech]` now carries `evasion_rate`, `example_evaded_value`, and `example_detected_value` alongside the existing pass/fail/error counts.
+- **Per-category JSON granularity** — `meta.summary_by_category[cat]` now carries `evasion_rate`, `worst_technique` (name + rate + samples), `best_technique`, and `sample_evaded`.
+- **Confidence distribution** — new `meta.confidence_distribution` block (total + 5 buckets) in JSON output. CLI prints an ASCII histogram of confidence scores for detected matches.
+
+### Added — refinement
+
+- **Auto baseline delta** — when no `--compare-baseline` is passed, `evadex scan` compares against the most-recent archived scan with the same `--scanner-label` in `results/scans/` and surfaces `Detection rate: X% (▲ +Y.Ypp vs last run)`. Silent no-op when no prior run exists.
+- **HTML report overhaul** — exec summary now names the worst technique + category + a specific evaded example (was: generic "X% detection"), new confidence-distribution chart, new "Top evading techniques" grid with examples, and a "What to fix" section with concrete Siphon rule suggestions from `evadex.feedback.suggestions.get_suggestions`.
+- **`evadex list-techniques --verbose`** — new "Evasion rate" column. Shows observed rate from `audit.jsonl` when history exists (labelled `observed · N runs`), falls back to seed weight (labelled `estimated · seed`) otherwise. Accepts `--audit-log` to point at a non-default path.
+
+### Changed
+
+- **`Engine.technique_filter`** — new optional `set[str]` parameter; when set, variants whose `technique` is not in the set are skipped. Backing store for `--fast`. No effect on callers that don't pass it.
+
+### Verified
+
+- 1,023 tests pass (16 new; 2 pre-existing falsepos failures unrelated to this change).
+- Fast-mode profile: banking tier variant count 9,022 → 4,442 (≈50 % reduction, seeds-only cold start).
+- HTML report renders confidence chart, worst-techniques grid, fix suggestions, and a specific exec summary when evasions exist; hides the confidence section cleanly when adapter doesn't surface scores.
+
 ## [3.20.3] — 2026-04-23
 
 ### Added
