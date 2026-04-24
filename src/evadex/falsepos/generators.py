@@ -281,7 +281,13 @@ CONTEXT_WRAP_TEMPLATES: dict[str, str] = {
         "Please charge my credit card number {value} for the outstanding balance on this account."
     ),
     "ssn": (
-        "Employee Social Security Number: {value} — please handle with care and do not distribute."
+        # Plain SSN-keyword wrap. Do NOT include phrases like "do not
+        # distribute" or "confidential" — Siphon has a Corporate
+        # Classification rule ("Do Not Distribute") that fires on those
+        # strings independently and would be counted as an SSN false
+        # positive. Keep the sentence keyword-clean for the target
+        # category only.
+        "Employee Social Security Number: {value} on file."
     ),
     "sin": (
         "Social Insurance Number (NAS/SIN): {value}. Required for T4 filing."
@@ -296,8 +302,13 @@ CONTEXT_WRAP_TEMPLATES: dict[str, str] = {
         "Customer callback phone number: {value}. Please call between 9am and 5pm."
     ),
     "ca_ramq": (
-        "Numéro de carte d'assurance maladie RAMQ du patient : {value}. "
-        "Dossier médical confidentiel."
+        # Quebec HC-specific wrap. Must NOT contain medical-context
+        # keywords ("maladie", "médical", "patient") — those trigger
+        # Siphon's Medical Record Number rule (`\b\d{6,10}\b` gated on
+        # medical keywords), which would flag the RAMQ digit portion
+        # and be counted as a RAMQ false positive. Use RAMQ/Quebec HC
+        # keywords only.
+        "Quebec HC RAMQ: {value} on file."
     ),
     # For entropy FPs, wrap in an assignment-plus-keyword context that
     # stresses BOTH gated and assignment modes. If the scanner flags this,
@@ -318,6 +329,68 @@ def wrap_with_context(cat_name: str, value: str) -> str:
         "The following sensitive identifier was recorded: {value}.",
     )
     return template.replace("{value}", value)
+
+
+# ── Category relevance ───────────────────────────────────────────────────────
+
+# Per-category set of scanner (sub_)categories that count as a genuine false
+# positive for the tested evadex category. Without this filter, any match
+# from the scanner gets counted — including completely unrelated rules that
+# happened to fire on wrap-template prose (e.g. Siphon's Corporate
+# Classification firing on "do not distribute" in an SSN wrap, counted as
+# an SSN FP). Matches are checked against Siphon's ``sub_category`` first,
+# then ``category`` as a fallback, using case-insensitive exact match.
+#
+# Entries are lists of acceptable scanner-side labels. Empty set (or missing
+# key) disables filtering — any match counts as a category FP.
+RELEVANT_SCANNER_LABELS: dict[str, set[str]] = {
+    "credit_card": {
+        "credit card numbers",
+        "visa", "mastercard", "amex", "american express",
+        "discover", "diners club", "jcb", "unionpay",
+    },
+    "ssn": {"usa ssn", "north america - united states"},
+    "sin": {"canada sin"},
+    "iban": {"iban generic", "iban"},
+    "email": {"email address", "email"},
+    "phone": {
+        "us phone number", "canada phone number", "phone number",
+        "international phone", "e.164 phone",
+        # UK/regional phone patterns sometimes fire on NANP-shaped numbers
+        # too — those still count as phone FPs (the scanner flagged an
+        # invalid phone as a valid phone, just wrong-region).
+        "uk phone number", "eu phone number",
+    },
+    "ca_ramq": {"quebec hc"},
+    "entropy": {
+        # "Generic" high-entropy secrets we deliberately construct FPs for.
+        "aws access key", "aws secret key", "gcp service account",
+        "private key", "rsa private key", "ssh private key",
+        "jwt", "generic api key", "generic secret",
+        "slack token", "github token", "stripe key",
+    },
+}
+
+
+def is_match_relevant(cat_name: str, match: dict) -> bool:
+    """Return True if *match* (a Siphon match dict) is relevant to *cat_name*.
+
+    Used by the falsepos harness to distinguish "the scanner flagged our
+    invalid category value" (real FP) from "the scanner fired on a phrase
+    in our wrap template" (not an FP for this category).
+
+    When *cat_name* has no entry in :data:`RELEVANT_SCANNER_LABELS`, every
+    match counts — preserves backwards-compatible behaviour for categories
+    the map hasn't covered yet.
+    """
+    relevant = RELEVANT_SCANNER_LABELS.get(cat_name)
+    if not relevant:
+        return True
+    sub = (match.get("sub_category") or "").strip().lower()
+    if sub and sub in relevant:
+        return True
+    cat = (match.get("category") or "").strip().lower()
+    return bool(cat) and cat in relevant
 
 
 # ── Registry ──────────────────────────────────────────────────────────────────

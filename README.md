@@ -766,7 +766,10 @@ evadex generate (--format FORMAT | --formats FMT,FMT,...) --output PATH [OPTIONS
 | `--technique-group` | *(all)* | Limit evasion variants to a specific generator family. Repeat for multiple. Example: `--technique-group unicode_encoding` |
 | `--technique-mix` | *(off)* | Exact proportion per technique group, comma-separated. Proportions must sum to 1.0. Example: `--technique-mix unicode_encoding:0.4,encoding:0.3,splitting:0.3` |
 | `--evasion-per-category` | *(uses --evasion-rate)* | Override evasion rate for a specific category. Repeat for multiple. Example: `--evasion-per-category credit_card:0.7 --evasion-per-category sin:0.2` |
-| `--template` | `generic` | Document template controlling structure and tone: `generic`, `invoice`, `statement`, `hr_record`, `audit_report`, `source_code`, `config_file`, `chat_log`, `medical_record`, `env_file`, `secrets_file`, `code_with_secrets` (entropy-focused: `.env` / YAML secrets / bare-value source code — pair with entropy categories) |
+| `--template` | `generic` | Document template controlling structure and tone: `generic`, `invoice`, `statement`, `banking-statement` (alias for `statement`), `hr_record`, `audit_report`, `source_code`, `config_file`, `chat_log`, `medical_record`, `env_file`, `secrets_file`, `code_with_secrets` (entropy-focused: `.env` / YAML secrets / bare-value source code — pair with entropy categories), `lsh_corpus` (multi-file near-duplicate corpus — see [LSH corpus generation](#lsh-corpus-generation)) |
+| `--language` | `en` | Locale for template labels and prose: `en` or `fr-CA`. When `fr-CA` is set, `statement`/`banking-statement` / `hr_record` / `invoice` / `medical_record` / `source_code` / `config_file` switch to authentic Quebec French labels, business context, and boilerplate (Loi 25, LPRPDE). *(v3.19.0)* |
+| `--lsh-variants` | `3` | `lsh_corpus` only — number of near-duplicate variants per base document. *(v3.19.0)* |
+| `--lsh-distortions` | *(auto ladder)* | `lsh_corpus` only — comma-separated distortion rates in [0.0, 1.0]. Overrides the default ladder. *(v3.19.0)* |
 | `--noise-level` | `medium` | Ratio of filler text to sensitive values: `low` (mostly values), `medium` (balanced), `high` (lots of business text) |
 
 **Format details:**
@@ -799,12 +802,24 @@ evadex generate (--format FORMAT | --formats FMT,FMT,...) --output PATH [OPTIONS
 - **`generic`** (default) — Mixed prose and table format (existing behaviour).
 - **`invoice`** — Payment invoice layout with line items, amounts, HST, and totals.
 - **`statement`** — Bank statement with account details, transaction history, and balance.
+- **`banking-statement`** — Alias for `statement`. Matches the label used by the Siphon-C2 UI. *(v3.19.0)*
 - **`hr_record`** — HR employee records with personal information fields grouped per employee.
 - **`audit_report`** — Internal audit report with executive summary, detailed findings (severity-rated), and recommendations.
 - **`source_code`** — Realistic source code with sensitive values as hardcoded strings, variable assignments, and comments. Mixes Python, JavaScript, and generic syntax.
 - **`config_file`** — Application config (randomly INI, YAML, or ENV format) with sensitive values as configuration parameters.
 - **`chat_log`** — Messaging/chat export with timestamps, participant names, and sensitive values shared in conversation.
 - **`medical_record`** — Clinical notes and patient records with MRN, DOB, diagnoses, medications, and sensitive identifiers.
+- **`lsh_corpus`** — Multi-file output: N base documents × K near-duplicate variants, each at an increasing distortion rate. Each variant carries the same sensitive payload spliced in, so an LSH scanner should cluster them at the target Jaccard threshold. Writes a `manifest.json` with per-file distortion/Jaccard so precision/recall curves can be plotted. *(v3.19.0 — see [LSH corpus generation](#lsh-corpus-generation))*
+
+#### LSH corpus generation *(v3.19.0)*
+
+```bash
+evadex generate --format docx --template lsh_corpus \
+                --tier banking --count 5 --lsh-variants 3 \
+                --output test_output/lsh_corpus/
+```
+
+Produces `count × lsh-variants` files — one per (base document, distortion rate) pair — plus a `manifest.json` listing each file's empirical Jaccard to its base. The default distortion ladder spans `0.05 → 0.2`; override with `--lsh-distortions 0.05,0.1,0.2,0.3` for custom sweeps. Use the manifest to evaluate a scanner's LSH engine at multiple similarity thresholds without repeatedly re-generating the corpus.
 
 **Examples:**
 
@@ -1076,12 +1091,50 @@ evadex list-payloads [--type structured|heuristic]
 List all registered evasion generators and the techniques each one applies. Generator names shown here can be used with `evadex generate --technique-group` and `--technique-mix`.
 
 ```
-evadex list-techniques [--generator NAME]
+evadex list-techniques [--generator NAME] [--verbose]
 ```
 
 | Flag | Default | Description |
 |---|---|---|
 | `--generator`, `-g` | *(all)* | Show techniques for a specific generator only |
+| `--verbose`, `-v` | off | Print per-family documentation: description, example, real-world context, detection fix, and seed bypass weight. Mirrors `docs/techniques.md`. *(v3.20.0)* |
+
+### `evadex doctor` *(v3.20.0)*
+
+Read-only environment health check. Reports whether optional extras (barcodes, archives, data-formats, bridge) are installed, whether siphon is on the PATH, whether the bridge is up, and whether the audit log and profiles directories are writable.
+
+```
+evadex doctor [--json]
+```
+
+Exit code `0` if every check passed or only raised warnings; `1` on hard failures. Safe to use as a CI gate.
+
+### `evadex benchmark` *(v3.20.0)*
+
+Measure `evadex generate` and `evadex scan` performance on the current machine. Useful for capacity planning and for catching performance regressions after dependency upgrades.
+
+```
+evadex benchmark [OPTIONS]
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `--tier` | `banking` | Payload tier to generate during the benchmark. |
+| `--runs` | `3` | Number of repetitions per measurement (1–20). More = tighter stdev. |
+| `--count` | `1000` | Records per generate run (10–100000). |
+| `--formats` | `csv,xlsx,docx` | Comma-separated formats to benchmark `generate` on. |
+| `--skip-scan` | off | Skip the siphon-cli scan pass (when siphon isn't installed). |
+| `--json` | off | Emit results as JSON instead of a human-readable table. |
+
+### `evadex report` *(v3.20.0)*
+
+Render a standalone HTML report from scan (and optional falsepos) JSON. The output is self-contained — no external CSS, no external JS — and suitable for emailing to a CISO or compliance team.
+
+```
+evadex report SCAN.json [FALSEPOS.json] --output REPORT.html
+```
+
+Sections rendered: Executive Summary, Detection Rate, Per-Category Breakdown, Top Evasion Techniques, False Positive Rate, and Recommendations. Design language matches the Siphon C2 terminal (phosphor green on dark, mono type).
 
 ### `evadex techniques`
 

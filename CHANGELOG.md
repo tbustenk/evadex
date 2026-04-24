@@ -1,5 +1,112 @@
 # Changelog
 
+## [3.20.3] — 2026-04-23
+
+### Added
+
+- **`docs/siphon-findings-2026-04-23.md`** — handoff report for the Siphon developer with six findings surfaced during v3.20.2 testing (Quebec HC shadowed by ISIN, Chile RUN/RUT ungated, MRN keyword leak, SSN context gate never fires, SSN regex has no area-code validation, Quebec HC regex has no structural validation). Each finding includes a minimal reproduction, impact assessment, and suggested fix with file+line refs into `dlpscan-rs/crates/siphon-core`.
+- **`evadex falsepos --no-strict-category`** — opt-out flag for the new category-relevance filter. Default is strict-on; the flag reverts to the pre-v3.20.3 "any match counts" semantics for ad-hoc probing of what the scanner fires on.
+
+### Fixed
+
+- **`evadex falsepos` counted cross-category matches as FPs for the tested category.** Under `--wrap-context`, a trigger phrase in the wrap template (e.g. `"do not distribute"`) fires the scanner's unrelated rule (Corporate Classification), which then got credited as an SSN false positive. Added `RELEVANT_SCANNER_LABELS` in `evadex.falsepos.generators` — a per-category set of acceptable Siphon `sub_category` / `category` strings. Matches outside the relevance set no longer count. Categories covered: `credit_card`, `ssn`, `sin`, `iban`, `email`, `phone`, `ca_ramq`, `entropy`. Overall FP rate dropped from 22.8 % → 12.5 % on the previous sweep because the cross-category counts are gone. Flag the JSON report now carries `strict_category: true/false` so downstream consumers can tell which counting rule produced the numbers.
+- **Bridge `_SIPHON_AUTO_DISCOVERY_PATHS` contained a hard-coded developer absolute path** (`C:/Users/Ryzen5700/dlpscan-rs/target/release/siphon.exe`). Replaced with `_sibling_dlpscan_rs_paths()`, which computes `<workspace>/dlpscan-rs/target/release/siphon[.exe]` at import time from the evadex package location. Portable across developer machines; unchanged behaviour on this host. Bridge unit tests pass without modification (the sibling paths are still appended to the same `_SIPHON_AUTO_DISCOVERY_PATHS` tuple, which tests can still monkey-patch to `()`).
+- **pyflakes F541** on two `f""`-without-placeholders lines in `templates.py` hr_record formatter — converted to plain strings.
+
+### Verified
+
+- 795 unit tests passing (7 new tests covering `is_match_relevant` behaviour: on-target match, off-target match, MRN-isn't-RAMQ, case-insensitive, `category` fallback, unknown-category permissive default, registry coverage).
+- End-to-end falsepos sweep (8 cats × n=50, seed 42, siphon-cfb7def): overall FP 22.8 % → 12.5 % with strict-category on. `--no-strict-category` reproduces the old numbers.
+
+## [3.20.2] — 2026-04-23
+
+### Fixed — detection floor
+
+Twelve categories were stuck at ~3 % detection (only the raw baseline fired). Root cause: Siphon gates these rules on nearby context keywords, and evadex was wrapping their values with the generic fallback template (`"Reference value: {v}."`), which contains no keywords. Added per-category keyword sentences that mirror Siphon's keyword lists. Targeted re-scan results:
+
+| Category | Before | After |
+|---|---:|---:|
+| account_balance | 3.0 % | 6.0 % * |
+| ca_nl_drivers | 2.7 % | 73.0 % |
+| ca_ns_drivers | 2.7 % | 74.3 % |
+| ca_postal_code | 2.9 % | 69.2 % |
+| ca_pr_card | 2.9 % | 73.8 % |
+| card_expiry | 2.5 % | 38.3 % |
+| chips_uid | 2.9 % | 81.6 % |
+| dob | 2.4 % | 52.8 % |
+| hsm_key | 3.8 % | 70.2 % |
+| income_amount | 3.0 % | 9.0 % * |
+| insurance_policy | 2.4 % | 65.9 % |
+| teller_id | 2.9 % | 73.1 % |
+
+\* account_balance and income_amount remain low because Siphon's currency-amount regex breaks under most evasion transforms (mangled `$` or digit groups). The context gate is now working; the residual gap is genuine evasion coverage, not a template bug.
+
+Additional related fix: `CA_NS_DRIVERS` seed was `AB1234567` (2 letters + 7 digits), which never matched Siphon's `\b[A-Z]{5}\d{9}\b` pattern for Nova Scotia DL. Updated seed to `ABCDE123456789` (5 + 9) — the documented NS DL format. Test in `tests/unit/payloads/test_provincial_ids.py` updated to match.
+
+### Fixed — false positives
+
+SSN and RAMQ were showing 100 % false-positive rate under `--wrap-context`. Root cause: the context-wrap templates in `evadex/falsepos/generators.py` contained trigger phrases that fired *other* Siphon rules, and evadex counted those as FPs for the tested category:
+
+- **SSN wrap** included the phrase *"please handle with care and do not distribute"*. Siphon's Corporate Classification rule flags *"do not distribute"* regardless of SSN. Every FP was that rule firing, not SSN. Template shortened to `"Employee Social Security Number: {value} on file."`
+- **RAMQ wrap** contained *"carte d'assurance maladie"* plus a digit block `NNNN NNNN`. The medical keywords triggered Siphon's Medical Record Number rule (`\b\d{6,10}\b` gated on medical context), which matched the RAMQ digit portion. Template switched to an MRN-keyword-free `"Quebec HC RAMQ: {value} on file."`
+
+After the wrap-template fix (seed 42, n=50):
+
+| Category | Before | After |
+|---|---:|---:|
+| SSN | 100 % | 0 % |
+| RAMQ | 100 % | 14 % |
+| Overall FP rate (8 cats, n=400) | 45.2 % | 22.8 % |
+
+The residual 14 % on RAMQ is **Siphon's Chile RUN/RUT pattern** (`\b\d{1,2}[sep]?\d{3}[sep]?\d{3}[sep]?[\dkK]\b`, `context_required: false`, `specificity: 0.65`) matching the RAMQ digit portion. Documented as a Siphon finding below.
+
+### Siphon findings (surfaced by this investigation — not evadex bugs)
+
+- **Quebec HC pattern never fires** across 50+ test inputs. The regex `\b[A-Z]{4}\d{8}\b` is 12 characters, same as ISIN (`\b[A-Z]{2}[A-Z0-9]{9}[0-9]\b`). ISIN is `context_required: false` and fires first on any 12-char alphanumeric token. Quebec HC needs either higher priority, a more specific regex, or ISIN needs Luhn-like structural validation.
+- **Chile RUN/RUT is ungated.** Any 8–9-digit sequence with hyphens/spaces around the right positions matches, including the digit portion of RAMQ, phone numbers written as grouped digits, and many invoice reference shapes. Should be `context_required: true` given the 0.65 specificity.
+- **Medical Record Number is `\b\d{6,10}\b`** — any 6–10 digit run. Context gate is the only thing keeping it usable, and the gate's keyword list includes `maladie` (French for "illness"), which leaks into any French banking document that mentions health-card context even loosely.
+- **USA SSN context gate does not fire on "Social Security Number" phrasing.** 123-45-6789 with wraps like `"Employee Social Security Number: ... on file."` or `"My social security number is ..."` returns empty. Either the keyword matcher requires a different exact form, or there is a regex issue with the single-separator class.
+- **Chile RUN, Japan Health Insurance, ISIN** all fire on RAMQ-shaped tokens when French medical context is near, because their regexes share the "N-digit run" shape and their gates overlap with RAMQ's context keywords.
+
+### Verified
+
+- 788 unit tests passing.
+- Floor-category re-scan (n=100/cat): 10/12 categories detected ≥ 50 %; 2 remain low for evasion-coverage reasons (not template bugs).
+- Full FP sweep (n=50/cat × 8 cats): 22.8 % overall vs 45.2 % before.
+
+## [3.20.1] — 2026-04-23
+
+### Fixed
+
+- **LSH corpus variants were rendered identically on docx/txt/eml outputs.** The multi-file LSH loop splices a distorted variant into the entry's `embedded_text`, but docx/txt/eml writers short-circuit to `apply_template()` whenever `_active_template != "generic"` — and that path re-renders from `category` + `variant_value`, ignoring `embedded_text`. Every variant therefore collapsed back to byte-identical documents (Jaccard = 1.0). The LSH branch now switches the writer config to `generic` so the distorted text reaches disk.
+- **`copy.replace` ImportError on Python 3.11.** The function was added in 3.13; the `try/except TypeError` fallback never fired because the import itself raised `ImportError`. Swapped to `dataclasses.replace` (stdlib since 3.7).
+- **`evadex report` now emits a friendly error on invalid JSON** instead of a raw `json.decoder.JSONDecodeError` traceback. Exit code is 1.
+- **`evadex generate --template lsh_corpus` now emits a friendly error when the output directory cannot be created** (e.g. permission denied) instead of a raw `PermissionError` traceback. Exit code is 1.
+
+### Changed
+
+- CI runs unit tests against both Python 3.11 and 3.13 (matrix) so version-specific regressions fail in CI instead of at release time.
+- Dead-code removal: unused imports (`Optional`, `Path`, `PayloadCategory`, `make_msgid`, `SEED_WEIGHTS`) and unused locals (`passes` in `report.py`, `fields_by_employee` in `templates.py`).
+- README updated to document `evadex benchmark`, `evadex doctor`, `evadex report`, `list-techniques --verbose`, `--template lsh_corpus` (plus `--lsh-variants` / `--lsh-distortions`), `--language fr-CA`, and the `banking-statement` alias — sections that shipped in v3.19.0/v3.20.0 but were never added to the README.
+- CHANGELOG backfilled with a missing v3.19.0 entry.
+
+### Verified
+
+- 788 unit tests passing on Python 3.14 (local) and via the CI matrix on 3.11 + 3.13. pyflakes clean across `cli/commands/`, `generate/templates.py`, `generate/generator.py`, `lsh/`, and the archive/mbox writers.
+
+## [3.19.0] — 2026-04-22
+
+### Added
+
+- **Realistic document templates.** `evadex generate --template` now accepts `banking-statement` (alias for the existing `statement`), and existing templates (`statement`, `hr_record`, `invoice`, `source_code`, `config_file`, `medical_record`) were rewritten with production-grade content — authentic Canadian banking boilerplate, realistic employee records with salary/manager/tenure fields, invoice layouts with HST columns, source-code templates that embed real-shaped secrets (AWS keys, Stripe keys, DB passwords) alongside `TODO`/`FIXME` comments, and config files that randomly choose ENV/INI/YAML dialects.
+- **Canadian French template support** via `--language fr-CA`. Formatters for `statement`/`banking-statement`, `hr_record`, `invoice`, `medical_record`, `source_code`, and `config_file` switch to authentic Quebec French labels, business context (Desjardins, BNC, Caisse populaire), and regulatory boilerplate (Loi 25, LPRPDE).
+- **LSH corpus generator.** `evadex generate --template lsh_corpus --count N --lsh-variants K` produces `N × K` near-duplicate documents — one per (base, distortion rate) pair — plus a `manifest.json` that records each file's empirical Jaccard to its base. Custom distortion ladders via `--lsh-distortions 0.05,0.1,0.2,0.3`. Use for testing a scanner's LSH document-similarity engine.
+- **Siphon scan-results integration.** When Siphon is the adapter, evadex captures and archives the scanner's raw response JSON alongside each result so false positives can be triaged without re-running the scan.
+
+### Changed
+
+- Version bumped to 3.19.0.
+
 ## [3.20.0] — 2026-04-22
 
 ### Added

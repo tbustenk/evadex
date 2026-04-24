@@ -23,7 +23,6 @@ import socket
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 from urllib.error import URLError
 from urllib.request import urlopen
 
@@ -72,14 +71,25 @@ def _check_python() -> _Check:
 
 
 def _check_siphon() -> _Check:
+    # First check PATH — fastest and covers the system-install case.
     for name in ("siphon", "siphon.exe", "siphon-cli", "siphon-cli.exe"):
         found = shutil.which(name)
         if found:
             return _Check(True, f"siphon found at {found}")
+    # Fall back to the same resolver the bridge uses (env vars,
+    # evadex.yaml, well-known paths) so a developer build sitting in
+    # ./target/release/siphon isn't reported as missing.
+    try:
+        from evadex.bridge.server import _resolve_siphon_exe
+        resolved = _resolve_siphon_exe()
+    except Exception:
+        resolved = None
+    if resolved:
+        return _Check(True, f"siphon resolved at {resolved} (not on PATH)", warn=True)
     return _Check(
         False,
-        "siphon not found on PATH — install siphon-cli or set PATH so "
-        "evadex scan can call it",
+        "siphon not found on PATH or in any known install location — "
+        "install siphon-cli, set SIPHON_EXE, or pass --exe to `evadex scan`",
     )
 
 

@@ -11,7 +11,9 @@ from evadex.falsepos.generators import (
     generate_false_emails,
     generate_false_phones,
     generate_false_ramqs,
+    is_match_relevant,
     FALSEPOS_GENERATORS,
+    RELEVANT_SCANNER_LABELS,
 )
 from evadex.synthetic.validators import luhn_check, sin_valid, iban_valid
 
@@ -173,3 +175,53 @@ def test_all_generators_callable():
     for name, fn in FALSEPOS_GENERATORS.items():
         values = fn(5, seed=0)
         assert len(values) == 5, f"{name}: expected 5 values, got {len(values)}"
+
+
+# ── Category-relevance filter ────────────────────────────────────────────────
+
+def test_relevant_map_covers_generators():
+    """Every FP-generator category should have a relevance list. Missing
+    entries default to 'any match counts' — safe, but the whole point of
+    the map is to prevent that."""
+    missing = set(FALSEPOS_GENERATORS.keys()) - set(RELEVANT_SCANNER_LABELS.keys())
+    assert not missing, f"Generators without relevance entries: {missing}"
+
+
+def test_on_target_match_counts():
+    m = {"category": "North America - United States", "sub_category": "USA SSN"}
+    assert is_match_relevant("ssn", m) is True
+
+
+def test_off_target_match_does_not_count():
+    # Corporate-Classification "Do Not Distribute" fires on wrap-template
+    # prose ("please handle with care and do not distribute"). It must NOT
+    # be counted as an SSN false positive.
+    m = {"category": "Corporate Classification", "sub_category": "Do Not Distribute"}
+    assert is_match_relevant("ssn", m) is False
+
+
+def test_mrn_does_not_count_as_ramq_fp():
+    # Siphon's Medical Record Number rule fires on the RAMQ digit portion
+    # when French medical-context keywords are in the wrap. That is not a
+    # Quebec HC false positive.
+    m = {"category": "Medical Identifiers", "sub_category": "Medical Record Number"}
+    assert is_match_relevant("ca_ramq", m) is False
+
+
+def test_case_insensitive_match():
+    m = {"category": "Credit Card Numbers", "sub_category": "VISA"}
+    assert is_match_relevant("credit_card", m) is True
+
+
+def test_category_fallback_when_subcategory_missing():
+    # Some scanner matches only set 'category' (no sub_category). The
+    # filter should still accept them when the category is on the list.
+    m = {"category": "Credit Card Numbers"}
+    assert is_match_relevant("credit_card", m) is True
+
+
+def test_unknown_category_defaults_to_permissive():
+    # A category that has no entry in RELEVANT_SCANNER_LABELS falls back
+    # to accepting any match (preserves backwards compatibility).
+    m = {"category": "whatever", "sub_category": "whatever"}
+    assert is_match_relevant("not_a_real_evadex_category", m) is True

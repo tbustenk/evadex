@@ -478,7 +478,6 @@ def format_hr_record(
         lines.append(f"  {noise}")
     lines.append("")
 
-    fields_by_employee = max(1, len(entries) // 5 or 1)
     emp_counter = rng.randint(10_000, 99_000)
 
     for i, e in enumerate(entries):
@@ -512,7 +511,7 @@ def format_hr_record(
                 lines.append(f"  Date d'embauche:          {start.isoformat()}  ({start_days_ago // 365} ans, {(start_days_ago % 365) // 30} mois)")
                 lines.append(f"  Statut:                   {status}")
                 lines.append(f"  Rémunération annuelle:    {salary:,} $ CAD")
-                lines.append(f"  Dépôt direct — banque:    Institution 006 · Transit 12345")
+                lines.append("  Dépôt direct — banque:    Institution 006 · Transit 12345")
                 lines.append(f"  Dépôt direct — compte:    ****{rng.randint(1000, 9999)}")
                 lines.append("  Champs sensibles extraits ci-dessous:")
             else:
@@ -531,7 +530,7 @@ def format_hr_record(
                 lines.append(f"  Hire date:                {start.isoformat()}  ({start_days_ago // 365}y {(start_days_ago % 365) // 30}m tenure)")
                 lines.append(f"  Employment status:        {status}")
                 lines.append(f"  Base salary:              CAD ${salary:,.2f} / year")
-                lines.append(f"  Direct deposit institution: 003 · Transit: 00006")
+                lines.append("  Direct deposit institution: 003 · Transit: 00006")
                 lines.append(f"  Direct deposit account:   ****{rng.randint(1000, 9999)}")
                 lines.append("  Sensitive fields extracted below:")
 
@@ -796,8 +795,8 @@ def format_config_file(
                 "Application Configuration — CONFIDENTIAL",
                 "Configuration applicative — CONFIDENTIEL",
             ),
-            f"# " + C(f"Generated: {today.isoformat()}",
-                     f"Généré le: {today.isoformat()}"),
+            "# " + C(f"Generated: {today.isoformat()}",
+                    f"Généré le: {today.isoformat()}"),
             "# " + C(
                 "Loaded by boot.sh via `set -o allexport && . .env`",
                 "Chargée par boot.sh via `set -o allexport && . .env`",
@@ -837,7 +836,7 @@ def format_config_file(
             comment = f"  # evasion: {e.technique}" if e.technique else ""
             lines.append(f"{key}={e.variant_value}{comment}")
             if noise_level == "high":
-                lines.append(f"# " + C(
+                lines.append("# " + C(
                     f"Last rotated: {today.isoformat()}",
                     f"Dernière rotation: {today.isoformat()}",
                 ))
@@ -846,8 +845,8 @@ def format_config_file(
         lines += [
             "; " + C("Application Configuration — CONFIDENTIAL",
                     "Configuration applicative — CONFIDENTIEL"),
-            f"; " + C(f"Generated: {today.isoformat()}",
-                     f"Généré le: {today.isoformat()}"),
+            "; " + C(f"Generated: {today.isoformat()}",
+                    f"Généré le: {today.isoformat()}"),
             "",
             "[database]",
             "host = db-prod.bnc-secure.ca",
@@ -877,8 +876,8 @@ def format_config_file(
         lines += [
             "# " + C("Application Configuration — CONFIDENTIAL",
                     "Configuration applicative — CONFIDENTIEL"),
-            f"# " + C(f"Generated: {today.isoformat()}",
-                     f"Généré le: {today.isoformat()}"),
+            "# " + C(f"Generated: {today.isoformat()}",
+                    f"Généré le: {today.isoformat()}"),
             "",
             "spring:",
             "  application:",

@@ -239,6 +239,84 @@ _TEMPLATES: dict[PayloadCategory, list[str]] = {
         "KYC verification: Canadian passport {v}, issued by IRCC.",
         "Border crossing record: Canada passport {v} scanned at CBSA.",
     ],
+    # Floor-category templates below were added in v3.20.2 after a scan
+    # showed 12 categories stuck at ~3 % detection. Root cause: the
+    # fallback template ("Reference value: {v}.") contains no keywords,
+    # and Siphon's rules for these categories are context-gated. Each
+    # template here embeds at least one keyword from the matching entry
+    # in Siphon's context/keywords.rs so the scanner gate fires.
+    PayloadCategory.ACCOUNT_BALANCE: [
+        "Current account balance: {v} as of statement date.",
+        "Available balance: {v} CAD on record.",
+        "Closing balance for the period: {v}.",
+        "Ledger balance: {v} posted to primary chequing.",
+    ],
+    PayloadCategory.INCOME_AMOUNT: [
+        "Annual income: {v} gross per T4.",
+        "Monthly income reported: {v} (verified payroll).",
+        "Gross income: {v} for mortgage application.",
+        "Net income: {v} after deductions.",
+    ],
+    PayloadCategory.CARD_EXPIRY: [
+        "Card expiry: {v} on VISA ending 4242.",
+        "Card expires {v} — update payment method.",
+        "Exp date: {v} (valid thru).",
+        "Valid through: {v}.",
+    ],
+    PayloadCategory.DOB: [
+        "Date of birth: {v} per passport.",
+        "DOB {v} on file for KYC.",
+        "D.O.B: {v} (verified).",
+        "Born on {v}.",
+    ],
+    PayloadCategory.INSURANCE_POLICY: [
+        "Insurance policy number {v} expires June 2027.",
+        "Policy no: {v} (auto coverage).",
+        "Insurance policy {v} renewed.",
+        "Coverage number: {v} on file.",
+    ],
+    PayloadCategory.TELLER_ID: [
+        "Teller ID: {v} on shift close.",
+        "Teller number {v} processed the deposit.",
+        "Officer ID: {v} authorised transaction.",
+        "Banker ID {v} recorded in log.",
+    ],
+    PayloadCategory.CHIPS_UID: [
+        "CHIPS UID {v} for wire batch.",
+        "CHIPS transfer reference: {v}.",
+        "Wire reference: {v} cleared through CHIPS.",
+        "Interbank payment CHIPS {v} settled.",
+    ],
+    PayloadCategory.HSM_KEY: [
+        "HSM key {v} rotated on schedule.",
+        "Hardware security module key: {v}.",
+        "Master key {v} stored in HSM partition.",
+        "Key material: {v} for HSM rotation.",
+    ],
+    PayloadCategory.CA_POSTAL_CODE: [
+        "Home postal code: {v} (Toronto).",
+        "Canadian address postal code {v} confirmed.",
+        "Mailing address postal code: {v}.",
+        "Code postal: {v}.",
+    ],
+    PayloadCategory.CA_PR_CARD: [
+        "PR card: {v} expires 2030.",
+        "Permanent resident card number: {v}.",
+        "Permanent resident {v} — landed immigrant record.",
+        "Carte de résident permanent : {v}.",
+    ],
+    PayloadCategory.CA_NL_DRIVERS: [
+        "Newfoundland driver's licence: {v}.",
+        "NL DL {v} on file.",
+        "Labrador DL: {v} verified.",
+        "Newfoundland dl {v} confirmed.",
+    ],
+    PayloadCategory.CA_NS_DRIVERS: [
+        "Nova Scotia driver's licence: {v}.",
+        "NS DL {v} on file.",
+        "Nova Scotia dl: {v} verified.",
+        "Nova Scotia driver's licence {v} confirmed.",
+    ],
 }
 
 _TEMPLATES_FR_CA: dict[PayloadCategory, list[str]] = {

@@ -232,14 +232,33 @@ def _repo_root() -> Path:
     return Path(os.environ.get("EVADEX_BRIDGE_ROOT") or Path.cwd())
 
 
+def _sibling_dlpscan_rs_paths() -> tuple[str, ...]:
+    """Siblng-repo candidates (``../dlpscan-rs/target/release/siphon[.exe]``).
+
+    Computed from the evadex package location so developers with the
+    standard ``<workspace>/evadex`` + ``<workspace>/dlpscan-rs`` layout get
+    auto-discovery without a hard-coded user-specific path. Returns empty
+    when the package is installed from a wheel far from any source tree.
+    """
+    evadex_pkg = Path(__file__).resolve()
+    try:
+        workspace = evadex_pkg.parents[4]  # src/evadex/bridge/server.py -> repo's parent
+    except IndexError:
+        return ()
+    release_dir = workspace / "dlpscan-rs" / "target" / "release"
+    return (str(release_dir / "siphon"), str(release_dir / "siphon.exe"))
+
+
 # Paths checked (in order) when no explicit siphon exe is configured.
+# Relative paths are resolved against the current working directory.
+# Sibling-repo paths are computed at import time so the list remains
+# portable across developer machines (no hard-coded user home directories).
 _SIPHON_AUTO_DISCOVERY_PATHS: tuple[str, ...] = (
     "/usr/local/bin/siphon",
     "/usr/bin/siphon",
     "./target/release/siphon",
     "./target/release/siphon.exe",
-    "C:/Users/Ryzen5700/dlpscan-rs/target/release/siphon.exe",
-)
+) + _sibling_dlpscan_rs_paths()
 
 
 def _config_bridge_exe() -> Optional[str]:

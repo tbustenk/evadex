@@ -604,7 +604,14 @@ def generate(
         out_dir = Path(output)
         if out_dir.suffix:
             out_dir = out_dir.with_suffix("")
-        out_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            out_dir.mkdir(parents=True, exist_ok=True)
+        except (PermissionError, OSError) as exc:
+            err_console.print(
+                f"[red]Cannot create output directory '{out_dir}': "
+                f"{exc.strerror or exc}.[/red]"
+            )
+            sys.exit(1)
 
         base_ids = list(BASE_DOCUMENTS.keys())
         lsh_rng = _random.Random(seed if seed is not None else 0)

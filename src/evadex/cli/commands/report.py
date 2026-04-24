@@ -141,8 +141,20 @@ _JS = r"""
 
 
 def _load_json(path: Path) -> dict:
-    with open(path, encoding="utf-8") as fh:
-        return json.load(fh)
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
+    except json.JSONDecodeError as exc:
+        err_console.print(
+            f"[red]Cannot parse '{path}': invalid JSON "
+            f"({exc.msg} at line {exc.lineno}, column {exc.colno}).[/red]"
+        )
+        raise SystemExit(1) from None
+    except OSError as exc:
+        err_console.print(
+            f"[red]Cannot read '{path}': {exc.strerror}.[/red]"
+        )
+        raise SystemExit(1) from None
 
 
 def _is_scan_json(doc: dict) -> bool:
@@ -176,7 +188,6 @@ def _escape(s: object) -> str:
 def _executive_summary(scan: dict, falsepos: dict | None) -> str:
     meta = scan["meta"]
     total = meta["total"]
-    passes = meta["pass"]
     fails = meta["fail"]
     detection = meta.get("pass_rate", 0.0)
     scanner = meta.get("scanner", "unknown scanner")
@@ -383,22 +394,28 @@ def _recommendations(scan: dict, fp: dict | None) -> str:
             "bad" if weak_cats[0][1] < 20 else "warn",
         ))
 
-    # Technique-level
+    # Technique-level. Apply a minimum-sample floor so single-sample
+    # "100 % evasion" techniques (which are statistical noise under
+    # --evasion-mode weighted / random) don't get surfaced to a CISO as
+    # bypass patterns. 10 samples roughly matches the smallest category
+    # used by the morse_* techniques and excludes the 1-sample flukes.
+    _MIN_SAMPLES = 10
     by_tech = meta.get("summary_by_technique", {})
     evading_tech = []
     for tech, c in by_tech.items():
         total = c["pass"] + c["fail"] + c.get("error", 0)
-        if total and _pct(c["fail"], total) >= 75:
-            evading_tech.append((tech, _pct(c["fail"], total)))
-    evading_tech.sort(key=lambda t: -t[1])
+        if total >= _MIN_SAMPLES and _pct(c["fail"], total) >= 75:
+            evading_tech.append((tech, _pct(c["fail"], total), total))
+    # Sort by rate, then by sample count — ties broken by more-tested wins.
+    evading_tech.sort(key=lambda t: (-t[1], -t[2]))
     if evading_tech:
-        top = ", ".join(f"{t} ({p}%)" for t, p in evading_tech[:5])
+        top = ", ".join(f"{t} ({p}%, n={n})" for t, p, n in evading_tech[:5])
         recs.append((
             "Address the top evasion techniques",
-            f"These techniques bypassed detection ≥ 75 % of the time: "
-            f"{top}. Most are solved by NFKC-normalising input before "
-            f"regex matching and by decoding nested encodings two "
-            f"layers deep.",
+            f"These techniques bypassed detection ≥ 75 % of the time "
+            f"(minimum {_MIN_SAMPLES} samples): {top}. Most are solved "
+            f"by NFKC-normalising input before regex matching and by "
+            f"decoding nested encodings two layers deep.",
             "warn",
         ))
 
