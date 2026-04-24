@@ -1,6 +1,6 @@
 import asyncio
 import time
-from typing import AsyncGenerator, AsyncIterator, Callable, Optional
+from typing import AsyncGenerator, Callable, Optional
 from evadex.core.result import Payload, Variant, ScanResult
 from evadex.adapters.base import BaseAdapter
 from evadex.variants.base import BaseVariantGenerator
@@ -15,12 +15,17 @@ class Engine:
         concurrency: int = 20,
         strategies: list[str] | None = None,
         on_result: Optional[Callable[[ScanResult, int, int], None]] = None,
+        technique_filter: Optional[set[str]] = None,
     ):
         self.adapter = adapter
         self.generators = generators  # None = use all registered
         self.concurrency = concurrency
         self.strategies = strategies or ["text", "docx", "pdf", "xlsx"]
         self.on_result = on_result  # callback(result, completed, total)
+        # v3.21.0: optional whitelist of technique names. When set, any
+        # variant whose technique is not in the set is skipped — used by
+        # ``--fast`` to trim the variant pool to high-bypass techniques.
+        self.technique_filter = technique_filter
 
     def run(self, payloads: list[Payload]) -> list[ScanResult]:
         return asyncio.run(self._run_async_collect(payloads))
@@ -74,6 +79,8 @@ class Engine:
                         if payload.category not in gen.applicable_categories:
                             continue
                     for variant in gen.generate(payload.value):
+                        if self.technique_filter is not None and variant.technique not in self.technique_filter:
+                            continue
                         for strategy in self.strategies:
                             task = asyncio.create_task(_submit_one(payload, variant, strategy))
                             pending.add(task)

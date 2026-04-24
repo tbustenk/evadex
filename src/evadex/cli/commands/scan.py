@@ -3,13 +3,17 @@ import json
 import sys
 import time
 from collections import defaultdict
+from pathlib import Path
 import click
 from click.core import ParameterSource
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, BarColumn, TaskProgressColumn, TextColumn, TimeElapsedColumn
+from rich.progress import (
+    Progress, SpinnerColumn, BarColumn, TaskProgressColumn,
+    TextColumn, TimeElapsedColumn, TimeRemainingColumn,
+)
 from evadex.cli.commands.compare import build_comparison
 from evadex.config import load_config, find_config
-from evadex.core.registry import load_builtins, get_adapter, get_generator
+from evadex.core.registry import load_builtins, get_adapter, get_generator, all_generators
 from evadex.core.engine import Engine
 from evadex.core.result import Payload, PayloadCategory, SeverityLevel
 from evadex.payloads.builtins import get_payloads, detect_category, HEURISTIC_CATEGORIES
@@ -168,6 +172,70 @@ def _key_findings(results, err_console) -> None:
     for f in findings:
         err_console.print(f"    • {f}")
     err_console.print()
+
+
+def _print_confidence_distribution(results, err_console) -> None:
+    """Render an ASCII histogram of confidence scores for detected matches."""
+    buckets: list[tuple[str, float, float]] = [
+        ("0.9-1.0", 0.9, 1.01),
+        ("0.7-0.9", 0.7, 0.9),
+        ("0.5-0.7", 0.5, 0.7),
+        ("0.3-0.5", 0.3, 0.5),
+        ("0.0-0.3", 0.0, 0.3),
+    ]
+    counts = {label: 0 for label, _lo, _hi in buckets}
+    total = 0
+    for r in results:
+        if not r.detected or r.confidence is None:
+            continue
+        try:
+            c = float(r.confidence)
+        except (TypeError, ValueError):
+            continue
+        total += 1
+        for label, lo, hi in buckets:
+            if lo <= c < hi:
+                counts[label] += 1
+                break
+
+    if total == 0:
+        return
+
+    err_console.print("  [bold]Confidence distribution (detected matches)[/bold]")
+    max_bar = 32
+    for label, _lo, _hi in buckets:
+        n = counts[label]
+        pct = round(n / total * 100, 1) if total else 0.0
+        bar_len = int(round(n / total * max_bar)) if total else 0
+        bar = "█" * bar_len
+        err_console.print(f"    {label}  [blue]{bar:<{max_bar}}[/blue]  {pct:>5.1f}%  ({n})")
+    err_console.print()
+
+
+def _find_last_baseline(scanner_label: str) -> str | None:
+    """Return the most-recent archived scan path matching *scanner_label*.
+
+    Used for the auto baseline comparison so the operator gets delta output
+    without having to pass --compare-baseline manually. Looks in
+    ``results/scans/`` and matches files named ``scan_<ts>_<label>.json``.
+    The current run's archive is written before this runs so we skip the
+    newest file (it belongs to the in-progress scan).
+    """
+    try:
+        scans_dir = Path("results") / "scans"
+        if not scans_dir.exists():
+            return None
+        from evadex.archive import _safe_label as _sl
+        label_sanitized = _sl(scanner_label)
+        pattern = f"scan_*_{label_sanitized}.json"
+        candidates = sorted(scans_dir.glob(pattern))
+        if len(candidates) < 2:
+            return None
+        # The freshest file is the run we just archived for this scan —
+        # the baseline should be the one before it.
+        return str(candidates[-2])
+    except Exception:
+        return None
 
 
 def _print_summary(results, err_console):
@@ -329,6 +397,16 @@ def _print_summary(results, err_console):
                    "{\"progress\": float, \"tested\": int, \"total\": int, "
                    "\"detected\": int, \"elapsed_s\": float}. Implies "
                    "suppression of the Rich TTY progress bar.")
+@click.option("--fast", "fast_mode", is_flag=True, default=False,
+              help="Fast scan: restrict to the top 5 highest-bypass techniques "
+                   "per generator family and drop techniques with estimated "
+                   "bypass <10%. Typically trims the variant pool by ~80% with "
+                   "most of the detection signal retained. Seed weights are "
+                   "blended with audit history when --audit-log is set.")
+@click.option("--verbose", "-v", "verbose", is_flag=True, default=False,
+              help="Live per-variant output: each variant result prints to "
+                   "stderr as it completes (✓ detected / ✗ evaded). Suppresses "
+                   "the progress bar since per-variant lines scroll past it.")
 def scan(
     ctx,
     config_path, tool, input_value, fmt, output, url, api_key, timeout,
@@ -338,7 +416,7 @@ def scan(
     save_baseline, compare_baseline, audit_log, feedback_report,
     require_context, wrap_context, no_wrap_context,
     c2_url, c2_key, save_as,
-    min_confidence, progress_json,
+    min_confidence, progress_json, fast_mode, verbose,
 ):
     """Run DLP evasion tests."""
     load_builtins()
@@ -612,20 +690,69 @@ def scan(
                 f"few normal scans first.[/yellow]"
             )
 
+    # ── --fast: restrict technique pool ──────────────────────────────────────
+    # Resolves to a concrete technique whitelist now so we can print a
+    # preview ("trimmed X → Y techniques") before the first subprocess spawns.
+    technique_filter: set[str] | None = None
+    if fast_mode:
+        from evadex.feedback.fast_mode import pick_fast_techniques
+        pool = generators if generators is not None else all_generators()
+        _fast_audit_log = audit_log or "results/audit.jsonl"
+        technique_filter, _fast_diag = pick_fast_techniques(
+            pool, audit_log=_fast_audit_log,
+        )
+        if not technique_filter:
+            err_console.print(
+                "[yellow]--fast: no techniques met the bypass threshold — "
+                "falling back to the full pool.[/yellow]"
+            )
+            technique_filter = None
+        else:
+            hist_note = "with history blend" if _fast_diag["has_history"] else "seeds only"
+            err_console.print(
+                f"[dim]--fast: kept {_fast_diag['kept']} technique(s), "
+                f"dropped {_fast_diag['dropped']} ({hist_note}).[/dim]"
+            )
+            # Rough time-saved estimate: proportional to how much of the
+            # variant enumerator we trimmed. Subprocess startup is the
+            # dominant cost so this linear approximation is close enough.
+            total_enum = max(1, _fast_diag["total_enumerated"])
+            fraction_kept = _fast_diag["kept"] / total_enum
+            reduction = round((1 - fraction_kept) * 100, 1)
+            err_console.print(
+                f"[dim]--fast: estimated variant-pool reduction ≈ {reduction}% "
+                f"(lower wall-clock scales with this).[/dim]"
+            )
+
     # Run engine with live progress bar on stderr
     if tool in ("dlpscan-cli", "siphon-cli"):
         err_console.print(f"[dim]Running evadex scan against [bold]{tool}[/bold]...[/dim]")
     else:
         err_console.print(f"[dim]Running evadex scan against [bold]{tool}[/bold] at {url}...[/dim]")
+
+    # Header banner matches the user-facing UX: "scanning <tier> tier ·
+    # weighted mode · concurrency N". When --verbose is on the progress
+    # bar is suppressed because per-variant lines would scroll past it.
+    _effective_tier_name = tier or "banking" if not input_value and not categories else "custom"
+    _effective_mode = "fast" if fast_mode else (evasion_mode or "exhaustive").lower()
+    err_console.print(
+        f"[dim]scanning [bold]{_effective_tier_name}[/bold] tier · "
+        f"[bold]{_effective_mode}[/bold] mode · concurrency {concurrency}[/dim]"
+    )
+
+    _show_progress_bar = not progress_json and not verbose
     progress = Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         BarColumn(),
         TaskProgressColumn(),
+        TextColumn("· [green]detected {task.fields[detected]}[/green]"),
+        TextColumn("· [red]evaded {task.fields[evaded]}[/red]"),
         TimeElapsedColumn(),
+        TimeRemainingColumn(),
         console=err_console,
         transient=True,
-        disable=progress_json,
+        disable=not _show_progress_bar,
     )
     progress_task_id = None
 
@@ -636,6 +763,7 @@ def scan(
         "start":       time.time(),
         "last_emit":   0.0,
         "detected":    0,
+        "evaded":      0,
     }
     _min_emit_interval_s = 0.2
 
@@ -658,18 +786,56 @@ def scan(
         except Exception:
             pass
 
+    def _verbose_print(result) -> None:
+        """One-line per-variant result for --verbose mode."""
+        sev = getattr(getattr(result, "severity", None), "value", None)
+        cat = result.payload.category.value
+        tech = result.variant.technique or result.variant.generator
+        # Truncate the variant value so very long transforms (base64 payloads,
+        # nested encodings) don't blow out one line.
+        val = result.variant.value.replace("\n", " ").replace("\r", " ")
+        if len(val) > 60:
+            val = val[:57] + "..."
+        if sev == "pass":
+            conf = (
+                f" ({result.confidence:.2f})"
+                if result.confidence is not None else ""
+            )
+            err_console.print(
+                f"  [green]✓[/green] [dim]{cat}[/dim] · {tech} · "
+                f"[dim]{val}[/dim] · [green]detected[/green]{conf}"
+            )
+        elif sev == "fail":
+            err_console.print(
+                f"  [red]✗[/red] [dim]{cat}[/dim] · {tech} · "
+                f"[dim]{val}[/dim] · [red]evaded[/red]"
+            )
+        else:
+            err_console.print(
+                f"  [yellow]![/yellow] [dim]{cat}[/dim] · {tech} · "
+                f"[yellow]error[/yellow]"
+            )
+
     def on_result(result, completed, total):
-        # Tally detections for the progress JSON stream. A "pass"
-        # severity means the scanner caught the variant.
-        if getattr(getattr(result, "severity", None), "value", None) == "pass":
+        sev = getattr(getattr(result, "severity", None), "value", None)
+        if sev == "pass":
             _progress_state["detected"] += 1
-        if progress_task_id is not None and not progress_json:
-            label = result.payload.label
+        elif sev == "fail":
+            _progress_state["evaded"] += 1
+
+        if verbose:
+            _verbose_print(result)
+
+        if progress_task_id is not None and _show_progress_bar:
+            cat = result.payload.category.value
+            tech = result.variant.technique or result.variant.generator
             progress.update(
                 progress_task_id,
                 completed=completed,
                 total=total,
-                description=f"[dim]{label[:35]}[/dim]",
+                description=f"[dim]{cat} · {tech[:28]}[/dim]",
+                detected=_progress_state["detected"],
+                evaded=_progress_state["evaded"],
             )
         if progress_json:
             _emit_progress(completed, total)
@@ -680,10 +846,16 @@ def scan(
         concurrency=concurrency,
         strategies=active_strategies,
         on_result=on_result,
+        technique_filter=technique_filter,
     )
 
     with progress:
-        progress_task_id = progress.add_task("[dim]Starting...[/dim]", total=None)
+        progress_task_id = progress.add_task(
+            "[dim]Starting...[/dim]",
+            total=None,
+            detected=0,
+            evaded=0,
+        )
         results = engine.run(payloads)
         if progress_json:
             # Final tick so the bridge sees 100% regardless of throttling.
@@ -693,9 +865,47 @@ def scan(
     # Summary
     total, passes, fails, errors, pass_rate = _print_summary(results, err_console)
 
+    # v3.21.0: confidence-score distribution for detected matches. Skip the
+    # section entirely when the adapter never surfaces a confidence score.
+    _print_confidence_distribution(results, err_console)
+
+    # Total variants/second rate — useful for the operator to sanity-check
+    # whether subprocess overhead is dominating and whether --fast is worth it.
+    _elapsed = max(0.001, time.time() - _progress_state["start"])
+    _rate = round(total / _elapsed, 1) if total else 0.0
+    err_console.print(
+        f"  [dim]Throughput: {total} variants in {_elapsed:.1f}s "
+        f"({_rate} variants/sec at concurrency {concurrency}).[/dim]"
+    )
+    err_console.print()
+
     # Report
     reporter = HtmlReporter() if fmt == "html" else JsonReporter(scanner_label=scanner_label)
     rendered = reporter.render(results)
+
+    # ── Auto baseline delta (printed to stderr BEFORE stdout write) ─────────
+    # When no explicit --compare-baseline was supplied, look for the
+    # most-recent archived scan with the same --scanner-label in
+    # results/scans/ and surface the pp delta. Silent no-op when no
+    # prior run exists or the lookup fails. Printed here (pre-archive)
+    # so the auto-baseline is measured against the *previous* scan, not
+    # the one we're about to write.
+    if not compare_baseline and not save_baseline and fmt == "json":
+        _auto_baseline = _find_last_baseline(scanner_label)
+        if _auto_baseline:
+            try:
+                with open(_auto_baseline, encoding="utf-8") as f:
+                    _auto_data = json.load(f)
+                _prev_rate = float(_auto_data.get("meta", {}).get("pass_rate", 0.0))
+                _delta = round(pass_rate - _prev_rate, 1)
+                _color = "green" if _delta >= 0 else "red"
+                _arrow = "▲" if _delta > 0 else ("▼" if _delta < 0 else "◇")
+                err_console.print(
+                    f"[{_color}]Detection rate: {pass_rate}% "
+                    f"({_arrow} {_delta:+.1f}pp vs last run)[/{_color}]"
+                )
+            except (OSError, ValueError, KeyError, TypeError):
+                pass
 
     # ── Archive: save timestamped copy and append to audit.jsonl ─────────────
     if fmt == "json":
