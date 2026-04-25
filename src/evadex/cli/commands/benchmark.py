@@ -260,13 +260,16 @@ def benchmark(
     skip_scan: bool,
     emit_json: bool,
 ) -> None:
-    """Measure evadex generate + scan performance on this machine.
+    """Measure evadex generate and scan performance on this machine.
+
+    Useful for sizing concurrency and count limits before a production run.
+    Reports average time, stddev, and peak memory per format.
 
     \b
     Examples:
-      evadex benchmark --tier banking --runs 3
-      evadex benchmark --formats csv,xlsx,docx,pdf --runs 5
-      evadex benchmark --skip-scan --json > bench.json
+      evadex benchmark                              # banking tier, 3 runs
+      evadex benchmark --formats csv,xlsx,docx,pdf  # all common formats
+      evadex benchmark --skip-scan                  # generate performance only
     """
     fmt_list = [f.strip().lower() for f in formats.split(",") if f.strip()]
     results: dict[str, _RunStats] = {f: _RunStats(label=f) for f in fmt_list}

@@ -61,17 +61,14 @@ def techniques(
 ) -> None:
     """Show per-technique scanner-detection success rates from history.
 
-    "Success" here is from the *scanner's* perspective — the fraction of
-    variants the scanner caught. Lower numbers are better evasions and
-    are the techniques the ``--evasion-mode adversarial`` setting will
-    favour.
+    Lower rates mean better evasion — the techniques evadex scan missed most.
+    Use to identify the weakest points in your scanner's detection coverage.
 
     \b
     Examples:
-      evadex techniques                           # all techniques
-      evadex techniques --top 10                  # top 10 by latest success
-      evadex techniques --category credit_card    # name-substring filter
-      evadex techniques --min-runs 3              # require 3+ data points
+      evadex techniques                           # all techniques, from history
+      evadex techniques --top 10                  # top 10 most-evading techniques
+      evadex techniques --category credit_card    # filter by category name
     """
     if not has_history(audit_log):
         err_console.print(

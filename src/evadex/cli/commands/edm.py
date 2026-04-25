@@ -406,17 +406,15 @@ def edm(
     c2_key: Optional[str],
     dry_run: bool,
 ) -> None:
-    """Register known values with Siphon's EDM and verify detection.
+    """Register known values with Siphon's EDM engine and verify detection.
+
+    Siphon-specific. Tests that registered values are caught, then probes
+    evasion variants (case, delimiters, homoglyphs) against the EDM index.
 
     \b
     Examples:
-      # Register + verify + evasion probe against a local Siphon
       evadex edm --url http://localhost:8000 --api-key $SIPHON_KEY
-
-      # Just credit_card + SIN
       evadex edm --category credit_card --category sin
-
-      # Generate a corpus file for out-of-band bulk registration
       evadex edm --generate-corpus --output edm_corpus.json
       evadex edm --generate-corpus --corpus-format csv --count 1000 \\
         --output edm_corpus.csv

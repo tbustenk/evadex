@@ -143,32 +143,17 @@ def falsepos(
     c2_url: Optional[str],
     c2_key: Optional[str],
 ) -> None:
-    """Measure scanner false positive rate.
+    """Test how often the scanner incorrectly flags non-sensitive data.
 
-    Generates values that look like sensitive data but are provably invalid —
-    Luhn-failing credit card numbers, SSNs with reserved area codes, SINs with
-    wrong checksums, etc. — then submits them to the scanner.
-
-    Any value flagged by the scanner is a false positive.
+    Generates structurally plausible but provably invalid values — Luhn-failing
+    credit cards, SSNs with reserved area codes — then submits them to the
+    scanner. Any match is a false positive.
 
     \b
     Examples:
-      # Single category
-      evadex falsepos --tool dlpscan-cli --category credit_card --count 100
-
-      # All categories
-      evadex falsepos --tool dlpscan-cli --count 100
-
-      # Save JSON report
-      evadex falsepos --tool dlpscan-cli --count 100 --format json -o fp_report.json
-
-      # With require-context (dlpscan-rs only — reduces FP rate significantly)
-      evadex falsepos --tool dlpscan-cli --exe ./dlpscan --cmd-style rust \\
-        --require-context --format json -o fp_require_context.json
-
-      # Most realistic: invalid values in keyword context, with require-context
-      evadex falsepos --tool dlpscan-cli --exe ./dlpscan --cmd-style rust \\
-        --wrap-context --require-context --format json -o fp_full_context.json
+      evadex falsepos                     # auto-detect scanner, 100 test values
+      evadex falsepos --count 500         # more thorough test
+      evadex falsepos --wrap-context      # test with surrounding keywords
     """
     load_builtins()
 

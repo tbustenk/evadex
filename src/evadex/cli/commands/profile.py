@@ -48,7 +48,19 @@ out_console = Console()
 
 @click.group("profile")
 def profile() -> None:
-    """Manage named, saved evadex scan configurations."""
+    """Manage named, saved evadex scan configurations.
+
+    \b
+    Save a scan setup once, re-run it any time with a short name.
+    Profiles are stored in ~/.evadex/profiles/.
+
+    \b
+    Examples:
+      evadex profile create banking-weekly   # interactive wizard
+      evadex profile list                    # show all profiles
+      evadex profile run banking-weekly      # execute a saved profile
+      evadex profile show banking-weekly     # inspect a profile's settings
+    """
 
 
 # ── create ─────────────────────────────────────────────────────────────────

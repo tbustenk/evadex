@@ -88,13 +88,15 @@ def history(
 ) -> None:
     """Show history of past scan and false positive runs.
 
+    Reads the audit log written by --audit-log in evadex scan/falsepos.
+    The most common use case is tracking detection rate changes over time.
+
     \b
     Examples:
-      evadex history
-      evadex history --last 10
-      evadex history --type scan
-      evadex history --type falsepos
-      evadex history --push-c2 --c2-url http://localhost:9090 --c2-key mykey
+      evadex history                    # last 20 entries
+      evadex history --last 10          # most recent 10
+      evadex history --type scan        # scan runs only
+      evadex history --type falsepos    # false positive runs only
     """
     audit_path = Path(results_dir) / "audit.jsonl"
     entries = _load_audit(audit_path)

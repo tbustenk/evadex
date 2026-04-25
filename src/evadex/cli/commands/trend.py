@@ -162,11 +162,14 @@ def trend(
 ) -> None:
     """Show an ASCII trend chart of detection or false positive rate over time.
 
+    Reads audit log entries produced by --audit-log in scan/falsepos runs.
+    Use alongside evadex history to spot regressions across scanner releases.
+
     \b
     Examples:
-      evadex trend
-      evadex trend --type falsepos
-      evadex trend --last 20 --scanner-label dlpscan-rs-2.0.0
+      evadex trend                                    # detection rate chart
+      evadex trend --type falsepos                    # false positive rate chart
+      evadex trend --last 20 --scanner-label prod     # filter by scanner label
     """
     audit_path = Path(results_dir) / "audit.jsonl"
     entries = _load_audit(audit_path)
