@@ -545,17 +545,17 @@ window.__evadexRawJson = "{raw_b64}";
     help="Output HTML file path.",
 )
 def report(inputs: tuple[str, ...], output: str) -> None:
-    """Generate a standalone HTML report from scan (and optional falsepos) JSON.
+    """Generate a professional HTML report from scan results.
+
+    \b
+    The resulting HTML is self-contained — no external CSS, no external
+    JS — and suitable for emailing to a CISO or compliance team.
 
     \b
     Examples:
-      evadex report results/scans/siphon_latest.json --output siphon_report.html
-      evadex report results/scans/siphon_latest.json \\
-                    results/falsepos/siphon_latest_fp.json \\
-                    --output full_report.html
-
-    The resulting HTML is self-contained — no external CSS, no external
-    JS — and suitable for emailing to a CISO or compliance team.
+      evadex report results/scan.json                    # scan results only
+      evadex report results/scan.json results/fp.json    # include false positive data
+      evadex report results/scan.json --output my_report.html
     """
     scan: dict | None = None
     falsepos: dict | None = None

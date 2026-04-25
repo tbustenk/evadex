@@ -243,12 +243,15 @@ def _run_checks() -> list[_Check]:
     help="Emit the check results as JSON.",
 )
 def doctor(emit_json: bool) -> None:
-    """Check the evadex environment and report issues.
+    """Check the evadex environment for issues before running scans.
+
+    Verifies Python version, evadex installation, scanner availability,
+    and optional dependencies. Run this first if evadex scan fails.
 
     \b
     Examples:
-      evadex doctor
-      evadex doctor --json > evadex-env.json
+      evadex doctor                      # full environment check
+      evadex doctor --json               # machine-readable output
     """
     checks = _run_checks()
 

@@ -198,23 +198,17 @@ def lsh(
     timeout: float,
     output: Optional[str],
 ) -> None:
-    """Test Siphon's LSH document-similarity detection.
+    """Test Siphon's document-similarity (LSH) detection engine.
 
-    Generates a base document, registers it with Siphon, and submits
-    six near-duplicate variants at decreasing similarity levels
-    (~95%, 90%, 85%, 80%, 70%, 50% Jaccard). Reports the minimum
-    similarity Siphon can reliably detect.
+    Registers a base document then submits near-duplicate variants at
+    decreasing Jaccard similarity. Reports the minimum similarity threshold
+    Siphon reliably detects. Siphon-specific.
 
     \b
     Examples:
-      # Quick check against a Siphon binary (no API server required)
-      evadex lsh --exe ./siphon --similarity 0.5
-
-      # Against a running Siphon API server
-      evadex lsh --url http://localhost:8080 --api-key $SIPHON_KEY
-
-      # Test against a different built-in document
-      evadex lsh --document incident_report --similarity 0.7
+      evadex lsh --exe ./siphon                      # via CLI binary
+      evadex lsh --url http://localhost:8080 --api-key $SIPHON_KEY  # via API
+      evadex lsh --document incident_report          # different base document
     """
     if transport is None:
         transport = "http" if url else "cli"

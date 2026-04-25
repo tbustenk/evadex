@@ -290,7 +290,7 @@ def _print_summary(results, err_console):
     return total, passes, fails, errors, pass_rate
 
 
-@click.command()
+@click.command("scan")
 @click.pass_context
 @click.option("--config", "config_path", default=None, metavar="PATH",
               help="Path to evadex.yaml config file. Config values are defaults; "
@@ -418,7 +418,19 @@ def scan(
     c2_url, c2_key, save_as,
     min_confidence, progress_json, fast_mode, verbose,
 ):
-    """Run DLP evasion tests."""
+    """Test a DLP scanner against known sensitive data patterns.
+
+    \b
+    Auto-detects scanner from PATH or evadex.yaml. Defaults to banking tier.
+    Use --fast for a ~4-minute quick check; omit for comprehensive testing.
+
+    \b
+    Examples:
+      evadex scan                                    # auto-detect scanner, banking tier
+      evadex scan --tier core                        # broader coverage, ~10 min
+      evadex scan --fast                             # top techniques only, ~4 min
+      evadex scan --exe /path/to/siphon --tier full  # comprehensive test
+    """
     load_builtins()
 
     # Early guard: --baseline and --compare-baseline must not point to the same file.
@@ -607,6 +619,25 @@ def scan(
         err_console.print("[red]No payloads to test.[/red]")
         sys.exit(1)
 
+    # Auto-detect scanner exe from PATH if none configured
+    if tool in ("dlpscan-cli", "siphon-cli") and not executable:
+        import shutil as _shutil
+        _sfx = ".exe" if sys.platform == "win32" else ""
+        _names = (
+            ["siphon", f"siphon{_sfx}"]
+            if tool == "siphon-cli"
+            else ["dlpscan", f"dlpscan{_sfx}", "dlpscan-rs"]
+        )
+        for _n in _names:
+            _p = _shutil.which(_n)
+            if _p:
+                executable = _p
+                break
+        if not executable and tool == "siphon-cli":
+            _cargo = Path.home() / ".cargo" / "bin" / f"siphon{_sfx}"
+            if _cargo.exists():
+                executable = str(_cargo)
+
     # Resolve adapter
     config = {"base_url": url, "api_key": api_key, "timeout": timeout}
     if executable:
@@ -632,7 +663,8 @@ def scan(
             _exe_name = executable or _default_exe
             hint = (
                 f" Is [bold]{_exe_name}[/bold] installed and on PATH? "
-                f"Use --exe to specify a different path."
+                f"Use --exe to specify a path, or run "
+                f"[bold]evadex quickstart[/bold] to set one up."
             )
         else:
             hint = f" Is the scanner reachable at {url}?"

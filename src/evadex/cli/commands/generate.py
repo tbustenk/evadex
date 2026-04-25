@@ -169,12 +169,14 @@ def _parse_key_float_pair(value: str) -> tuple[str, float]:
 )
 @click.option(
     "--output",
-    required=True,
+    required=False,
+    default=None,
     type=click.Path(),
     metavar="PATH",
     help=(
         "Output file path.  With --format, must match the format extension.  "
-        "With --formats, treated as a stem — extensions are appended."
+        "With --formats, treated as a stem — extensions are appended.  "
+        "Omit to enter interactive mode."
     ),
 )
 @click.option(
@@ -349,7 +351,7 @@ def generate(
     techniques: tuple[str, ...],
     random_mode: bool,
     seed: int | None,
-    output: str,
+    output: str | None,
     include_heuristic: bool,
     language: str,
     count_per_category: tuple[str, ...],
@@ -366,22 +368,42 @@ def generate(
     lsh_distortions: str | None,
     barcode_type: str,
 ) -> None:
-    """Generate test documents filled with synthetic sensitive data for DLP testing.
+    """Generate realistic test files containing synthetic sensitive data.
 
+    \b
     Values are embedded in realistic business sentences, tables, and paragraphs.
-    Evasion variants apply the same obfuscation techniques used by evadex scan.
+    Run with no flags for interactive mode.
 
     \b
     Examples:
-      evadex generate --format csv  --category credit_card --count 200 --output cards.csv
-      evadex generate --format xlsx --category ssn --category iban --count 50  --output test.xlsx
-      evadex generate --formats xlsx,docx,pdf --tier banking --count 100 --output reports/banking
-      evadex generate --format docx --evasion-rate 0.6 --technique homoglyph_substitution --output doc.docx
+      evadex generate                                           # interactive mode
+      evadex generate --format xlsx --count 100                 # 100-record spreadsheet
+      evadex generate --format docx --template banking-statement # bank statement
+      evadex generate --formats xlsx,docx,pdf --tier banking    # all formats at once
       evadex generate --format txt  --random --count 100 --seed 42 --output test.txt
       evadex generate --format json --tier banking --total 1000 --output export.json
       evadex generate --format xlsx --tier banking --evasion-rate 0.5 --technique-group unicode_encoding --output test.xlsx
       evadex generate --format docx --tier banking --template statement --count 100 --output stmt.docx
     """
+    # ── Interactive mode when invoked with no format/output ───────────────────
+    if not fmt and not batch_formats and output is None:
+        err_console.print("[bold]evadex generate[/bold] — interactive mode")
+        err_console.print()
+        _fmt_raw = click.prompt(
+            "  What format? (xlsx/docx/pdf/csv)",
+            default="xlsx",
+        ).strip().lower()
+        fmt = _fmt_raw if _fmt_raw in _ALL_FORMATS else "xlsx"
+        _count_raw = click.prompt("  How many records?", default="100")
+        try:
+            count = int(_count_raw)
+        except ValueError:
+            count = 100
+        _ext = _FORMAT_EXTENSION.get(fmt, fmt)
+        _default_out = f"test_data.{_ext}"
+        output = click.prompt("  Output file?", default=_default_out).strip()
+        err_console.print()
+
     # ── Validate format args ───────────────────────────────────────────────────
     if not fmt and not batch_formats:
         raise click.UsageError("Provide --format or --formats.")
@@ -440,6 +462,10 @@ def generate(
             parsed_evasion_per_category[k] = v
 
     # ── Validate output path ───────────────────────────────────────────────────
+    if output is None:
+        raise click.UsageError(
+            "Provide --output PATH, or run with no flags for interactive mode."
+        )
     out = Path(output)
     if not out.parent.exists():
         err_console.print(

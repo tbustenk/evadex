@@ -248,25 +248,16 @@ def entropy(
     fmt: str,
     output: Optional[str],
 ) -> None:
-    """Test Siphon's entropy scan modes (gated, assignment, all, off).
+    """Test Siphon's entropy detection modes (gated, assignment, all, off).
 
-    Submits each entropy payload in three contexts — bare, gated (next to a
-    keyword), and in a KEY=VALUE assignment — and reports which mode catches
-    which category. Pass --mode off to confirm that no entropy detection
-    occurs when the scanner has entropy disabled. Also runs the
-    ``entropy_evasion`` generator so you can see which evasion techniques
-    defeat entropy-based detection.
+    Submits high-entropy tokens in three contexts and reports which modes catch
+    which categories. Siphon-specific — requires a running Siphon instance.
 
     \b
     Examples:
-      # Sanity-check all three modes at once
-      evadex entropy --tool siphon --url http://localhost:8000 --api-key $EVADEX_API_KEY
-
-      # When Siphon is configured with entropy_scan=gated
-      evadex entropy --tool siphon --mode gated
-
-      # JSON report
-      evadex entropy --tool siphon -o entropy_report.json -f json
+      evadex entropy --url http://localhost:8000 --api-key $SIPHON_KEY
+      evadex entropy --mode gated                    # test gated mode only
+      evadex entropy -o entropy_report.json -f json  # save JSON report
     """
     load_builtins()
 
