@@ -244,15 +244,6 @@ def _dedupe_scans(scans: list[dict]) -> list[dict]:
     return deduped
 
 
-def _fp_match_key(entry: Optional[dict]) -> tuple[str, str]:
-    if not entry:
-        return ("", "")
-    return (
-        _safe_str(entry.get("scanner_label")),
-        _safe_str(entry.get("tool")),
-    )
-
-
 def _matching_fp_entries(
     falsepos: list[dict], latest_scan: Optional[dict],
 ) -> list[dict]:
