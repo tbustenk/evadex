@@ -82,6 +82,27 @@ def append_audit_entry(
         pass
 
 
+def read_audit_entries(audit_path: Path) -> list[dict]:
+    """Return all valid audit entries from *audit_path*, oldest first.
+
+    Missing or unreadable files return an empty list. Malformed JSON lines
+    are skipped silently — a corrupt entry must not prevent the caller from
+    reading the rest of the log.
+    """
+    if not audit_path.exists():
+        return []
+    entries: list[dict] = []
+    for line in audit_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            entries.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return entries
+
+
 def _operator() -> str:
     try:
         return getpass.getuser()

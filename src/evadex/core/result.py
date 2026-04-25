@@ -1180,7 +1180,7 @@ class Payload:
     category: PayloadCategory
     label: str
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             "value": self.value,
             "category": self.category.value,
@@ -1197,7 +1197,7 @@ class Variant:
     transform_name: str     # human-readable e.g. "Zero-width space between digits"
     strategy: str = "text"  # "text", "docx", "pdf", "xlsx"
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             "value": self.value,
             "generator": self.generator,
@@ -1230,7 +1230,7 @@ class ScanResult:
             return SeverityLevel.ERROR
         return SeverityLevel.PASS if self.detected else SeverityLevel.FAIL
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         out = {
             "payload": self.payload.to_dict(),
             "variant": self.variant.to_dict(),
