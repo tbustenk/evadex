@@ -553,8 +553,22 @@ def create_app() -> FastAPI:
     # return the current record without re-signalling.
     @app.delete("/v1/evadex/run/{run_id}", dependencies=[Depends(_require_api_key)])
     async def cancel(run_id: str) -> dict:
-        if runs_mod.get_run(run_id) is None:
+        rec = runs_mod.get_run(run_id)
+        if rec is None:
             raise HTTPException(status_code=404, detail=f"unknown run_id {run_id!r}")
+        # 409 for runs that are already terminal — cancel is a no-op and we
+        # tell the caller explicitly rather than silently returning 200.
+        if rec.get("status") in (
+            runs_mod.STATUS_COMPLETED, runs_mod.STATUS_FAILED, runs_mod.STATUS_CANCELLED
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": "run is already in a terminal state",
+                    "status": rec["status"],
+                    "run_id": run_id,
+                },
+            )
         result = await runs_mod.cancel_run(run_id)
         # Strip private fields the way get_run() does — cancel_run
         # returns the raw record which still has _proc etc.
@@ -788,15 +802,6 @@ def create_app() -> FastAPI:
                 ts_part = run_id.replace("R-", "")  # Extract timestamp part
                 for pattern in [f"*{ts_part}*.json", "scan_*.json", "*scan*.json"]:
                     scan_files.extend(scan_dir.glob(pattern))
-
-        if not scan_files:
-            # Try to find the most recent scan file as fallback
-            for scan_dir in scan_dirs:
-                if scan_dir.is_dir():
-                    recent_scans = sorted(scan_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
-                    if recent_scans:
-                        scan_files = [recent_scans[0]]
-                        break
 
         if not scan_files:
             raise HTTPException(

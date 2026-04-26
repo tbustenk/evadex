@@ -12,6 +12,7 @@ both ways so the bridge can:
 """
 from __future__ import annotations
 
+import functools
 from typing import Iterable
 
 
@@ -482,8 +483,12 @@ def classify_category(value: str) -> str:
     return "Other"
 
 
+@functools.lru_cache(maxsize=1)
 def group_all_categories() -> dict:
     """Catalog of every registered evadex payload category.
+
+    Result is cached — the PayloadCategory enum is static after import, so
+    re-classifying on every request is wasted work.
 
     Imports :class:`evadex.core.result.PayloadCategory` lazily so the
     bridge module stays importable in contexts where the core enum

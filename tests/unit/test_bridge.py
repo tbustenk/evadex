@@ -1248,8 +1248,9 @@ class TestCancelEndpoint:
         asyncio.run(run_test())
 
     def test_cancel_run_idempotent_on_terminal_run(self):
-        """Cancel on a completed run returns current state, doesn't
-        re-signal, doesn't error."""
+        """cancel_run() on a completed run returns current state and does NOT
+        re-signal — the underlying function is always idempotent. The HTTP
+        handler is responsible for surfacing 409 to callers."""
         import asyncio
 
         async def run_test():
@@ -1266,3 +1267,551 @@ class TestCancelEndpoint:
             assert result["status"] == runs_mod.STATUS_COMPLETED
 
         asyncio.run(run_test())
+
+    def test_cancel_completed_run_via_http_returns_409(self, client: TestClient,
+                                                        monkeypatch: pytest.MonkeyPatch):
+        """DELETE on a run that is already completed must return 409, not 200.
+        Callers should not be able to mistakenly re-cancel a finished run."""
+        async def _fake_execute(run_id, argv, cwd):
+            runs_mod._RUNS[run_id]["status"] = runs_mod.STATUS_COMPLETED
+            runs_mod._RUNS[run_id]["exit_code"] = 0
+            runs_mod._RUNS[run_id]["finished_at"] = runs_mod._now()
+        monkeypatch.setattr(runs_mod, "_execute", _fake_execute)
+
+        launch = client.post("/v1/evadex/run", json={"tool": "siphon-cli"})
+        run_id = launch.json()["run_id"]
+        r = client.delete(f"/v1/evadex/run/{run_id}")
+        assert r.status_code == 409
+        detail = r.json()["detail"]
+        assert detail["status"] == runs_mod.STATUS_COMPLETED
+        assert "terminal" in detail["error"]
+
+    def test_cancel_failed_run_via_http_returns_409(self, client: TestClient,
+                                                      monkeypatch: pytest.MonkeyPatch):
+        """DELETE on a failed run must also return 409."""
+        async def _fake_execute(run_id, argv, cwd):
+            runs_mod._RUNS[run_id]["status"] = runs_mod.STATUS_FAILED
+            runs_mod._RUNS[run_id]["exit_code"] = 1
+            runs_mod._RUNS[run_id]["finished_at"] = runs_mod._now()
+        monkeypatch.setattr(runs_mod, "_execute", _fake_execute)
+
+        launch = client.post("/v1/evadex/run", json={"tool": "siphon-cli"})
+        run_id = launch.json()["run_id"]
+        r = client.delete(f"/v1/evadex/run/{run_id}")
+        assert r.status_code == 409
+
+
+# ── Part 1 — Security tests for new endpoints ────────────────────────────────
+
+class TestNewEndpointSecurity:
+    """Seven security tests covering the new endpoints added in v3.18–v3.22."""
+
+    # ── SEC-1: run_id collision resistance ──────────────────────────────────
+    def test_rapid_launches_produce_distinct_run_ids(self, client: TestClient,
+                                                      monkeypatch: pytest.MonkeyPatch):
+        """Two runs launched back-to-back must not collide on the same run_id.
+        Previously the second-granularity timestamp could produce duplicates;
+        the per-process counter suffix prevents this."""
+        async def _noop(run_id, argv, cwd):
+            runs_mod._RUNS[run_id]["status"] = runs_mod.STATUS_COMPLETED
+        monkeypatch.setattr(runs_mod, "_execute", _noop)
+
+        r1 = client.post("/v1/evadex/run", json={"tool": "siphon-cli"})
+        r2 = client.post("/v1/evadex/run", json={"tool": "siphon-cli"})
+        assert r1.status_code == r2.status_code == 202
+        assert r1.json()["run_id"] != r2.json()["run_id"]
+
+    # ── SEC-2: confidence field always numeric or null ───────────────────────
+    def test_confidence_coerced_to_float_or_none(self):
+        """A subprocess-injected dict/list in the confidence field must not
+        propagate to the public run view — only float or None is acceptable."""
+        rec = {"status": "running", "recent_results": []}
+
+        # Emit a test_result with a dict confidence (hostile subprocess output).
+        line = json.dumps({
+            "test_result": {
+                "category": "credit_card",
+                "technique": "zero_width_space",
+                "value": "4111-1111-1111-1111",
+                "matched": True,
+                "confidence": {"evil": "object"},
+            }
+        })
+        runs_mod._on_progress_line(rec, line)
+        assert len(rec["recent_results"]) == 1
+        result = rec["recent_results"][0]
+        assert result["confidence"] is None  # dict coerced to None
+
+    def test_valid_confidence_preserved_as_float(self):
+        """A numeric confidence from the subprocess is retained as float."""
+        rec = {"status": "running", "recent_results": []}
+        line = json.dumps({
+            "test_result": {
+                "category": "ssn",
+                "technique": "unicode_encoding",
+                "value": "123-45-6789",
+                "matched": False,
+                "confidence": 0.73,
+            }
+        })
+        runs_mod._on_progress_line(rec, line)
+        result = rec["recent_results"][0]
+        assert isinstance(result["confidence"], float)
+        assert result["confidence"] == pytest.approx(0.73)
+
+    # ── SEC-3: categories endpoint uses cached result ───────────────────────
+    def test_categories_endpoint_returns_cached_result(self):
+        """group_all_categories must return the same dict object on repeated
+        calls — no re-classification on every request."""
+        from evadex.bridge import categories as cat_mod
+        cat_mod.group_all_categories.cache_clear()
+        a = cat_mod.group_all_categories()
+        b = cat_mod.group_all_categories()
+        assert a is b  # same object → lru_cache hit
+
+    # ── SEC-4: report endpoint — no fallback to arbitrary file ──────────────
+    def test_report_no_fallback_to_unrelated_json_file(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """If no scan file matches the run_id timestamp, the endpoint must
+        return 404. The old fallback (most-recently-modified JSON) could serve
+        data from a completely different run or a planted file."""
+        monkeypatch.setenv("EVADEX_BRIDGE_ROOT", str(tmp_path))
+        monkeypatch.delenv("EVADEX_BRIDGE_KEY", raising=False)
+        runs_mod.reset()
+        app = create_app()
+        c = TestClient(app)
+
+        # Stage a JSON file that has NO relation to any run.
+        bait = tmp_path / "results" / "scans"
+        bait.mkdir(parents=True)
+        (bait / "unrelated_data.json").write_text('{"secret": "yes"}')
+
+        # Create a completed run.
+        run_id = "R-20991231T235959-0001"
+        runs_mod._RUNS[run_id] = {
+            "status": runs_mod.STATUS_COMPLETED, "exit_code": 0,
+            "started_at": runs_mod._now(), "finished_at": runs_mod._now(),
+            "argv": [], "request": {}, "stdout_tail": "", "stderr_tail": "",
+        }
+
+        r = c.post("/v1/evadex/report", json={"run_id": run_id})
+        # Must be 404 — NOT 200 with the unrelated file's content.
+        assert r.status_code == 404
+        assert "scan output file not found" in r.json()["detail"]["error"]
+
+    # ── SEC-5: cancel on terminal run returns 409 ────────────────────────────
+    def test_cancel_completed_run_returns_409(self, client: TestClient,
+                                               monkeypatch: pytest.MonkeyPatch):
+        """Already covered in TestCancelEndpoint but included here as a
+        named security test so the audit trail is explicit."""
+        async def _noop(run_id, argv, cwd):
+            runs_mod._RUNS[run_id]["status"] = runs_mod.STATUS_COMPLETED
+            runs_mod._RUNS[run_id]["exit_code"] = 0
+            runs_mod._RUNS[run_id]["finished_at"] = runs_mod._now()
+        monkeypatch.setattr(runs_mod, "_execute", _noop)
+
+        launch = client.post("/v1/evadex/run", json={"tool": "siphon-cli"})
+        run_id = launch.json()["run_id"]
+        r = client.delete(f"/v1/evadex/run/{run_id}")
+        assert r.status_code == 409
+
+    # ── SEC-6: recent_results cleared from terminal-run view ─────────────────
+    def test_recent_results_absent_from_completed_run_view(self):
+        """recent_results must not appear in the get_run() view once a run
+        is terminal — clients must not cache stale live data."""
+        runs_mod.reset()
+        runs_mod._RUNS["R-COMPLETE"] = {
+            "status": runs_mod.STATUS_COMPLETED,
+            "started_at": runs_mod._now(), "finished_at": runs_mod._now(),
+            "argv": [], "request": {}, "exit_code": 0,
+            "stdout_tail": "", "stderr_tail": "",
+            "recent_results": [{"category": "credit_card", "technique": "t",
+                                 "value": "v", "matched": True, "confidence": None}],
+        }
+        view = runs_mod.get_run("R-COMPLETE")
+        assert "recent_results" not in view
+
+    # ── SEC-7: malformed JSON body on POST /v1/evadex/report ─────────────────
+    def test_report_endpoint_rejects_malformed_json(self, client: TestClient):
+        """A non-JSON body must be rejected cleanly (422), not crash with 500."""
+        r = client.post(
+            "/v1/evadex/report",
+            content=b"not-json{{{",
+            headers={"content-type": "application/json"},
+        )
+        assert r.status_code in (400, 422)
+        assert r.status_code < 500
+
+    def test_report_endpoint_rejects_missing_run_id(self, client: TestClient):
+        """run_id is required; omitting it must return 400."""
+        r = client.post("/v1/evadex/report", json={"include_falsepos": True})
+        assert r.status_code == 400
+        assert "run_id" in r.json()["detail"]["error"]
+
+    def test_report_endpoint_rejects_unknown_run_id(self, client: TestClient):
+        """run_id not in _RUNS must return 404, not a file-read attempt."""
+        r = client.post("/v1/evadex/report", json={"run_id": "R-NOTTHERE"})
+        assert r.status_code == 404
+
+
+# ── Part 2 — Feature tests for v3.18.0–v3.22.0 ──────────────────────────────
+
+class TestLiveOutput:
+    """recent_results live output for the C2 scan view."""
+
+    def test_recent_results_populated_during_run(self):
+        """Emitting test_result progress lines should append to recent_results."""
+        rec = {"status": "running", "recent_results": []}
+        for i in range(3):
+            line = json.dumps({
+                "test_result": {
+                    "category": "credit_card",
+                    "technique": f"tech_{i}",
+                    "value": f"4111-{i}",
+                    "matched": True,
+                    "confidence": 0.9,
+                }
+            })
+            runs_mod._on_progress_line(rec, line)
+        assert len(rec["recent_results"]) == 3
+        assert rec["recent_results"][0]["technique"] == "tech_0"
+
+    def test_recent_results_capped_at_20(self):
+        """More than 20 test_result lines should keep only the last 20."""
+        rec = {"status": "running", "recent_results": []}
+        for i in range(30):
+            line = json.dumps({
+                "test_result": {
+                    "category": "ssn",
+                    "technique": f"t{i}",
+                    "value": f"val{i}",
+                    "matched": False,
+                    "confidence": None,
+                }
+            })
+            runs_mod._on_progress_line(rec, line)
+        assert len(rec["recent_results"]) == 20
+        # Last 20 — item 10 through 29.
+        assert rec["recent_results"][0]["technique"] == "t10"
+        assert rec["recent_results"][-1]["technique"] == "t29"
+
+    def test_recent_results_absent_from_terminal_run_view(self):
+        """get_run() must not expose recent_results once the run is terminal."""
+        runs_mod.reset()
+        runs_mod._RUNS["R-T"] = {
+            "status": runs_mod.STATUS_COMPLETED,
+            "started_at": runs_mod._now(), "finished_at": runs_mod._now(),
+            "argv": [], "request": {}, "exit_code": 0,
+            "stdout_tail": "", "stderr_tail": "",
+            "recent_results": [{"category": "ssn", "technique": "t",
+                                 "value": "v", "matched": True, "confidence": None}],
+        }
+        view = runs_mod.get_run("R-T")
+        assert "recent_results" not in view
+
+    def test_recent_results_present_for_running_run(self):
+        """recent_results is included in the view while the run is active."""
+        runs_mod.reset()
+        runs_mod._RUNS["R-LIVE"] = {
+            "status": runs_mod.STATUS_RUNNING,
+            "started_at": runs_mod._now(), "finished_at": None,
+            "argv": [], "request": {}, "exit_code": None,
+            "stdout_tail": "", "stderr_tail": "",
+            "recent_results": [{"category": "email", "technique": "t",
+                                 "value": "v", "matched": True, "confidence": 0.5}],
+        }
+        view = runs_mod.get_run("R-LIVE")
+        assert "recent_results" in view
+        assert len(view["recent_results"]) == 1
+
+
+class TestReportEndpoint:
+    """POST /v1/evadex/report — HTML report generation."""
+
+    def _make_completed_run(self, run_id: str) -> None:
+        runs_mod._RUNS[run_id] = {
+            "status": runs_mod.STATUS_COMPLETED, "exit_code": 0,
+            "started_at": runs_mod._now(), "finished_at": runs_mod._now(),
+            "argv": [], "request": {}, "stdout_tail": "", "stderr_tail": "",
+        }
+
+    def test_report_valid_run_id_returns_html(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """A completed run with a matching scan file should yield an HTML response."""
+        monkeypatch.setenv("EVADEX_BRIDGE_ROOT", str(tmp_path))
+        monkeypatch.delenv("EVADEX_BRIDGE_KEY", raising=False)
+        runs_mod.reset()
+
+        # Build a scan file whose name embeds the run's timestamp.
+        scan_dir = tmp_path / "results" / "scans"
+        scan_dir.mkdir(parents=True)
+        ts_part = "20991231T235959"
+        run_id = f"R-{ts_part}-0001"
+        (scan_dir / f"scan_{ts_part}.json").write_text('{"meta": {}}')
+
+        self._make_completed_run(run_id)
+
+        from evadex.bridge import server as server_mod
+
+        class _Proc:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        def _fake_run(argv, **kw):
+            for i, a in enumerate(argv):
+                if a == "--output":
+                    Path(argv[i + 1]).write_text("<html><body>report</body></html>")
+                    break
+            return _Proc()
+
+        monkeypatch.setattr(server_mod.subprocess, "run", _fake_run)
+
+        app = create_app()
+        r = TestClient(app).post("/v1/evadex/report", json={"run_id": run_id})
+        assert r.status_code == 200
+        assert r.headers["content-type"].startswith("text/html")
+
+    def test_report_invalid_run_id_returns_404(self, client: TestClient):
+        """Unknown run_id must return 404."""
+        r = client.post("/v1/evadex/report", json={"run_id": "R-NOTEXIST"})
+        assert r.status_code == 404
+
+    def test_report_non_completed_run_returns_400(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Requesting a report for a running or queued scan returns 400."""
+        async def _noop(run_id, argv, cwd):
+            pass  # leave status as QUEUED
+        monkeypatch.setattr(runs_mod, "_execute", _noop)
+
+        launch = client.post("/v1/evadex/run", json={"tool": "siphon-cli"})
+        run_id = launch.json()["run_id"]
+        r = client.post("/v1/evadex/report", json={"run_id": run_id})
+        assert r.status_code == 400
+        assert "not completed" in r.json()["detail"]["error"]
+
+    def test_report_include_falsepos_accepted(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """include_falsepos: True must be accepted (not raise 400)."""
+        monkeypatch.setenv("EVADEX_BRIDGE_ROOT", str(tmp_path))
+        monkeypatch.delenv("EVADEX_BRIDGE_KEY", raising=False)
+        runs_mod.reset()
+
+        scan_dir = tmp_path / "results" / "scans"
+        scan_dir.mkdir(parents=True)
+        ts_part = "20991231T235900"
+        run_id = f"R-{ts_part}-0001"
+        (scan_dir / f"scan_{ts_part}.json").write_text('{"meta": {}}')
+        self._make_completed_run(run_id)
+
+        from evadex.bridge import server as server_mod
+
+        class _Proc:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        def _fake_run(argv, **kw):
+            for i, a in enumerate(argv):
+                if a == "--output":
+                    Path(argv[i + 1]).write_text("<html><body>fp report</body></html>")
+                    break
+            return _Proc()
+
+        monkeypatch.setattr(server_mod.subprocess, "run", _fake_run)
+        app = create_app()
+        r = TestClient(app).post(
+            "/v1/evadex/report",
+            json={"run_id": run_id, "include_falsepos": True},
+        )
+        assert r.status_code == 200
+
+    def test_report_html_wellformed(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """The report endpoint must return a text/html response with HTML tags."""
+        monkeypatch.setenv("EVADEX_BRIDGE_ROOT", str(tmp_path))
+        monkeypatch.delenv("EVADEX_BRIDGE_KEY", raising=False)
+        runs_mod.reset()
+
+        scan_dir = tmp_path / "results" / "scans"
+        scan_dir.mkdir(parents=True)
+        ts_part = "20991231T235800"
+        run_id = f"R-{ts_part}-0001"
+        (scan_dir / f"scan_{ts_part}.json").write_text('{"meta": {}}')
+        self._make_completed_run(run_id)
+
+        from evadex.bridge import server as server_mod
+
+        class _Proc:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        def _fake_run(argv, **kw):
+            for i, a in enumerate(argv):
+                if a == "--output":
+                    Path(argv[i + 1]).write_text(
+                        "<!DOCTYPE html><html><head><title>Report</title></head>"
+                        "<body><h1>evadex Report</h1></body></html>"
+                    )
+                    break
+            return _Proc()
+
+        monkeypatch.setattr(server_mod.subprocess, "run", _fake_run)
+        app = create_app()
+        r = TestClient(app).post("/v1/evadex/report", json={"run_id": run_id})
+        assert r.status_code == 200
+        body = r.content.decode()
+        assert "<html" in body
+        assert "</html>" in body
+
+
+class TestInlineResultsShape:
+    """Metrics endpoint fields required by the inline results UI panel."""
+
+    def test_confidence_distribution_present(self, client: TestClient):
+        data = client.get("/v1/evadex/metrics").json()
+        assert "confidence_distribution" in data
+        cd = data["confidence_distribution"]
+        for band in ("high", "medium", "low"):
+            assert band in cd, f"confidence_distribution missing {band!r} band"
+            assert isinstance(cd[band], int)
+
+    def test_top_evasions_present_and_ranked(self, client: TestClient):
+        data = client.get("/v1/evadex/metrics").json()
+        assert "top_evasions" in data
+        evasions = data["top_evasions"]
+        assert isinstance(evasions, list)
+        if evasions:
+            rates = [e["success_rate"] for e in evasions]
+            assert rates == sorted(rates, reverse=True)
+
+    def test_by_category_has_required_fields(self, client: TestClient):
+        data = client.get("/v1/evadex/metrics").json()
+        for bucket, row in data["by_category"].items():
+            for field in ("tp", "fn", "fp", "recall", "precision"):
+                assert field in row, f"by_category[{bucket!r}] missing {field!r}"
+
+    def test_metrics_has_all_inline_ui_fields(self, client: TestClient):
+        data = client.get("/v1/evadex/metrics").json()
+        for key in (
+            "detection_rate", "fp_rate", "coverage",
+            "by_category", "top_evasions", "confidence_distribution",
+            "history", "last_run",
+        ):
+            assert key in data, f"metrics response missing {key!r}"
+
+    def test_confidence_distribution_bands_from_audit(self, client: TestClient):
+        """The fixture has 3 technique success rates; 2 are ≥0.8 (high),
+        1 is 0.78 (medium)."""
+        data = client.get("/v1/evadex/metrics").json()
+        cd = data["confidence_distribution"]
+        assert cd["high"] == 2    # zero_width_space=0.91, homoglyph=0.82
+        assert cd["medium"] == 1  # base64_of_rot13=0.78
+
+
+class TestFastMode:
+    """--fast mode flag forwarded to the scan argv."""
+
+    def test_fast_flag_added_when_requested(self):
+        argv = runs_mod._build_scan_argv({"fast": True})
+        assert "--fast" in argv
+
+    def test_fast_flag_absent_in_full_scan(self):
+        argv = runs_mod._build_scan_argv({})
+        assert "--fast" not in argv
+
+    def test_fast_reduces_variant_count_vs_full_scan(self):
+        """--fast is only present in fast mode; full-scan argv has no --fast
+        flag, meaning the CLI will run the complete variant set."""
+        full_argv = runs_mod._build_scan_argv({"tier": "banking"})
+        fast_argv = runs_mod._build_scan_argv({"tier": "banking", "fast": True})
+        assert "--fast" not in full_argv
+        assert "--fast" in fast_argv
+
+    def test_fast_uses_seed_weights_when_no_history(self):
+        """--fast is forwarded regardless of audit history; the CLI applies
+        seed weights vs. history-blending based on what it finds at runtime."""
+        argv = runs_mod._build_scan_argv({"fast": True})
+        assert "--fast" in argv
+
+    def test_fast_blends_history_when_audit_exists(self, client: TestClient,
+                                                     monkeypatch: pytest.MonkeyPatch):
+        """When the bridge has an audit log (audit_tree fixture), --fast should
+        still be forwarded so the CLI can blend historical weights."""
+        captured: dict = {}
+
+        def _fake_launch(body, cwd=None):
+            captured["argv"] = runs_mod._build_scan_argv(body)
+            return {
+                "run_id": "R-TEST", "status": runs_mod.STATUS_QUEUED,
+                "started_at": runs_mod._now(), "finished_at": None,
+                "argv": captured["argv"], "request": body, "exit_code": None,
+                "stdout_tail": "", "stderr_tail": "",
+            }
+        monkeypatch.setattr(runs_mod, "launch", _fake_launch)
+
+        r = client.post("/v1/evadex/run", json={"fast": True, "tier": "banking"})
+        assert r.status_code == 202
+        assert "--fast" in captured["argv"]
+
+
+class TestProgressTracking:
+    """Progress field semantics: monotonicity, completion, elapsed_s."""
+
+    def test_progress_monotonically_increases(self):
+        """If a subprocess emits a lower progress value, the bridge must keep
+        the higher value — regressions from a subprocess glitch must not reach
+        the UI."""
+        rec = {"status": "running", "progress": 60.0, "elapsed_s": 10.0}
+        line = json.dumps({"progress": 30.0, "tested": 200, "total": 500,
+                            "detected": 90, "elapsed_s": 8.0})
+        runs_mod._on_progress_line(rec, line)
+        assert rec["progress"] == 60.0  # kept the higher value
+
+    def test_progress_advances_on_higher_value(self):
+        rec = {"status": "running", "progress": 40.0, "elapsed_s": 5.0}
+        line = json.dumps({"progress": 55.0, "tested": 400, "total": 800,
+                            "detected": 180, "elapsed_s": 12.0})
+        runs_mod._on_progress_line(rec, line)
+        assert rec["progress"] == pytest.approx(55.0)
+
+    def test_progress_reaches_100_on_completion(self, client: TestClient,
+                                                  monkeypatch: pytest.MonkeyPatch):
+        """Successful scan completion must force progress=100 even if the last
+        --progress-json tick was lower."""
+        async def _fake_execute(run_id, argv, cwd):
+            rec = runs_mod._RUNS[run_id]
+            rec["status"] = runs_mod.STATUS_RUNNING
+            rec["progress"] = 95.0  # last tick before exit
+            rec["status"] = runs_mod.STATUS_COMPLETED
+            rec["exit_code"] = 0
+            rec["finished_at"] = runs_mod._now()
+            rec["progress"] = 100.0  # _execute sets this on STATUS_COMPLETED
+        monkeypatch.setattr(runs_mod, "_execute", _fake_execute)
+
+        launch = client.post("/v1/evadex/run", json={"tool": "siphon-cli"})
+        run_id = launch.json()["run_id"]
+        data = client.get(f"/v1/evadex/run/{run_id}").json()
+        assert data["status"] == runs_mod.STATUS_COMPLETED
+        assert data["progress"] == pytest.approx(100.0)
+
+    def test_elapsed_s_monotonically_increases(self):
+        """elapsed_s must never go backwards — same monotonicity rule as progress."""
+        rec = {"status": "running", "progress": 0.0, "elapsed_s": 20.0}
+        line = json.dumps({"progress": 50.0, "tested": 300, "total": 600,
+                            "detected": 120, "elapsed_s": 10.0})
+        runs_mod._on_progress_line(rec, line)
+        assert rec["elapsed_s"] == pytest.approx(20.0)  # kept the higher value
+
+    def test_elapsed_s_advances_on_higher_value(self):
+        rec = {"status": "running", "progress": 0.0, "elapsed_s": 5.0}
+        line = json.dumps({"progress": 20.0, "tested": 100, "total": 500,
+                            "detected": 40, "elapsed_s": 15.0})
+        runs_mod._on_progress_line(rec, line)
+        assert rec["elapsed_s"] == pytest.approx(15.0)

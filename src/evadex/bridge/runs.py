@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 
+
 # Use the uvicorn error logger so argv + run-failure lines show up in
 # the bridge's terminal alongside request logs.
 log = logging.getLogger("uvicorn.error")
@@ -37,6 +38,11 @@ STATUS_CANCELLED = "cancelled"
 # Process-local run registry — ``{run_id: {status, started_at, ...}}``.
 _RUNS: dict[str, dict] = {}
 
+# Monotonically increasing counter appended to run IDs so two launches
+# within the same UTC second still get distinct keys (asyncio is
+# single-threaded per worker, so no lock needed).
+_RUN_COUNTER: int = 0
+
 
 # ── Cancellation ───────────────────────────────────────────────
 # SIGTERM grace period before SIGKILL. Kept short (bridge is never
@@ -51,9 +57,16 @@ def _now() -> str:
 
 
 def _allocate_run_id() -> str:
-    """Compact timestamp-based id — unique within a single bridge process."""
+    """Compact timestamp + sequence id — unique within a single bridge process.
+
+    The sequence suffix prevents collisions when two runs are launched
+    within the same UTC second (e.g. automated test suites or burst
+    requests from the C2 UI).
+    """
+    global _RUN_COUNTER
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
-    return f"R-{ts}"
+    _RUN_COUNTER += 1
+    return f"R-{ts}-{_RUN_COUNTER:04d}"
 
 
 def _build_scan_argv(body: dict) -> list[str]:
@@ -156,6 +169,12 @@ def _build_scan_argv(body: dict) -> list[str]:
     if save_as:
         argv += ["--save-as", str(save_as)]
 
+    # Fast mode: reduces variant count and blends audit history for
+    # seed weights. The CLI decides how to blend based on the audit log
+    # it finds at runtime.
+    if body.get("fast"):
+        argv += ["--fast"]
+
     # Always emit structured progress so the bridge can report live
     # progress to the UI without having to parse Rich's TTY output.
     argv += ["--progress-json"]
@@ -208,6 +227,10 @@ def get_run(run_id: str) -> Optional[dict]:
     # Hide internal plumbing (asyncio handle, cancel flag, exception).
     for k in ("_exception", "_proc", "_cancel_requested"):
         view.pop(k, None)
+    # recent_results is only meaningful while the scan is active; strip it
+    # from terminal-run views so clients don't cache stale live data.
+    if rec.get("status") not in (STATUS_QUEUED, STATUS_RUNNING):
+        view.pop("recent_results", None)
     return view
 
 
@@ -274,12 +297,15 @@ def _on_progress_line(rec: dict, text: str) -> None:
                 rec["recent_results"] = []
 
             # Add new result and maintain last 20 items
+            raw_conf = result.get("confidence")
             rec["recent_results"].append({
                 "category": str(result["category"]),
                 "technique": str(result["technique"]),
-                "value": str(result["value"])[:100],  # Truncate long values
+                "value": str(result["value"])[:100],
                 "matched": bool(result["matched"]),
-                "confidence": result.get("confidence")
+                # Coerce to float or None — never let a subprocess-injected
+                # dict/list land in the public run view.
+                "confidence": float(raw_conf) if isinstance(raw_conf, (int, float)) else None,
             })
 
             # Keep only last 20 results
@@ -290,13 +316,17 @@ def _on_progress_line(rec: dict, text: str) -> None:
     # Handle progress updates
     if "progress" not in payload and "tested" not in payload:
         return
-    # Only overwrite when the new value is strictly newer — each tick
-    # reflects the latest-known completed count.
-    rec["progress"] = payload.get("progress")
+    # Enforce monotonicity on progress and elapsed_s — a subprocess glitch
+    # (e.g. a retry that resets its own counter) must not regress the UI.
+    new_progress = payload.get("progress")
+    if new_progress is not None:
+        rec["progress"] = max(float(new_progress), float(rec.get("progress") or 0.0))
+    new_elapsed = payload.get("elapsed_s")
+    if new_elapsed is not None:
+        rec["elapsed_s"] = max(float(new_elapsed), float(rec.get("elapsed_s") or 0.0))
     rec["tested"] = payload.get("tested")
     rec["total"] = payload.get("total")
     rec["detected"] = payload.get("detected")
-    rec["elapsed_s"] = payload.get("elapsed_s")
 
 
 async def _execute(run_id: str, argv: list[str], cwd: Optional[str]) -> None:
@@ -442,5 +472,7 @@ def launch(body: dict, cwd: Optional[str] = None) -> dict:
 
 
 def reset() -> None:
-    """Drop all tracked runs. Intended for tests."""
+    """Drop all tracked runs and reset the sequence counter. Intended for tests."""
+    global _RUN_COUNTER
     _RUNS.clear()
+    _RUN_COUNTER = 0

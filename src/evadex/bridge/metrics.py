@@ -178,6 +178,31 @@ def _top_evasions(entry: dict, archive: Optional[dict], limit: int = 5) -> list[
     return items[:limit]
 
 
+def _confidence_distribution(archive: Optional[dict]) -> dict:
+    """Bucket technique success rates into High / Medium / Low bands.
+
+    Uses the per-technique success rates from the latest archive as a proxy
+    for confidence: high ≥80%, medium 50–79%, low <50%.  Returns zeros when
+    no archive or no technique data is available so the UI gauge always has a
+    shape to render.
+    """
+    archive_meta = (archive or {}).get("meta") or {}
+    rates = archive_meta.get("technique_success_rates") or {}
+    high = medium = low = 0
+    for rate in rates.values():
+        try:
+            r = float(rate)
+        except (TypeError, ValueError):
+            continue
+        if r >= 0.8:
+            high += 1
+        elif r >= 0.5:
+            medium += 1
+        else:
+            low += 1
+    return {"high": high, "medium": medium, "low": low}
+
+
 def _coverage(archive: Optional[dict], fallback_total: int = 557) -> tuple[float, int, int]:
     """Return ``(coverage_pct, tested, total)``.
 
@@ -380,5 +405,6 @@ def build_metrics(
         "last_run_scanner": _safe_str(latest_scan.get("tool")) if latest_scan else "",
         "by_category": by_category,
         "top_evasions": _top_evasions(latest_scan, archive) if latest_scan else [],
+        "confidence_distribution": _confidence_distribution(archive),
         "history": history,
     }
