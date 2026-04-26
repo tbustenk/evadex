@@ -12,7 +12,7 @@ class Engine:
         self,
         adapter: BaseAdapter,
         generators: list[BaseVariantGenerator] | None = None,
-        concurrency: int = 20,
+        concurrency: int = 32,
         strategies: list[str] | None = None,
         on_result: Optional[Callable[[ScanResult, int, int], None]] = None,
         technique_filter: Optional[set[str]] = None,

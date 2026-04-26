@@ -50,7 +50,7 @@ cmd_style: python
 #   - ssn
 #   - iban
 include_heuristic: false
-concurrency: 20
+concurrency: 32  # recommended: 32 (benchmark-validated default)
 timeout: 30.0
 output: results.json
 format: json

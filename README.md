@@ -114,7 +114,7 @@ Run `evadex init` to create `evadex.yaml` in the current directory:
 tool: siphon-cli
 exe: /path/to/siphon
 tier: banking
-concurrency: 20
+concurrency: 32
 ```
 
 CLI flags override config values. `evadex.yaml` is auto-discovered from the working directory.

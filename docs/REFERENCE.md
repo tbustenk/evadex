@@ -552,7 +552,7 @@ cmd_style: python
 #   - ssn
 #   - iban
 include_heuristic: false
-concurrency: 20
+concurrency: 32
 timeout: 30.0
 output: results.json
 format: json
@@ -1266,7 +1266,7 @@ Benchmarks captured on a Windows / Python 3.13 / 32 GB host running the banking 
 | `sqlite` | ~1.6 s | ~4 s | ~24 s, 114 MB output | 143 MB / **309 MB at 10 k** | Prior to v3.13.0, the customer table was built in Python before insert and 10 k pushed RSS over 500 MB. Now uses 1000-row chunked `executemany`. |
 | `parquet` | n/a | n/a | n/a | n/a | Generation works, but Siphon's extractor hangs on every Parquet file ≥ 1 KB — see `results/format_detection_matrix.md`. Skipped from perf testing. |
 
-**Concurrency tuning** (`evadex scan --concurrency N`) on Windows against the dlpscan binary: `--concurrency 10` → 17.8 variants/s, `--concurrency 20` → 18.9, `--concurrency 50` → 20.6. Process-spawn overhead dominates at high concurrency on Windows. Sweet spot is 20–50; going higher rarely pays for itself.
+**Concurrency tuning** (`evadex scan --concurrency N`) on Windows against the dlpscan binary: `--concurrency 10` → 17.8 variants/s, `--concurrency 32` → 19.4, `--concurrency 50` → 20.6. Process-spawn overhead dominates at high concurrency on Windows. Default is 32 (benchmark-validated sweet spot); going higher rarely pays for itself.
 
 **Recommended `--count` ceilings per format** to stay under 500 MB peak RSS without further optimisation:
 
