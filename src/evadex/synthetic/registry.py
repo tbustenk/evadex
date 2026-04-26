@@ -49,5 +49,6 @@ def load_synthetic_generators() -> None:
     import evadex.synthetic.au_medicare       # noqa: F401
     import evadex.synthetic.de_tax_id         # noqa: F401
     import evadex.synthetic.us_dl             # noqa: F401
+    import evadex.synthetic.capital_markets   # noqa: F401
     # All imports above are side-effect: each module's @register_synthetic
     # decorator populates _SYNTHETIC_GENERATORS at import time.

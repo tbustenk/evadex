@@ -56,6 +56,9 @@ def test_falsepos_some_flagged():
             payload=Payload("dummy", PayloadCategory.SSN, "x"),
             variant=Variant("dummy", "falsepos", "falsepos_value", "FP value", strategy="text"),
             detected=True,
+            # strict_category mode checks raw_response["matches"] for a
+            # category-relevant sub_category before counting as an FP.
+            raw_response={"matches": [{"sub_category": "usa ssn"}]},
         )
         result = runner.invoke(main, [
             "falsepos",
@@ -166,9 +169,12 @@ def test_falsepos_report_structure():
     with patch.object(DlpscanCliAdapter, "health_check", new_callable=AsyncMock, return_value=True), \
          patch.object(DlpscanCliAdapter, "submit", new_callable=AsyncMock) as mock_submit:
         mock_submit.return_value = ScanResult(
-            payload=Payload("dummy", PayloadCategory.CREDIT_CARD, "x"),
+            payload=Payload("dummy", PayloadCategory.IBAN, "x"),
             variant=Variant("dummy", "falsepos", "falsepos_value", "FP value", strategy="text"),
             detected=True,
+            # strict_category mode checks raw_response["matches"] for a
+            # category-relevant sub_category before counting as an FP.
+            raw_response={"matches": [{"sub_category": "iban"}]},
         )
         result = runner.invoke(main, [
             "falsepos",

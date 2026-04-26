@@ -240,8 +240,10 @@ BUILTIN_PAYLOADS = [
 
     # ── Wire Transfer Data ────────────────────────────────────────────────────
     Payload("123456ABCD",             PayloadCategory.CHIPS_UID,  "CHIPS UID (6 digits + 4 alphanumeric)"),
+    Payload("0001JPMC",               PayloadCategory.CHIPS_UID,  "CHIPS UID — JPMorgan Chase participant"),
     Payload("WIREREF1234567890ABCD",  PayloadCategory.WIRE_REF,   "Wire Reference Number (16-35 uppercase alphanumeric)"),
-    Payload("SEPAREF123456",          PayloadCategory.SEPA_REF,   "SEPA Reference (12-35 uppercase alphanumeric)"),
+    Payload("RF18539007547034",        PayloadCategory.SEPA_REF,   "SEPA creditor reference (RF-format, ISO 11649)"),
+    Payload("SEPAREF123456",          PayloadCategory.SEPA_REF,   "SEPA reference (legacy alphanumeric format)"),
     Payload("011234567890123",        PayloadCategory.ACH_TRACE,  "ACH Trace Number (15 digits, valid routing prefix)"),
     Payload("1234567",               PayloadCategory.ACH_BATCH,  "ACH Batch Number (7 digits)"),
 
@@ -851,12 +853,59 @@ BUILTIN_PAYLOADS = [
     Payload("12345678901234568",  PayloadCategory.REG_SAR,            "SAR filing number (14-20 digits)"),
 
     # ── Securities Identifiers ───────────────────────────────────────────────
-    Payload("037833100",          PayloadCategory.CUSIP_NUM, "CUSIP (Apple Inc, context req)"),
-    Payload("BBG000B9XRY4",       PayloadCategory.FIGI_NUM,  "FIGI identifier"),
+    # CUSIP — 9 chars (6-char issuer + 2-char issue + 1 check digit)
+    Payload("037833100",          PayloadCategory.CUSIP_NUM,  "CUSIP — Apple Inc (AAPL)"),
+    Payload("46625H100",          PayloadCategory.CUSIP_NUM,  "CUSIP — JPMorgan Chase (JPM)"),
+    Payload("780087102",          PayloadCategory.CUSIP_NUM,  "CUSIP — Royal Bank of Canada (RY)"),
+    # CINS — CUSIP International Numbering System (non-US; first char is country letter)
+    Payload("G0177J108",          PayloadCategory.CINS_NUM,   "CINS — UK-listed security (G prefix)"),
+    Payload("F22797108",          PayloadCategory.CINS_NUM,   "CINS — France-listed security (F prefix)"),
+    # SEDOL — 7 chars (6-char identifier + 1 check digit), LSE/global
+    Payload("2005973",            PayloadCategory.SEDOL_NUM,  "SEDOL — BP plc"),
+    Payload("0540528",            PayloadCategory.SEDOL_NUM,  "SEDOL — HSBC Holdings"),
+    Payload("0922450",            PayloadCategory.SEDOL_NUM,  "SEDOL — Barclays plc"),
+    # ISIN — 12 chars (2-char country + 9-char NSIN + 1 check digit)
+    Payload("US0378331005",       PayloadCategory.ISIN,       "ISIN — Apple Inc (US)"),
+    Payload("US46625H1005",       PayloadCategory.ISIN,       "ISIN — JPMorgan Chase (US)"),
+    Payload("CA7800871021",       PayloadCategory.ISIN,       "ISIN — Royal Bank of Canada"),
+    Payload("GB0007980591",       PayloadCategory.ISIN,       "ISIN — BP plc (UK)"),
+    # FIGI — 12 chars (BBG + 8 random alphanumeric + 1 check digit)
+    Payload("BBG000B9XRY4",       PayloadCategory.FIGI_NUM,   "FIGI — Apple Inc (AAPL)"),
+    Payload("BBG000DMBXR2",       PayloadCategory.FIGI_NUM,   "FIGI — JPMorgan Chase (JPM)"),
+    Payload("BBG000BCQZS4",       PayloadCategory.FIGI_NUM,   "FIGI — BP plc"),
+    # LEI — 20 alphanumeric (4 LOU + 2 reserved + 12 entity + 2 check)
     Payload("HWUPKR0MPOU8FGXBT394",
-            PayloadCategory.LEI_NUM,   "Legal Entity Identifier (20 alphanumeric)"),
-    Payload("2005973",            PayloadCategory.SEDOL_NUM,  "SEDOL (7 chars, context req)"),
-    Payload("$AAPL",              PayloadCategory.TICKER_SYMBOL, "Stock ticker (context req)"),
+            PayloadCategory.LEI_NUM,   "LEI — Apple Inc"),
+    Payload("8I5DZWZKVSZI1NUHU748",
+            PayloadCategory.LEI_NUM,   "LEI — JPMorgan Chase & Co"),
+    Payload("R0MUWSFPU8MPRO8K5P83",
+            PayloadCategory.LEI_NUM,   "LEI — BNP Paribas SA"),
+    # Ticker symbols — exchange-qualified and bare
+    Payload("$AAPL",              PayloadCategory.TICKER_SYMBOL, "Ticker — Apple (Nasdaq, $ prefix)"),
+    Payload("AAPL",               PayloadCategory.TICKER_SYMBOL, "Ticker — Apple bare symbol (context req)"),
+    Payload("JPM",                PayloadCategory.TICKER_SYMBOL, "Ticker — JPMorgan Chase (NYSE)"),
+    Payload("RY.TO",              PayloadCategory.TICKER_SYMBOL, "Ticker — Royal Bank of Canada (TSX)"),
+    Payload("BRK.A",              PayloadCategory.TICKER_SYMBOL, "Ticker — Berkshire Hathaway A (NYSE)"),
+    # Reuters RIC — ticker + exchange suffix
+    Payload("AAPL.O",             PayloadCategory.REUTERS_RIC,   "Reuters RIC — Apple on Nasdaq"),
+    Payload("JPM.N",              PayloadCategory.REUTERS_RIC,   "Reuters RIC — JPMorgan on NYSE"),
+    Payload("RY.TO",              PayloadCategory.REUTERS_RIC,   "Reuters RIC — RBC on Toronto"),
+    Payload("BP.L",               PayloadCategory.REUTERS_RIC,   "Reuters RIC — BP on London"),
+    # Bloomberg FIGI already covered above; FIGI IS the Bloomberg global identifier
+    # VALOR — Swiss Valorennummer (6–9 digits)
+    Payload("3234936",            PayloadCategory.VALOR_NUM,  "Valor — Apple Inc on SIX Swiss Exchange"),
+    Payload("1225514",            PayloadCategory.VALOR_NUM,  "Valor — Nestlé SA"),
+    Payload("1107539",            PayloadCategory.VALOR_NUM,  "Valor — Novartis AG"),
+    # WKN — German Wertpapierkennnummer (6 alphanumeric)
+    Payload("865985",             PayloadCategory.WKN_NUM,    "WKN — Apple Inc (Frankfurt)"),
+    Payload("840400",             PayloadCategory.WKN_NUM,    "WKN — BMW AG"),
+    Payload("710000",             PayloadCategory.WKN_NUM,    "WKN — Volkswagen AG"),
+    # MT103 sender reference — SWIFT field 20 (up to 16 alphanumeric)
+    Payload("FT23148BTJK7LMNQ",   PayloadCategory.MT103_REF,  "MT103 sender reference (field 20, 16 chars)"),
+    Payload("PAYREF2024031401",   PayloadCategory.MT103_REF,  "MT103 payment reference"),
+    # MiFID II transaction ID — up to 52 alphanumeric
+    Payload("MIFID20230517ABC0000000012345678EFGH000000001AAPL",
+            PayloadCategory.MIFID_TX_ID, "MiFID II transaction reference number"),
 
     # ── Social Media ─────────────────────────────────────────────────────────
     Payload("#FinancialData",     PayloadCategory.HASHTAG, "Hashtag (context req)"),

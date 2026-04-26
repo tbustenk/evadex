@@ -312,7 +312,7 @@ def _print_summary(results, err_console):
               help="Request timeout in seconds")
 @click.option("--strategy", "strategies", multiple=True, type=STRATEGY_CHOICES,
               help="Submission strategies to use (default: all). Repeat for multiple.")
-@click.option("--concurrency", default=20, show_default=True, type=int,
+@click.option("--concurrency", default=32, show_default=True, type=int,
               help="Max concurrent requests")
 @click.option("--category", "categories", multiple=True, type=CATEGORY_CHOICES,
               help="Filter built-in payloads by category. Repeat for multiple.")

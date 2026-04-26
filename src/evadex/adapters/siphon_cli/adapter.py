@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import random
 
-from evadex.adapters.base import BaseAdapter
+from evadex.adapters.base import AdapterConfig, BaseAdapter
 from evadex.adapters.dlpscan.file_builder import FileBuilder
 from evadex.adapters.siphon_cli.client import SiphonCliClient
 from evadex.core.registry import register_adapter
@@ -41,7 +41,7 @@ _BIN_FIELDS = ("bin_brand", "bin_card_type", "bin_country", "bin_issuer")
 class SiphonCliAdapter(BaseAdapter):
     name = "siphon-cli"
 
-    def __init__(self, config):
+    def __init__(self, config: "dict | AdapterConfig") -> None:
         super().__init__(config)
         extra = self.config.extra
         self._exe = extra.get("executable", "siphon")
@@ -89,7 +89,7 @@ class SiphonCliAdapter(BaseAdapter):
             **enrichment,
         )
 
-    def _parse_enrichment(self, matches: list) -> dict:
+    def _parse_enrichment(self, matches: list) -> dict[str, object]:
         """Extract enrichment fields from the highest-confidence match.
 
         Siphon surfaces a ``confidence`` float on every match and a

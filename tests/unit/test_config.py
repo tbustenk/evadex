@@ -264,5 +264,5 @@ def test_default_config_yaml_is_valid(tmp_path):
     cfg_file.write_text(DEFAULT_CONFIG_YAML, encoding="utf-8")
     cfg = load_config(cfg_file)
     assert cfg.tool == "dlpscan-cli"
-    assert cfg.concurrency == 20
+    assert cfg.concurrency == 32
     assert cfg.format == "json"

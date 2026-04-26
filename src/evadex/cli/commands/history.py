@@ -1,7 +1,6 @@
 """evadex history — show past scan and falsepos run results."""
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 from typing import Optional
@@ -10,22 +9,9 @@ import click
 from rich.console import Console
 from rich.table import Table
 
+from evadex.audit import read_audit_entries as _load_audit
+
 err_console = Console(stderr=True)
-
-
-def _load_audit(audit_path: Path) -> list[dict]:
-    if not audit_path.exists():
-        return []
-    entries = []
-    for line in audit_path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            entries.append(json.loads(line))
-        except json.JSONDecodeError:
-            continue
-    return entries
 
 
 def _fmt_rate(entry: dict) -> str:
@@ -151,11 +137,11 @@ def history(
         entry_t = e.get("type", "?")
 
         if entry_t == "scan":
-            rate = e.get("pass_rate", 0)
-            colour = "green" if rate >= 80 else ("yellow" if rate >= 60 else "red")
+            _r = e.get("pass_rate", 0)
+            colour = "green" if _r >= 80 else ("yellow" if _r >= 60 else "red")
         else:
-            rate = e.get("fp_rate", 0)
-            colour = "red" if rate >= 50 else ("yellow" if rate >= 20 else "green")
+            _r = e.get("fp_rate", 0)
+            colour = "red" if _r >= 50 else ("yellow" if _r >= 20 else "green")
 
         table.add_row(
             _fmt_date(e.get("timestamp", "")),

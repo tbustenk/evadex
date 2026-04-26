@@ -12,6 +12,7 @@ both ways so the bridge can:
 """
 from __future__ import annotations
 
+import functools
 from typing import Iterable
 
 
@@ -205,10 +206,16 @@ _CATALOG_EXPLICIT: dict[str, str] = {
     "aml_case_id":      "Banking",
     "isin":             "Banking",
     "cusip_num":        "Banking",
+    "cins_num":         "Banking",
     "figi_num":         "Banking",
     "lei_num":          "Banking",
     "sedol_num":        "Banking",
     "ticker_symbol":    "Banking",
+    "reuters_ric":      "Banking",
+    "valor_num":        "Banking",
+    "wkn_num":          "Banking",
+    "mt103_ref":        "Banking",
+    "mifid_tx_id":      "Banking",
     "mers_min":         "Banking",
     "title_deed":       "Banking",
     # PII — the coarse global basics
@@ -482,8 +489,12 @@ def classify_category(value: str) -> str:
     return "Other"
 
 
+@functools.lru_cache(maxsize=1)
 def group_all_categories() -> dict:
     """Catalog of every registered evadex payload category.
+
+    Result is cached — the PayloadCategory enum is static after import, so
+    re-classifying on every request is wasted work.
 
     Imports :class:`evadex.core.result.PayloadCategory` lazily so the
     bridge module stays importable in contexts where the core enum

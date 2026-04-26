@@ -1,5 +1,67 @@
 # Changelog
 
+## [3.23.2] — 2026-04-25
+
+### Fixed
+
+- **Two pre-existing falsepos integration test failures.** `test_falsepos_some_flagged` and `test_falsepos_report_structure` mocked `ScanResult` without `raw_response`, so the `strict_category` relevance filter found no matches and counted zero false positives — tests asserted non-zero. Fixed by adding `raw_response={"matches": [{"sub_category": "..."}]}` with the correct per-category sub_category string to both mocks.
+
+### Changed
+
+- **`requires-python` tightened to `>=3.11`** in `pyproject.toml`. The codebase relies on `tomllib` (3.11+), `dataclasses.replace` (vs `copy.replace` removed in 3.13+), and CI runs 3.11 + 3.13. The previous `>=3.10` declared broader compatibility than the code could actually deliver.
+- **`read_audit_entries()` extracted to `evadex.audit`.** The identical 12-line JSONL reader was duplicated in `cli/commands/history.py` and `cli/commands/trend.py`. Extracted to `evadex.audit.read_audit_entries(audit_path)` (the module that also owns `append_audit_entry`). Both commands now import from there; the `json` import that was only used by the duplicate was also removed.
+
+### Added — type hints
+
+- `Payload.to_dict()`, `Variant.to_dict()`, `ScanResult.to_dict()` in `core/result.py` — return type `-> dict` added.
+- `SiphonCliAdapter.__init__` in `adapters/siphon_cli/adapter.py` — `config` parameter typed as `dict | AdapterConfig`; `-> None` added.
+- `SiphonCliAdapter._parse_enrichment` — return type `-> dict[str, object]` added; `AdapterConfig` imported alongside `BaseAdapter`.
+
+### Verified
+
+- Full unit + integration test suite passes (`tests/ -v --tb=short -q`).
+- `py_compile` clean across all source files.
+
+## [3.23.1] — 2026-04-25
+
+### Fixed
+
+- **`evadex doctor` reported wrong version.** After the v3.23.0 bump the package was still installed at the previous version in the dev environment; `importlib.metadata.version()` reads installed dist-info, not pyproject.toml. Fixed by re-running `pip install -e .` to refresh the dist-info.
+
+### Changed
+
+- **Dead function `_fp_match_key()` removed from `src/evadex/bridge/metrics.py`.** The function was defined (line 247) but never called — all callers use `_matching_fp_entries()` directly.
+- 804 unit tests pass; no regressions.
+
+## [3.23.0] — 2026-04-25
+
+### Added — first-time experience
+
+- **`evadex quickstart`** — interactive setup wizard for first-time users. Step 1: detect evadex and Python versions. Step 2: probe PATH and `~/.cargo/bin` for siphon/dlpscan, offer a custom exe path, write `evadex.yaml`. Step 3: run a 5-payload banking-tier scan and display the results inline. Step 4: show next-step menu (full scan, false positive run, generate test data, docs link). Wizard is skippable at every step.
+- **`tests/integration/test_quickstart_cli.py`** — 8 integration tests covering wizard skip path, scan config auto-read, quickstart hint in health check failure message, generate interactive mode (xlsx, csv), and generate format-without-output error.
+
+### Changed — sensible defaults
+
+- **`evadex scan` auto-detects scanner exe** from PATH (`siphon`, `siphon.exe`, `dlpscan`, `dlpscan.exe`, `dlpscan-rs`) and `~/.cargo/bin/siphon` before prompting. Health check failure message now suggests `evadex quickstart` when no scanner is found.
+- **`evadex generate` interactive mode** — when invoked with no `--format` and no `--output`, prompts for format, record count, and output path instead of erroring. `--output` changed from `required=True` to optional.
+- **Better help text and examples** across all 14 commands (scan, generate, falsepos, report, profile, history, trend, techniques, doctor, benchmark, entropy, edm, lsh, quickstart) — `\b` literal blocks with runnable examples, default values documented inline.
+
+### Changed — documentation
+
+- **`README.md` rewritten** as a ~130-line scannable quick-start guide (install, first scan, first falsepos, generate, next steps).
+- **`docs/REFERENCE.md` created** — full command reference, all options, all formats, evasion modes, tier definitions, config file spec, and bridge API (former README content).
+
+## [3.22.0] — 2026-04-24
+
+### Added
+
+- **Live test output on `GET /v1/evadex/run/{run_id}`.** The run record now includes a `recent_results` array (last 20 test results) populated in real time from the scan's `--progress-json` stream. Frontends can poll the status endpoint and render individual detections without waiting for completion.
+- **`POST /v1/evadex/report` endpoint.** Generates an HTML report from a completed scan run and returns it as a file download. Accepts `run_id` and an optional `include_falsepos` boolean. Finds the matching scan output file, invokes `evadex report`, and streams the `.html` response.
+
+### Changed
+
+- Bridge captures individual test results from `--progress-json` output during scan execution.
+
 ## [3.21.0] — 2026-04-24
 
 ### Added — scan speed

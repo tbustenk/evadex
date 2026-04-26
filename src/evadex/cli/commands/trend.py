@@ -1,7 +1,6 @@
 """evadex trend — ASCII chart of detection/FP rate over time."""
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 from typing import Optional
@@ -9,22 +8,9 @@ from typing import Optional
 import click
 from rich.console import Console
 
+from evadex.audit import read_audit_entries as _load_audit
+
 err_console = Console(stderr=True)
-
-
-def _load_audit(audit_path: Path) -> list[dict]:
-    if not audit_path.exists():
-        return []
-    entries = []
-    for line in audit_path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            entries.append(json.loads(line))
-        except json.JSONDecodeError:
-            continue
-    return entries
 
 
 def _get_rate(entry: dict) -> Optional[float]:
