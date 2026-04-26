@@ -82,6 +82,7 @@ BANKING_TIER: frozenset[PayloadCategory] = frozenset({
     PayloadCategory.CHIPS_UID,
     PayloadCategory.WIRE_REF,
     PayloadCategory.SEPA_REF,
+    PayloadCategory.MT103_REF,
     PayloadCategory.ACH_TRACE,
     PayloadCategory.ACH_BATCH,
     PayloadCategory.US_ROUTING,
@@ -172,8 +173,15 @@ CORE_TIER: frozenset[PayloadCategory] = BANKING_TIER | frozenset({
     PayloadCategory.REG_SAR,
     PayloadCategory.REG_COMPLIANCE_CASE,
     PayloadCategory.CUSIP_NUM,
+    PayloadCategory.CINS_NUM,
     PayloadCategory.LEI_NUM,
     PayloadCategory.FIGI_NUM,
+    PayloadCategory.SEDOL_NUM,
+    PayloadCategory.TICKER_SYMBOL,
+    PayloadCategory.REUTERS_RIC,
+    PayloadCategory.VALOR_NUM,
+    PayloadCategory.WKN_NUM,
+    PayloadCategory.MIFID_TX_ID,
 })
 
 

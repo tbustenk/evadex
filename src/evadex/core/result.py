@@ -594,10 +594,16 @@ class PayloadCategory(Enum):
     REG_OFAC = "reg_ofac"
     REG_SAR = "reg_sar"
     CUSIP_NUM = "cusip_num"
+    CINS_NUM = "cins_num"
     FIGI_NUM = "figi_num"
     LEI_NUM = "lei_num"
+    MIFID_TX_ID = "mifid_tx_id"
+    MT103_REF = "mt103_ref"
+    REUTERS_RIC = "reuters_ric"
     SEDOL_NUM = "sedol_num"
     TICKER_SYMBOL = "ticker_symbol"
+    VALOR_NUM = "valor_num"
+    WKN_NUM = "wkn_num"
 
     # ── Social media / supervisory / URL ────────────────────────────────────
     HASHTAG = "hashtag"
@@ -1136,10 +1142,16 @@ CATEGORY_TYPES: dict[PayloadCategory, CategoryType] = {
     PayloadCategory.REG_OFAC:           CategoryType.STRUCTURED,
     PayloadCategory.REG_SAR:            CategoryType.STRUCTURED,
     PayloadCategory.CUSIP_NUM:          CategoryType.STRUCTURED,
+    PayloadCategory.CINS_NUM:           CategoryType.STRUCTURED,
     PayloadCategory.FIGI_NUM:           CategoryType.STRUCTURED,
     PayloadCategory.LEI_NUM:            CategoryType.STRUCTURED,
+    PayloadCategory.MIFID_TX_ID:        CategoryType.STRUCTURED,
+    PayloadCategory.MT103_REF:          CategoryType.STRUCTURED,
+    PayloadCategory.REUTERS_RIC:        CategoryType.STRUCTURED,
     PayloadCategory.SEDOL_NUM:          CategoryType.STRUCTURED,
     PayloadCategory.TICKER_SYMBOL:      CategoryType.STRUCTURED,
+    PayloadCategory.VALOR_NUM:          CategoryType.STRUCTURED,
+    PayloadCategory.WKN_NUM:            CategoryType.STRUCTURED,
     # Social media / supervisory / URL
     PayloadCategory.HASHTAG:             CategoryType.STRUCTURED,
     PayloadCategory.SUP_EXAM_FINDINGS:   CategoryType.HEURISTIC,

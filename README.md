@@ -46,7 +46,7 @@ evadex report results/scan.json      # generate HTML report
 | `banking` | Credit cards, SSN, SIN, IBAN, ABA routing — default |
 | `core` | Banking + broader coverage |
 | `regional` | Country-specific IDs, health cards, tax numbers |
-| `full` | All 554 payloads across 489 categories |
+| `full` | All 593 payloads across 502 categories |
 
 ---
 
@@ -77,6 +77,32 @@ evadex tests 13 technique families:
 | `bidirectional` | Unicode RLO/LRO/RLE control characters |
 | `soft_hyphen` | U+00AD invisible separator at group boundaries |
 | `morse_code` | Digits encoded as International Morse Code |
+
+---
+
+## Capital markets coverage
+
+v3.24.0 adds securities identifiers and financial messaging references to the `banking` and `core` tiers:
+
+| Category | Examples | Tier |
+|---|---|---|
+| `isin` | US0378331005 (Apple), CA7800871021 (RBC) | banking |
+| `cusip_num` | 037833100 (Apple), 46625H100 (JPMorgan) | banking |
+| `cins_num` | G0177J108 (UK-registered), F22797108 (French) | core |
+| `sedol_num` | 2005973 (BP), 0540528 (HSBC) | core |
+| `figi_num` | BBG000B9XRY4 (Apple), BBG000DMBXR2 (JPMorgan) | banking |
+| `lei_num` | HWUPKR0MPOU8FGXBT394 (Apple), R0MUWSFPU8MPRO8K5P83 (BNP) | banking |
+| `ticker_symbol` | AAPL, JPM, RY.TO, BRK.A | core |
+| `reuters_ric` | AAPL.O, JPM.N, BP.L | core |
+| `valor_num` | 3234936 (Apple/SIX), 1225514 (Nestlé) | core |
+| `wkn_num` | 865985 (Apple/Frankfurt), 840400 (BMW) | core |
+| `mt103_ref` | FT23148BTJK7LMNQ, PAYREF2024031401 | banking |
+| `mifid_tx_id` | MIFID20230517ABC0000000012345678… | core |
+| `chips_uid` | 0001JPMC | banking |
+| `sepa_ref` | RF18539007547034 | banking |
+| `fedwire_imad` | 20231015BNKUS33XXXX000123456789 | banking |
+
+All securities identifiers include checksum-validated synthetic generators (CUSIP ANSI X9.6, SEDOL weighted mod-10, ISIN Luhn, FIGI Luhn, LEI ISO 17442 mod-97).
 
 ---
 
@@ -137,7 +163,7 @@ pip install evadex[bridge]        # HTTP API bridge (FastAPI)
 See [docs/REFERENCE.md](docs/REFERENCE.md) for the complete CLI reference:
 
 - All flags and options for every command
-- Payload coverage by region (554 payloads, 489 categories)
+- Payload coverage by region (593 payloads, 502 categories)
 - Adapter configuration (Siphon, dlpscan-rs, Presidio)
 - Profile system and scheduling
 - Bridge/C2 integration
