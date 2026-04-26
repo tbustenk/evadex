@@ -863,7 +863,7 @@ BUILTIN_PAYLOADS = [
     # SEDOL — 7 chars (6-char identifier + 1 check digit), LSE/global
     Payload("2005973",            PayloadCategory.SEDOL_NUM,  "SEDOL — BP plc"),
     Payload("0540528",            PayloadCategory.SEDOL_NUM,  "SEDOL — HSBC Holdings"),
-    Payload("0922456",            PayloadCategory.SEDOL_NUM,  "SEDOL — Barclays plc"),
+    Payload("0922450",            PayloadCategory.SEDOL_NUM,  "SEDOL — Barclays plc"),
     # ISIN — 12 chars (2-char country + 9-char NSIN + 1 check digit)
     Payload("US0378331005",       PayloadCategory.ISIN,       "ISIN — Apple Inc (US)"),
     Payload("US46625H1005",       PayloadCategory.ISIN,       "ISIN — JPMorgan Chase (US)"),

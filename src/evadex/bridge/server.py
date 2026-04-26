@@ -24,6 +24,7 @@ the bridge. Restrict via ``EVADEX_BRIDGE_CORS_ORIGINS`` (comma list).
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -103,6 +104,11 @@ _SAFE_PROFILE_CHARS = set(
 _SAFE_TEMPLATE_CHARS = set(
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-."
 )
+
+
+# run_id format: R-YYYYMMDDTHHMMSS-NNNN  (as allocated by _allocate_run_id).
+# Validating before use in glob patterns prevents metacharacter injection.
+_RUN_ID_RE = re.compile(r"^R-\d{8}T\d{6}-\d{4}$")
 
 
 def _bad_request(msg: str, **extra: object) -> HTTPException:
@@ -773,8 +779,12 @@ def create_app() -> FastAPI:
         run_id = body.get("run_id")
         if not isinstance(run_id, str) or not run_id:
             raise _bad_request("run_id must be a non-empty string")
-
-        include_falsepos = bool(body.get("include_falsepos", True))
+        if not _RUN_ID_RE.match(run_id):
+            raise _bad_request(
+                "run_id has invalid format",
+                run_id=run_id,
+                expected="R-YYYYMMDDTHHMMSS-NNNN",
+            )
 
         # Get the run record to find the output file
         run_record = runs_mod.get_run(run_id)
@@ -813,7 +823,17 @@ def create_app() -> FastAPI:
                 }
             )
 
-        scan_file = scan_files[0]  # Use the first/most recent match
+        # Resolve and boundary-check: the glob result must stay inside repo_root
+        # so a maliciously crafted run_id cannot point the report generator at
+        # an arbitrary file on the host.
+        scan_file = scan_files[0].resolve()
+        try:
+            scan_file.relative_to(repo_root.resolve())
+        except ValueError:
+            raise HTTPException(
+                status_code=500,
+                detail={"error": "resolved scan file is outside the repository root"},
+            )
 
         # Generate temporary output file for the HTML report
         tmp = tempfile.NamedTemporaryFile(
@@ -828,9 +848,6 @@ def create_app() -> FastAPI:
             str(scan_file),
             "--output", str(report_path)
         ]
-
-        # TODO: Add false positive file if include_falsepos is True
-        # For now, just generate with the scan file
 
         try:
             proc = subprocess.run(

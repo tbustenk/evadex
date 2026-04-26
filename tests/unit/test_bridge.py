@@ -1451,7 +1451,7 @@ class TestNewEndpointSecurity:
 
     def test_report_endpoint_rejects_unknown_run_id(self, client: TestClient):
         """run_id not in _RUNS must return 404, not a file-read attempt."""
-        r = client.post("/v1/evadex/report", json={"run_id": "R-NOTTHERE"})
+        r = client.post("/v1/evadex/report", json={"run_id": "R-20991231T235959-0001"})
         assert r.status_code == 404
 
 
@@ -1574,10 +1574,18 @@ class TestReportEndpoint:
         assert r.status_code == 200
         assert r.headers["content-type"].startswith("text/html")
 
-    def test_report_invalid_run_id_returns_404(self, client: TestClient):
-        """Unknown run_id must return 404."""
-        r = client.post("/v1/evadex/report", json={"run_id": "R-NOTEXIST"})
+    def test_report_unknown_run_id_returns_404(self, client: TestClient):
+        """A well-formed but unknown run_id must return 404."""
+        r = client.post("/v1/evadex/report", json={"run_id": "R-20991231T235959-9999"})
         assert r.status_code == 404
+
+    def test_report_malformed_run_id_returns_400(self, client: TestClient):
+        """A run_id that doesn't match R-YYYYMMDDTHHMMSS-NNNN must return 400."""
+        for bad in ("R-NOTEXIST", "../../etc/passwd", "R-[GLOB*", "", "12345"):
+            r = client.post("/v1/evadex/report", json={"run_id": bad})
+            assert r.status_code == 400, f"expected 400 for run_id={bad!r}, got {r.status_code}"
+            assert "invalid format" in r.json()["detail"]["error"] or \
+                   "non-empty" in r.json()["detail"]["error"]
 
     def test_report_non_completed_run_returns_400(
         self, client: TestClient, monkeypatch: pytest.MonkeyPatch

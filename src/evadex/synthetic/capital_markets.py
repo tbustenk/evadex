@@ -173,10 +173,6 @@ def _gen_figi(rng: random.Random) -> str:
 
 # LEI = 4-char LOU + "00" (reserved) + 12-char entity code + 2 check digits.
 # Check digit uses the same mod-97 algorithm as IBANs.
-_LEI_LOU_CODES = [
-    "EVKD", "GLEIF", "HWUP", "5493", "2138",
-    "YZ83", "PBLD", "VKH6", "H3GS", "XKZZ",
-]
 _LEI_ALPHANUMERIC = string.digits + string.ascii_uppercase
 
 

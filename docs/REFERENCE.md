@@ -36,7 +36,7 @@ Each variant is tested four ways by default: as plain text, embedded in a DOCX, 
 
 Payloads are classified as **structured** or **heuristic** — see [Structured vs heuristic categories](#structured-vs-heuristic-categories) below.
 
-554 payloads across 489 categories covering **489/557 sub-patterns** (88%) of the dlpscan-rs pattern library, with 421 structured categories confirmed detected by seed scan. See [Coverage](#coverage) for a breakdown by sub-pattern.
+593 payloads across 502 categories covering **489/557 sub-patterns** (88%) of the dlpscan-rs pattern library, with 421 structured categories confirmed detected by seed scan. See [Coverage](#coverage) for a breakdown by sub-pattern.
 
 #### North America
 
@@ -491,7 +491,7 @@ evadex scan --tool dlpscan-cli --strategy text
 | **`banking`** *(default)* | ~80 Canadian banking focused | ~5 min | Daily checks, quick patches, RBC production testing |
 | `core` | ~150 broader PII and financial | ~10 min | Weekly benchmarks, broader compliance checks |
 | `regional` | ~350 international coverage | ~20 min | Pre-release validation, international deployments |
-| `full` | All 554 payloads | ~30–40 min | Major releases, compliance audits, onboarding new scanners |
+| `full` | All 593 payloads | ~30–40 min | Major releases, compliance audits, onboarding new scanners |
 
 ```bash
 # default — banking tier
@@ -2363,7 +2363,7 @@ Each row shows coverage at the **sub-pattern level** — e.g. "Credit Card Numbe
 | URLs with Credentials | 2 | **2/2** ✓ | URL with Password, URL with Token — completed this release |
 | PCI Sensitive Data | 1 | **1/1** ✓ | Cardholder Name |
 
-**Summary:** evadex covers **489/557 sub-patterns** (88%) across all 126 dlpscan-rs categories with **554 seed payloads**. Of those 489: 421 structured categories confirmed detected by direct dlpscan-rs seed scan; 68 heuristic categories excluded from scanner verification per design (JWT, API keys, labels). The remaining 68 unrepresented sub-patterns are low-specificity numeric patterns (e.g. 6–9 digit sequences) where the same dlpscan regex fires on dozens of existing payloads — no distinct seed value is feasible without a context keyword. Seed-scan verified against dlpscan-rs — see `new_cat_verification.json` for per-category results.
+**Summary:** evadex covers **489/557 sub-patterns** (88%) across all 126 dlpscan-rs categories with **593 seed payloads** (502 categories). Of those: 421 structured categories confirmed detected by direct dlpscan-rs seed scan; 68 heuristic categories excluded from scanner verification per design (JWT, API keys, labels). The v3.24.0 capital-markets additions (CUSIP, CINS, SEDOL, ISIN, FIGI, LEI, Ticker, RIC, VALOR, WKN, MT103, MiFID) are not yet detected by dlpscan-rs Siphon — see siphon-findings-2026-04-23.md for the full gap report. Seed-scan verified against dlpscan-rs — see `new_cat_verification.json` for per-category results.
 
 ---
 
