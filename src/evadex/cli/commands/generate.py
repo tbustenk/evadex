@@ -42,7 +42,10 @@ _TEMPLATE_CHOICES = click.Choice(
      "source_code", "config_file", "chat_log", "medical_record",
      "env_file", "secrets_file", "code_with_secrets",
      "lsh_variants", "lsh_corpus",
-     "email_thread"],
+     "email_thread",
+     # Capital markets templates (v3.25.0)
+     "trade_confirmation", "swift_mt103", "settlement_instruction",
+     "bloomberg_export", "risk_report"],
     case_sensitive=False,
 )
 
@@ -289,7 +292,12 @@ def _parse_key_float_pair(value: str) -> tuple[str, float]:
         "source_code, config_file, chat_log, medical_record, "
         "env_file, secrets_file, code_with_secrets, lsh_variants "
         "(N near-duplicate sections of a base banking memo for testing "
-        "Siphon's LSH document-similarity engine — split on '--- VARIANT N ---')."
+        "Siphon's LSH document-similarity engine — split on '--- VARIANT N ---'). "
+        "Capital markets: trade_confirmation (equity trade confirm with ISIN/CUSIP/LEI), "
+        "swift_mt103 (SWIFT MT103 payment with IBAN/BIC), "
+        "settlement_instruction (CLS/DTCC settlement with ISIN/BIC), "
+        "bloomberg_export (Bloomberg terminal CSV export with ISIN/SEDOL/FIGI), "
+        "risk_report (counterparty risk summary with LEI/IBAN)."
     ),
 )
 @click.option(

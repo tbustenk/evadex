@@ -17,5 +17,6 @@ class CompareReporter(BaseReporter):
             "by_category":  comparison["by_category"],
             "by_technique": comparison["by_technique"],
             "diffs":        comparison["diffs"],
+            "verdict":      comparison.get("verdict"),
         }
         return json.dumps(out, indent=2, ensure_ascii=False)

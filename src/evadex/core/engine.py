@@ -16,6 +16,7 @@ class Engine:
         strategies: list[str] | None = None,
         on_result: Optional[Callable[[ScanResult, int, int], None]] = None,
         technique_filter: Optional[set[str]] = None,
+        streaming: bool = True,
     ):
         self.adapter = adapter
         self.generators = generators  # None = use all registered
@@ -26,6 +27,10 @@ class Engine:
         # variant whose technique is not in the set is skipped — used by
         # ``--fast`` to trim the variant pool to high-bypass techniques.
         self.technique_filter = technique_filter
+        # v3.25.0: streaming=True (default) submits tasks as variants are
+        # generated; streaming=False collects all variants before submitting.
+        # Streaming uses less peak memory; batch mode pre-allocates all work.
+        self.streaming = streaming
 
     def run(self, payloads: list[Payload]) -> list[ScanResult]:
         return asyncio.run(self._run_async_collect(payloads))
@@ -71,34 +76,55 @@ class Engine:
                     )
 
         try:
-            # Stream: submit tasks as variants are generated so subprocess calls
-            # start immediately rather than waiting for all variants to be built.
-            for payload in payloads:
-                for gen in generators:
-                    if hasattr(gen, 'applicable_categories') and gen.applicable_categories is not None:
-                        if payload.category not in gen.applicable_categories:
-                            continue
-                    for variant in gen.generate(payload.value):
-                        if self.technique_filter is not None and variant.technique not in self.technique_filter:
-                            continue
-                        for strategy in self.strategies:
-                            task = asyncio.create_task(_submit_one(payload, variant, strategy))
-                            pending.add(task)
-                            total_submitted += 1
-                            # Drain any tasks that already completed while we were generating
-                            done = {t for t in pending if t.done()}
-                            for t in done:
-                                pending.discard(t)
-                                completed += 1
-                                result = t.result()
-                                if self.on_result:
-                                    try:
-                                        self.on_result(result, completed, total_submitted)
-                                    except Exception:
-                                        pass
-                                yield result
+            if self.streaming:
+                # Streaming mode (default): submit tasks as variants are generated
+                # so subprocess calls start immediately rather than waiting for all
+                # variants to be built. Peak memory proportional to concurrency.
+                for payload in payloads:
+                    for gen in generators:
+                        if hasattr(gen, 'applicable_categories') and gen.applicable_categories is not None:
+                            if payload.category not in gen.applicable_categories:
+                                continue
+                        for variant in gen.generate(payload.value):
+                            if self.technique_filter is not None and variant.technique not in self.technique_filter:
+                                continue
+                            for strategy in self.strategies:
+                                task = asyncio.create_task(_submit_one(payload, variant, strategy))
+                                pending.add(task)
+                                total_submitted += 1
+                                # Drain any tasks that already completed while we were generating
+                                done = {t for t in pending if t.done()}
+                                for t in done:
+                                    pending.discard(t)
+                                    completed += 1
+                                    result = t.result()
+                                    if self.on_result:
+                                        try:
+                                            self.on_result(result, completed, total_submitted)
+                                        except Exception:
+                                            pass
+                                    yield result
+            else:
+                # Batch mode (--no-stream): enumerate all (payload, variant, strategy)
+                # tuples into a list first, then submit them all. Uses more peak memory
+                # than streaming but makes total_submitted known upfront.
+                all_work: list[tuple] = []
+                for payload in payloads:
+                    for gen in generators:
+                        if hasattr(gen, 'applicable_categories') and gen.applicable_categories is not None:
+                            if payload.category not in gen.applicable_categories:
+                                continue
+                        for variant in gen.generate(payload.value):
+                            if self.technique_filter is not None and variant.technique not in self.technique_filter:
+                                continue
+                            for strategy in self.strategies:
+                                all_work.append((payload, variant, strategy))
+                total_submitted = len(all_work)
+                for payload, variant, strategy in all_work:
+                    task = asyncio.create_task(_submit_one(payload, variant, strategy))
+                    pending.add(task)
 
-            # Drain remaining in-flight tasks
+            # Drain remaining in-flight tasks (shared by both modes)
             while pending:
                 done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
                 for t in done:

@@ -407,6 +407,10 @@ def _print_summary(results, err_console):
               help="Live per-variant output: each variant result prints to "
                    "stderr as it completes (✓ detected / ✗ evaded). Suppresses "
                    "the progress bar since per-variant lines scroll past it.")
+@click.option("--stream/--no-stream", "streaming", default=True, show_default=True,
+              help="Stream variants to the scanner as they are generated (default). "
+                   "--no-stream collects all variants into memory before submitting. "
+                   "Streaming uses less peak memory; --no-stream makes total known upfront.")
 def scan(
     ctx,
     config_path, tool, input_value, fmt, output, url, api_key, timeout,
@@ -416,7 +420,7 @@ def scan(
     save_baseline, compare_baseline, audit_log, feedback_report,
     require_context, wrap_context, no_wrap_context,
     c2_url, c2_key, save_as,
-    min_confidence, progress_json, fast_mode, verbose,
+    min_confidence, progress_json, fast_mode, verbose, streaming,
 ):
     """Test a DLP scanner against known sensitive data patterns.
 
@@ -879,6 +883,7 @@ def scan(
         strategies=active_strategies,
         on_result=on_result,
         technique_filter=technique_filter,
+        streaming=streaming,
     )
 
     with progress:

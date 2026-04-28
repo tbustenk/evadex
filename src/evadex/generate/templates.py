@@ -1326,6 +1326,657 @@ def format_lsh_variants(
     return lines
 
 
+def format_trade_confirmation(
+    entries: list[GeneratedEntry],
+    rng: random.Random,
+    noise_level: str = "medium",
+    density: str = "medium",
+    language: str = "en",
+) -> list[str]:
+    """Equity trade confirmation — buy and sell sides, realistic T+2 settlement.
+
+    Sensitive values land as security identifiers (ISIN, CUSIP, SEDOL),
+    LEI for counterparty, account numbers for settlement, and IBAN/BIC
+    in the payment instruction section.
+    """
+    lang = _lang_key(language)
+    today = datetime.date.today()
+    settle = today + datetime.timedelta(days=2)
+    ref_no = f"TC-{today.strftime('%Y%m%d')}-{rng.randint(100000, 999999)}"
+
+    if lang == "fr-CA":
+        brokers = ["RBC Marchés des Capitaux", "BMO Marchés des capitaux",
+                   "Banque Nationale marchés financiers", "CIBC Marchés des capitaux"]
+        exchanges = ["Bourse de Toronto (TSX)", "Bourse de Montréal (MX)",
+                     "NASDAQ", "NYSE"]
+        currencies = ["CAD", "CAD", "CAD", "USD"]
+        inst_names = ["Banque Royale du Canada", "BMO Groupe financier",
+                      "Banque Nationale du Canada", "Caisse de dépôt et placement du Québec"]
+        hdr_label = "CONFIRMATION D'OPÉRATION — TITRE BOURSIER"
+        acct_label = "Compte donneur d'ordre"
+        broker_label = "Courtier"
+        trade_date_label = "Date de négociation"
+        settle_date_label = "Date de règlement (T+2)"
+        direction_label = "Sens"
+        qty_label = "Quantité"
+        price_label = "Cours"
+        gross_label = "Montant brut"
+        net_label = "Montant net"
+        comm_label = "Commission"
+        counterparty_label = "Contrepartie"
+        lei_label = "LEI contrepartie"
+        bic_label = "BIC/SWIFT"
+        sec_label = "TITRE"
+        direction_choices = ["ACHAT", "VENTE"]
+    else:
+        brokers = ["RBC Capital Markets", "BMO Capital Markets",
+                   "National Bank Financial", "CIBC Capital Markets"]
+        exchanges = ["Toronto Stock Exchange (TSX)", "Montréal Exchange (MX)",
+                     "NASDAQ", "NYSE"]
+        currencies = ["CAD", "CAD", "USD", "USD"]
+        inst_names = ["Royal Bank of Canada", "Bank of Montreal",
+                      "National Bank of Canada", "Ontario Teachers' Pension Plan"]
+        hdr_label = "TRADE CONFIRMATION — EQUITY SECURITY"
+        acct_label = "Client Account"
+        broker_label = "Executing Broker"
+        trade_date_label = "Trade Date"
+        settle_date_label = "Settlement Date (T+2)"
+        direction_label = "Side"
+        qty_label = "Quantity"
+        price_label = "Price"
+        gross_label = "Gross Amount"
+        net_label = "Net Amount"
+        comm_label = "Commission"
+        counterparty_label = "Counterparty"
+        lei_label = "Counterparty LEI"
+        bic_label = "BIC / SWIFT"
+        sec_label = "SECURITY"
+        direction_choices = ["BUY", "SELL"]
+
+    broker = rng.choice(brokers)
+    exchange = rng.choice(exchanges)
+    currency = rng.choice(currencies)
+    counterparty = rng.choice(inst_names)
+    direction = rng.choice(direction_choices)
+    qty = rng.randint(500, 50_000)
+    price = round(rng.uniform(10, 500), 2)
+    gross = round(qty * price, 2)
+    commission = round(gross * 0.001, 2)
+    net = round(gross + commission if direction in ("BUY", "ACHAT") else gross - commission, 2)
+
+    lines: list[str] = [
+        "=" * 76,
+        f"  {hdr_label}",
+        "=" * 76,
+        f"  {'Confirmation Ref':<28}{ref_no}",
+        f"  {trade_date_label:<28}{today.isoformat()}",
+        f"  {settle_date_label:<28}{settle.isoformat()}",
+        f"  {broker_label:<28}{broker}",
+        f"  {acct_label:<28}ACC-{rng.randint(100000, 999999)}",
+        "",
+    ]
+
+    for noise in _noise_lines(rng, noise_level, len(entries), language=lang)[:2]:
+        lines.append(f"  {noise}")
+    lines.append("")
+
+    # Embed entries as individual trade blocs
+    for i, e in enumerate(entries, 1):
+        cat = e.category.value
+        # Classify entry type to place value in the right field
+        is_isin  = "isin"  in cat
+        is_cusip = "cusip" in cat
+        is_sedol = "sedol" in cat
+        is_figi  = "figi"  in cat
+        is_lei   = "lei"   in cat
+        is_iban  = "iban"  in cat
+        is_bic   = "swift" in cat or "bic" in cat
+        is_acct  = cat in ("account_balance", "bank_ref", "loan_number", "employee_id")
+
+        lines.append(f"  {'─' * 72}")
+        if lang == "fr-CA":
+            lines.append(f"  Opération {i:>4}  |  {direction}  |  {currency}  |  {exchange}")
+        else:
+            lines.append(f"  Trade {i:>4}  |  {direction}  |  {currency}  |  {exchange}")
+        lines.append("")
+        lines.append(f"  {sec_label}")
+        if is_isin:
+            lines.append(f"    ISIN:              {e.variant_value}")
+        elif is_cusip:
+            lines.append(f"    CUSIP:             {e.variant_value}")
+        elif is_sedol:
+            lines.append(f"    SEDOL:             {e.variant_value}")
+        elif is_figi:
+            lines.append(f"    FIGI:              {e.variant_value}")
+        else:
+            lines.append(f"    Security ref:      {e.embedded_text}")
+
+        lines.append(f"    {qty_label:<18}{qty:>10,}")
+        lines.append(f"    {price_label:<18}{currency} {price:>10.2f}")
+        lines.append(f"    {gross_label:<18}{currency} {gross:>10,.2f}")
+        lines.append(f"    {comm_label:<18}{currency} {commission:>10,.2f}")
+        lines.append(f"    {net_label:<18}{currency} {net:>10,.2f}")
+        lines.append("")
+        lines.append(f"  {counterparty_label}")
+        if is_lei:
+            lines.append(f"    {lei_label:<18}{e.variant_value}")
+            lines.append(f"    Name:              {counterparty}")
+        elif is_bic:
+            lines.append(f"    {bic_label:<18}{e.variant_value}")
+            lines.append(f"    Name:              {counterparty}")
+        else:
+            lines.append(f"    Name:              {counterparty}")
+            lines.append(f"    {lei_label:<18}{'549300' + str(rng.randint(10**14, 10**15 - 1))[:14]}")
+        lines.append("")
+        if lang == "fr-CA":
+            lines.append("  RÈGLEMENT")
+        else:
+            lines.append("  SETTLEMENT")
+        if is_iban:
+            lines.append(f"    IBAN:              {e.variant_value}")
+        elif is_acct:
+            lines.append(f"    Compte:            {e.embedded_text}")
+        else:
+            lines.append(f"    Custodian:         DTCC / CDS")
+        lines.append("")
+
+    lines.append("  " + "=" * 72)
+    if lang == "fr-CA":
+        lines.append("  Cette confirmation est émise conformément au Règlement 31-103 des ACVM.")
+        lines.append("  Toute divergence doit être signalée dans les 24 h ouvrables.")
+    else:
+        lines.append("  This confirmation is issued pursuant to NI 31-103 and MiFID II requirements.")
+        lines.append("  Any discrepancy must be reported within one (1) business day.")
+    lines.append("")
+    return lines
+
+
+def format_swift_mt103(
+    entries: list[GeneratedEntry],
+    rng: random.Random,
+    noise_level: str = "medium",
+    density: str = "medium",
+    language: str = "en",
+) -> list[str]:
+    """SWIFT MT103 single-customer credit transfer message.
+
+    Sensitive values land as IBAN in :50K: (ordering customer) and :59:
+    (beneficiary), BIC in :52A: and :57A:, MT103 reference in :20:,
+    and IBAN/account in :57D:.  Each entry generates one MT103 block.
+    """
+    lang = _lang_key(language)
+    today = datetime.date.today()
+
+    if lang == "fr-CA":
+        sender_bics = ["BNDCCAMMXXX", "ROYCCAT2XXX", "TDOMCATTXXX", "NBBACAMMXXX"]
+        recv_bics   = ["DEUTDEFFXXX", "BARCGB22XXX", "BNPAFRPPXXX", "HSBCHKHHXXX"]
+        currencies  = ["CAD", "USD", "EUR", "CHF"]
+        sender_names = [
+            "BANQUE NATIONALE DU CANADA\n  1155 METCALFE\n  MONTREAL QC H3B 4S9 CA",
+            "ROYAL BANK OF CANADA\n  200 BAY STREET\n  TORONTO ON M5J 2J2 CA",
+            "TD CANADA TRUST\n  55 KING STREET W\n  TORONTO ON M5K 1A2 CA",
+        ]
+        hdr = "EXTRACTEUR DE MESSAGES SWIFT — USAGE INTERNE"
+        batch_lbl = "Lot"
+    else:
+        sender_bics = ["ROYCCAT2XXX", "TDOMCATTXXX", "BOFMCAM2XXX", "CIBCCATTXXX"]
+        recv_bics   = ["DEUTDEFFXXX", "BARCGB22XXX", "BNPAFRPPXXX", "CHASUS33XXX"]
+        currencies  = ["CAD", "USD", "EUR", "GBP"]
+        sender_names = [
+            "ROYAL BANK OF CANADA\n  200 BAY STREET\n  TORONTO ON M5J 2J2 CA",
+            "BANK OF MONTREAL\n  100 KING ST W\n  TORONTO ON M5X 1A1 CA",
+            "TD CANADA TRUST\n  55 KING STREET W\n  TORONTO ON M5K 1A2 CA",
+        ]
+        hdr = "SWIFT MESSAGE EXTRACT — INTERNAL USE ONLY"
+        batch_lbl = "Batch"
+
+    lines: list[str] = [
+        "=" * 76,
+        f"  {hdr}",
+        f"  {batch_lbl}: MT103-{today.strftime('%Y%m%d')}-{rng.randint(1000, 9999)}",
+        "=" * 76,
+        "",
+    ]
+
+    for noise in _noise_lines(rng, noise_level, len(entries), language=lang)[:1]:
+        lines.append(f"  {noise}")
+    lines.append("")
+
+    for i, e in enumerate(entries, 1):
+        cat = e.category.value
+        is_iban  = "iban" in cat
+        is_bic   = "swift" in cat or "bic" in cat
+        is_mt103 = "mt103" in cat or "wire_ref" in cat or "fedwire" in cat
+
+        sender_bic = rng.choice(sender_bics)
+        recv_bic   = rng.choice(recv_bics)
+        currency   = rng.choice(currencies)
+        amount     = round(rng.uniform(1_000, 500_000), 2)
+        sender_name = rng.choice(sender_names)
+        val_date   = today.strftime("%y%m%d")
+
+        if is_mt103:
+            ref_20 = e.variant_value[:16]
+        elif is_bic:
+            ref_20 = f"REF{today.strftime('%Y%m%d')}{rng.randint(100,999)}"
+        else:
+            ref_20 = f"PMT{today.strftime('%Y%m%d')}{rng.randint(1000, 9999)}"
+
+        if is_bic:
+            ordering_bic = e.variant_value[:11]
+        else:
+            ordering_bic = sender_bic
+
+        if is_iban:
+            ordering_account = e.variant_value
+            benef_account    = f"GB{''.join(str(rng.randint(0,9)) for _ in range(20))}"
+        else:
+            ordering_account = f"CA{''.join(str(rng.randint(0,9)) for _ in range(20))}"
+            benef_account    = f"DE{''.join(str(rng.randint(0,9)) for _ in range(20))}"
+
+        lines.append(f"  ── Message {i} {'─' * 60}")
+        lines.append(f"  {{1:F01{sender_bic}0000000001}}")
+        lines.append(f"  {{2:I103{recv_bic}N}}")
+        lines.append(f"  {{3:{{108:MT103MSG{i:06d}}}}}")
+        lines.append("  {4:")
+        lines.append(f"  :20:{ref_20}")
+        lines.append("  :23B:CRED")
+        lines.append(f"  :32A:{val_date}{currency}{amount:,.2f}".replace(",", ""))
+        lines.append(f"  :50K:/{ordering_account}")
+        lines.append(f"  {sender_name}")
+        lines.append(f"  :52A:{ordering_bic}")
+        lines.append(f"  :57A:{recv_bic}")
+        lines.append(f"  :59:/{benef_account}")
+        if not is_iban and not is_bic and not is_mt103:
+            lines.append(f"  {e.embedded_text[:60]}")
+        lines.append(f"  :70:/INV/{today.strftime('%Y-%m-%d')}/{rng.randint(10000,99999)}")
+        lines.append("  :71A:SHA")
+        lines.append("  -}")
+        lines.append("")
+
+    if lang == "fr-CA":
+        lines.append("  Confidentiel — utilisation bancaire interne uniquement.")
+        lines.append("  Conservation : 7 ans (Loi sur les banques, art. 238).")
+    else:
+        lines.append("  Confidential — for internal bank use only.")
+        lines.append("  Retention: 7 years (Bank Act s. 238, FINTRAC guidance).")
+    lines.append("")
+    return lines
+
+
+def format_settlement_instruction(
+    entries: list[GeneratedEntry],
+    rng: random.Random,
+    noise_level: str = "medium",
+    density: str = "medium",
+    language: str = "en",
+) -> list[str]:
+    """CLS / DTCC-style securities settlement instruction.
+
+    Sensitive values land as ISIN, CUSIP in the security block;
+    BIC/SWIFT in delivering/receiving agent fields; and IBAN or account
+    numbers in the cash settlement section.
+    """
+    lang = _lang_key(language)
+    today = datetime.date.today()
+    settle = today + datetime.timedelta(days=2)
+
+    if lang == "fr-CA":
+        custodians = [
+            ("Service de dépôt et de compensation CDS", "CDSLCATTXXX"),
+            ("Caisse de dépôt et placement du Québec", "CDPQCAMMXXX"),
+            ("Banque Royale du Canada — Garde", "ROYCCAT2XXX"),
+        ]
+        hdr_title = "INSTRUCTION DE RÈGLEMENT DE VALEURS MOBILIÈRES"
+        inst_type_choices = ["LIVRAISON CONTRE PAIEMENT", "RÉCEPTION CONTRE PAIEMENT", "LIVRAISON LIBRE"]
+        status_choices = ["EN ATTENTE", "CONFIRMÉE", "RÉGLÉE"]
+        deliver_lbl = "Agent livraison"
+        receive_lbl = "Agent réception"
+        sec_lbl = "VALEUR MOBILIÈRE"
+        trade_lbl = "OPÉRATION"
+        settle_lbl = "RÈGLEMENT ESPÈCES"
+    else:
+        custodians = [
+            ("Depository Trust & Clearing Corp (DTCC)", "DTCYUS33XXX"),
+            ("Euroclear Bank", "MGTCBEBEXXX"),
+            ("Clearstream Banking Luxembourg", "CEDELULLXXX"),
+            ("CDS Clearing and Depository Services", "CDSLCATTXXX"),
+        ]
+        hdr_title = "SECURITIES SETTLEMENT INSTRUCTION"
+        inst_type_choices = ["DELIVERY vs PAYMENT", "RECEIVE vs PAYMENT", "FREE DELIVERY"]
+        status_choices = ["PENDING MATCHING", "MATCHED — PENDING SETTLEMENT", "SETTLED"]
+        deliver_lbl = "Delivering Agent"
+        receive_lbl = "Receiving Agent"
+        sec_lbl = "SECURITY DETAILS"
+        trade_lbl = "TRADE DETAILS"
+        settle_lbl = "CASH SETTLEMENT"
+
+    inst_type = rng.choice(inst_type_choices)
+    status = rng.choice(status_choices)
+    csd_name, csd_bic = rng.choice(custodians)
+    inst_ref = f"SSI-{today.strftime('%Y%m%d')}-{rng.randint(100000, 999999)}"
+
+    lines: list[str] = [
+        "=" * 76,
+        f"  {hdr_title}",
+        "=" * 76,
+        f"  Instruction Ref:        {inst_ref}",
+        f"  Instruction Type:       {inst_type}",
+        f"  Trade Date:             {today.isoformat()}",
+        f"  Settlement Date (T+2):  {settle.isoformat()}",
+        f"  Status:                 {status}",
+        f"  CSD:                    {csd_name}",
+        "",
+    ]
+
+    for noise in _noise_lines(rng, noise_level, len(entries), language=lang)[:2]:
+        lines.append(f"  {noise}")
+    lines.append("")
+
+    for i, e in enumerate(entries, 1):
+        cat = e.category.value
+        is_isin  = "isin"  in cat
+        is_cusip = "cusip" in cat
+        is_bic   = "swift" in cat or "bic" in cat
+        is_iban  = "iban"  in cat
+        is_lei   = "lei"   in cat
+
+        qty = rng.randint(1_000, 100_000)
+        price = round(rng.uniform(5, 1_000), 4)
+        amount = round(qty * price, 2)
+        currency = rng.choice(["CAD", "USD", "EUR"])
+
+        lines.append(f"  {'─' * 72}")
+        lines.append(f"  Instruction {i:>4}")
+        lines.append("")
+        lines.append(f"  {sec_lbl}")
+        if is_isin:
+            lines.append(f"    ISIN:                   {e.variant_value}")
+            lines.append(f"    CUSIP:                  {'037833100' if 'US' in e.variant_value else '46625H100'}")
+        elif is_cusip:
+            lines.append(f"    CUSIP:                  {e.variant_value}")
+            lines.append(f"    ISIN:                   US{''.join(str(rng.randint(0,9)) for _ in range(9))}{'0'}")
+        else:
+            lines.append(f"    Security ref:           {e.embedded_text[:50]}")
+        lines.append(f"    Market / Exchange:      {'TSX' if currency == 'CAD' else 'NYSE'}")
+        lines.append("")
+        lines.append(f"  {trade_lbl}")
+        lines.append(f"    Quantity:               {qty:>10,} shares")
+        lines.append(f"    Price:                  {currency} {price:>10.4f}")
+        lines.append(f"    Gross Amount:           {currency} {amount:>10,.2f}")
+        lines.append("")
+        lines.append(f"  {deliver_lbl}")
+        if is_bic:
+            lines.append(f"    BIC:                    {e.variant_value[:11]}")
+        else:
+            lines.append(f"    BIC:                    {csd_bic}")
+        lines.append(f"    Account:                ACC-{rng.randint(10**9, 10**10 - 1)}")
+        lines.append("")
+        lines.append(f"  {receive_lbl}")
+        lines.append(f"    BIC:                    {rng.choice([c[1] for c in custodians])}")
+        lines.append(f"    Account:                ACC-{rng.randint(10**9, 10**10 - 1)}")
+        lines.append("")
+        lines.append(f"  {settle_lbl}")
+        if is_iban:
+            lines.append(f"    IBAN:                   {e.variant_value}")
+        elif is_lei:
+            lines.append(f"    Counterparty LEI:       {e.variant_value}")
+        lines.append(f"    Amount:                 {currency} {amount:>10,.2f}")
+        lines.append(f"    Value Date:             {settle.isoformat()}")
+        lines.append("")
+
+    lines.append("  " + "=" * 72)
+    if lang == "fr-CA":
+        lines.append("  Instructions soumises conformément aux règles ACSS et à la Loi sur le transfert de valeurs mobilières.")
+    else:
+        lines.append("  Instructions submitted pursuant to DTCC Operating Procedures and applicable securities transfer legislation.")
+    lines.append("")
+    return lines
+
+
+def format_bloomberg_export(
+    entries: list[GeneratedEntry],
+    rng: random.Random,
+    noise_level: str = "medium",
+    density: str = "medium",
+    language: str = "en",
+) -> list[str]:
+    """Bloomberg terminal data export (CSV-style).
+
+    Produces a Bloomberg BDS/BDH-style export with a metadata header
+    and security data rows.  Sensitive values land as ISIN, SEDOL,
+    FIGI, CUSIP, or ticker in their respective columns; other categories
+    appear in the description / notes field.
+
+    Compatible with the CSV writer when used with ``--format csv``.
+    """
+    lang = _lang_key(language)
+    today = datetime.date.today()
+
+    if lang == "fr-CA":
+        hdr_lines = [
+            f"# BLOOMBERG PROFESSIONAL SERVICE — EXPORTATION DE DONNÉES",
+            f"# Date d'export:,{today.isoformat()}T{rng.randint(8,17):02d}:{rng.randint(0,59):02d}:00Z",
+            f"# Type de sécurité:,ÉQUITÉ / TITRE À REVENU FIXE",
+            f"# Champs exportés:,TICKER,ISIN,SEDOL,FIGI,CUSIP,NOM,PX_LAST,VOLUME,DEVISE",
+            "#",
+        ]
+        col_header = "TICKER,ISIN,SEDOL,FIGI,CUSIP,NOM,PX_LAST,VOLUME,DEVISE"
+    else:
+        hdr_lines = [
+            f"# BLOOMBERG PROFESSIONAL SERVICE DATA EXPORT",
+            f"# Export Date:,{today.isoformat()}T{rng.randint(8,17):02d}:{rng.randint(0,59):02d}:00Z",
+            f"# Security Type:,EQUITY / FIXED INCOME",
+            f"# Fields:,TICKER,ISIN,SEDOL,FIGI,CUSIP,NAME,PX_LAST,VOLUME,CRNCY",
+            "#",
+        ]
+        col_header = "TICKER,ISIN,SEDOL,FIGI,CUSIP,NAME,PX_LAST,VOLUME,CRNCY"
+
+    # Bloomberg-style ticker pool
+    _tickers = ["AAPL US", "JPM US", "RY CT", "TD CT", "BNS CT",
+                "HSBA LN", "BP/ LN", "SAN SM", "BNP FP", "DBK GY"]
+    _names = ['"Apple Inc"', '"JPMorgan Chase & Co"', '"Royal Bank of Canada"',
+              '"TD Bank Group"', '"Bank of Nova Scotia"', '"HSBC Holdings"',
+              '"BP plc"', '"Santander Group"', '"BNP Paribas"', '"Deutsche Bank"']
+    _figi_pool = ["BBG000B9XRY4", "BBG000DMBXR2", "BBG000BCQZS4",
+                  "BBG000FD8G46", "BBG000BXNJ07", "BBG000BS69D5"]
+    _sedol_pool = ["2046251", "2190385", "0922450", "2005973", "0540528", "B0WNLY7"]
+    _cusip_pool = ["037833100", "46625H100", "78011F103", "06406RAA3", "064159109"]
+
+    lines: list[str] = list(hdr_lines) + [col_header]
+
+    for i, e in enumerate(entries, 1):
+        cat = e.category.value
+        is_isin   = "isin"   in cat
+        is_sedol  = "sedol"  in cat
+        is_figi   = "figi"   in cat
+        is_cusip  = "cusip"  in cat
+        is_ticker = "ticker" in cat or "ric" in cat
+
+        ticker = rng.choice(_tickers) if not is_ticker else e.variant_value[:10]
+        name   = rng.choice(_names)
+        px     = round(rng.uniform(10, 800), 2)
+        volume = rng.randint(100_000, 50_000_000)
+        crncy  = rng.choice(["USD", "CAD", "GBP", "EUR"])
+
+        if is_isin:
+            isin_val = e.variant_value
+            sedol_val = rng.choice(_sedol_pool)
+            figi_val  = rng.choice(_figi_pool)
+            cusip_val = rng.choice(_cusip_pool)
+        elif is_sedol:
+            isin_val  = f"GB{''.join(str(rng.randint(0,9)) for _ in range(10))}"
+            sedol_val = e.variant_value
+            figi_val  = rng.choice(_figi_pool)
+            cusip_val = rng.choice(_cusip_pool)
+        elif is_figi:
+            isin_val  = f"US{''.join(str(rng.randint(0,9)) for _ in range(10))}"
+            sedol_val = rng.choice(_sedol_pool)
+            figi_val  = e.variant_value
+            cusip_val = rng.choice(_cusip_pool)
+        elif is_cusip:
+            isin_val  = f"US{e.variant_value}0" if len(e.variant_value) == 9 else f"US{''.join(str(rng.randint(0,9)) for _ in range(10))}"
+            sedol_val = rng.choice(_sedol_pool)
+            figi_val  = rng.choice(_figi_pool)
+            cusip_val = e.variant_value
+        else:
+            isin_val  = f"US{''.join(str(rng.randint(0,9)) for _ in range(10))}"
+            sedol_val = rng.choice(_sedol_pool)
+            figi_val  = rng.choice(_figi_pool)
+            cusip_val = rng.choice(_cusip_pool)
+            # Embed the actual test value in the name / description field
+            name = f'"{e.embedded_text[:40]}"' if e.embedded_text else name
+
+        lines.append(
+            f"{ticker},{isin_val},{sedol_val},{figi_val},{cusip_val},"
+            f"{name},{px},{volume},{crncy}"
+        )
+
+    if noise_level != "low":
+        lines.append("#")
+        if lang == "fr-CA":
+            lines.append(f"# Fin du fichier — {len(entries)} enregistrements")
+            lines.append("# Toute distribution sans autorisation est interdite.")
+        else:
+            lines.append(f"# End of file — {len(entries)} records")
+            lines.append("# Unauthorised distribution prohibited. © Bloomberg L.P.")
+    return lines
+
+
+def format_risk_report(
+    entries: list[GeneratedEntry],
+    rng: random.Random,
+    noise_level: str = "medium",
+    density: str = "medium",
+    language: str = "en",
+) -> list[str]:
+    """Internal counterparty risk summary report.
+
+    Sensitive values land as LEI for counterparty identification,
+    IBAN for settlement accounts, credit-limit and exposure amounts,
+    and account numbers in the netting agreement section.
+    """
+    lang = _lang_key(language)
+    today = datetime.date.today()
+    rpt_id = f"RISK-{today.year}-Q{(today.month - 1) // 3 + 1}-{rng.randint(100, 999):03d}"
+
+    if lang == "fr-CA":
+        hdr_title = "RAPPORT SOMMAIRE DES RISQUES DE CONTREPARTIE"
+        prepared_by = "Groupe Gestion des risques de marché"
+        classification = "CONFIDENTIEL — DIFFUSION RESTREINTE"
+        counterparties = [
+            "Barclays Bank PLC", "Deutsche Bank AG", "Société Générale SA",
+            "BNP Paribas SA", "HSBC Holdings PLC", "UBS Group AG",
+            "Crédit Agricole CIB", "Natixis SA",
+        ]
+        ratings = ["AAA", "AA+", "AA", "AA-", "A+", "A", "A-", "BBB+"]
+        currencies = ["CAD", "USD", "EUR"]
+        exposure_lbl = "Exposition courante"
+        limit_lbl = "Limite approuvée"
+        utilization_lbl = "Utilisation (%)"
+        netting_lbl = "Accord de compensation ISDA"
+        collateral_lbl = "Garantie postée"
+        acct_lbl = "Compte de règlement"
+        sec1 = "SECTION 1 : SOMMAIRE EXÉCUTIF"
+        sec2 = "SECTION 2 : EXPOSITIONS PAR CONTREPARTIE"
+        sec3 = "SECTION 3 : ACCORDS DE COMPENSATION ET GARANTIES"
+    else:
+        hdr_title = "COUNTERPARTY RISK SUMMARY REPORT"
+        prepared_by = "Market Risk Management Group"
+        classification = "CONFIDENTIAL — RESTRICTED DISTRIBUTION"
+        counterparties = [
+            "Barclays Bank PLC", "Deutsche Bank AG", "Societe Generale SA",
+            "BNP Paribas SA", "HSBC Holdings PLC", "UBS Group AG",
+            "Credit Agricole CIB", "Natixis SA",
+        ]
+        ratings = ["AAA", "AA+", "AA", "AA-", "A+", "A", "A-", "BBB+"]
+        currencies = ["CAD", "USD", "EUR"]
+        exposure_lbl = "Current Exposure"
+        limit_lbl = "Approved Credit Limit"
+        utilization_lbl = "Utilization (%)"
+        netting_lbl = "ISDA Netting Agreement"
+        collateral_lbl = "Posted Collateral"
+        acct_lbl = "Settlement Account"
+        sec1 = "SECTION 1: EXECUTIVE SUMMARY"
+        sec2 = "SECTION 2: COUNTERPARTY EXPOSURES"
+        sec3 = "SECTION 3: NETTING AND COLLATERAL"
+
+    lines: list[str] = [
+        "=" * 76,
+        f"  {hdr_title}",
+        "=" * 76,
+        f"  Report ID:        {rpt_id}",
+        f"  Report Date:      {today.isoformat()}",
+        f"  Prepared By:      {prepared_by}",
+        f"  Classification:   {classification}",
+        "",
+        f"  {sec1}",
+        "  " + "─" * 50,
+    ]
+
+    for noise in _noise_lines(rng, noise_level, len(entries), language=lang)[:3]:
+        lines.append(f"  {noise}")
+    lines.append("")
+
+    total_exposure = sum(rng.uniform(10_000_000, 500_000_000) for _ in entries)
+    lines.append(f"  {'Total Portfolio Exposure':<30} {total_exposure:>18,.0f} CAD")
+    lines.append(f"  {'Active Counterparties':<30} {len(entries):>18}")
+    lines.append("")
+    lines.append(f"  {sec2}")
+    lines.append("  " + "─" * 50)
+
+    for i, e in enumerate(entries, 1):
+        cat = e.category.value
+        is_lei  = "lei"   in cat
+        is_iban = "iban"  in cat
+        is_acct = cat in ("account_balance", "bank_ref", "loan_number",
+                          "income_amount", "financial_amount")
+
+        cpty = rng.choice(counterparties)
+        rating = rng.choice(ratings)
+        currency = rng.choice(currencies)
+        limit = round(rng.uniform(50_000_000, 1_000_000_000), 0)
+        exposure = round(rng.uniform(0.05 * limit, 0.95 * limit), 0)
+        utilization = round(exposure / limit * 100, 1)
+        collateral = round(exposure * rng.uniform(0.0, 0.8), 0)
+
+        lines.append(f"  {'─' * 72}")
+        lines.append(f"  Counterparty {i:>4}:  {cpty}")
+        if is_lei:
+            lines.append(f"    LEI:               {e.variant_value}")
+        else:
+            lines.append(f"    LEI:               {'549300' + str(rng.randint(10**14, 10**15 - 1))[:14]}")
+            if not is_iban and not is_acct:
+                lines.append(f"    Ref:               {e.embedded_text[:60]}")
+        lines.append(f"    Credit Rating:     {rating}")
+        lines.append(f"    {limit_lbl:<25} {currency} {limit:>14,.0f}")
+        lines.append(f"    {exposure_lbl:<25} {currency} {exposure:>14,.0f}")
+        lines.append(f"    {utilization_lbl:<25} {utilization:>14.1f}%")
+        if utilization > 80:
+            if lang == "fr-CA":
+                lines.append("    ⚠ ATTENTION: Utilisation > 80% — examen requis")
+            else:
+                lines.append("    ⚠ WARNING: Utilization > 80% — review required")
+        lines.append("")
+        if is_iban:
+            lines.append(f"    {acct_lbl:<25} {e.variant_value}")
+        elif is_acct:
+            lines.append(f"    {acct_lbl:<25} {e.embedded_text[:40]}")
+        lines.append(f"    {collateral_lbl:<25} {currency} {collateral:>14,.0f}")
+        lines.append("")
+
+    lines.append(f"  {sec3}")
+    lines.append("  " + "─" * 50)
+    if lang == "fr-CA":
+        lines.append("  Tous les accords de compensation sont régis par le contrat-cadre ISDA 2002.")
+        lines.append("  Les garanties sont soumises à un processus de valorisation quotidien.")
+    else:
+        lines.append("  All netting agreements governed by ISDA 2002 Master Agreement.")
+        lines.append("  Collateral subject to daily mark-to-market valuation and margin calls.")
+    lines.append("")
+    return lines
+
+
 _FORMATTERS = {
     "generic": format_generic,
     "invoice": format_invoice,
@@ -1350,6 +2001,12 @@ _FORMATTERS = {
     # The formatter here is a no-op placeholder so unknown-template
     # fallbacks never route back to generic for lsh_corpus.
     "lsh_corpus": format_lsh_variants,
+    # Capital markets templates (v3.25.0)
+    "trade_confirmation":    format_trade_confirmation,
+    "swift_mt103":           format_swift_mt103,
+    "settlement_instruction": format_settlement_instruction,
+    "bloomberg_export":      format_bloomberg_export,
+    "risk_report":           format_risk_report,
 }
 
 

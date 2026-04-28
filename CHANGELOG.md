@@ -1,5 +1,36 @@
 # Changelog
 
+## [3.25.0] — 2026-04-28
+
+### Added
+
+- **Capital markets document templates** — five new `--template` options for `evadex generate`:
+  - `trade_confirmation` — equity trade confirmations embedding ISIN, CUSIP, SEDOL, LEI, IBAN; EN + FR-CA.
+  - `swift_mt103` — SWIFT MT103 wire transfer messages with `{1:}`/`{2:}`/`{3:}`/`{4:}` blocks, `:32A:`, `:50K:`, `:52A:`, `:57A:`, `:59:`, `:70:`, `:71A:` fields.
+  - `settlement_instruction` — CLS/DTCC-style settlement notices with security block, delivering/receiving BIC, and cash settlement IBAN.
+  - `bloomberg_export` — Bloomberg CSV-style export with TICKER, ISIN, SEDOL, FIGI, CUSIP columns.
+  - `risk_report` — counterparty credit risk summaries with LEI, credit rating, limit/exposure/utilization, and settlement IBAN.
+  - All templates support `--language fr-CA` for French-Canadian variants.
+  - CSV writer now routes all non-generic templates through `apply_template()` (previously only txt/docx/eml writers did this; bloomberg_export CSV was broken).
+
+- **Streaming scan mode** (`--stream` / `--no-stream` on `evadex scan`):
+  - `--stream` (default): tasks are submitted to the adapter as soon as each variant is generated; lower peak memory.
+  - `--no-stream`: all `(payload, variant, strategy)` tuples are collected into memory before any submission; makes `total` known upfront for the `on_result` callback.
+  - Both modes produce identical result sets.
+
+- **Compare command improvements**:
+  - **Trend arrows** printed to stderr before JSON/HTML output: detection-rate row with `▲`/`▼`, per-category table (improved ✓ / regressed ✗ / new + / removed −), per-technique diff (>5 pp threshold).
+  - **Verdict summary** at end of trend output: `IMPROVED`, `REGRESSED`, or `UNCHANGED` with category counts and worst-regressed category.
+  - **`verdict` dict** now included in `build_comparison()` return value and in both JSON and HTML reporter outputs.
+  - **`--since` flag**: auto-resolve baseline as most-recent archived scan before a relative period (`7d`, `2w`, `1m`) or absolute date (`2026-04-20`). With one positional arg `--since` treats it as `file_b`; with no positional args uses latest archived scan as `file_b`.
+  - **HTML diff report** now includes a verdict banner (green/red/muted bar with icon, verdict label, category counts, worst-regressed pointer).
+  - `files` argument changed from two required positional args to `nargs=-1` to support `--since`-only invocation.
+
+### Tests
+
+- 82 new tests across three files: `test_capital_markets_templates.py`, `test_streaming_engine.py` (unit), and extended `test_compare.py` (verdict, `_parse_since`, `_find_scan_before`, `_find_latest_scan`, `--since` CLI flag, HTML verdict section).
+- 1242/1242 tests pass.
+
 ## [3.24.3] — 2026-04-27
 
 ### Changed
