@@ -144,7 +144,7 @@ evadex bridge --port 9191                   # start HTTP API bridge
 
 ## Requirements
 
-- Python 3.10+
+- Python 3.11+
 - A DLP scanner (Siphon recommended, dlpscan-rs supported, any CLI scanner via adapter)
 
 Optional extras:

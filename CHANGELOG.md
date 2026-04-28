@@ -1,5 +1,119 @@
 # Changelog
 
+## [3.24.3] — 2026-04-27
+
+### Changed
+
+- **Dead code removed from `synthetic/capital_markets.py`** — `_CUSIP_CHARS` constant defined but never referenced (all CUSIP generation uses `_CUSIP_ISSUERS`); deleted.
+- **Category count corrected: 501 unique categories** (was 502 in README and REFERENCE.md); corrected in both files. The off-by-one arose from a double-count of a shared category alias added in v3.24.0.
+- **`pip` upgraded from 26.0.1 → 26.1** (CVE-2026-3219).
+
+### Verified
+
+- FIGI seed values (`BBG000B9XRY4`, `BBG000DMBXR2`, `BBG000BCQZS4`) confirmed as real OpenFIGI-assigned identifiers; check-digit validation against `_figi_check` is intentionally skipped (Bloomberg's algorithm is proprietary — see `test_apple_figi_structure` comment).
+- 1178/1178 tests pass.
+
+## [3.24.2] — 2026-04-26
+
+### Performance
+
+- **25× faster DOCX generation** — `docx_writer` now bypasses the python-docx ORM for table rows and prose paragraphs via direct `lxml.etree.SubElement` calls. 1 000-record DOCX: 37 s → 1.5 s.
+- **Default concurrency raised from 20 → 32** (benchmark-validated sweet spot). Updated in `core/engine.py`, `cli/commands/scan.py`, `config.py`, README, and REFERENCE.md.
+
+### Fixed
+
+- `test_default_config_yaml_is_valid` updated to expect `concurrency=32`.
+
+### Verified
+
+- 1178/1178 tests pass.
+
+## [3.24.1] — 2026-04-26
+
+### Security (bridge)
+
+- **`POST /v1/evadex/report` — run_id injection.** `run_id` is now validated against `R-YYYYMMDDTHHMMSS-NNNN` before being used to construct a `Path.glob` pattern; glob metacharacters in a malformed run_id previously reached the filesystem.
+- **Resolved scan file boundary-checked against `repo_root`** after glob to prevent path escape from the results directory.
+- **Stale TODO removed; dead `include_falsepos` code path cleaned up.**
+- **`_RUN_ID_RE` compiled at module load** (was per-request `re.match` call).
+
+### Fixed — data quality
+
+- **Barclays SEDOL seed corrected** from `'0922456'` (wrong check digit) to `'0922450'` (ANSI X9.6 / LSE weighted mod-10 produces check digit `0` for stem `'092245'`).
+- **`_LEI_LOU_CODES` list removed from `capital_markets.py`** — defined but never referenced.
+
+### Added — test coverage
+
+- **`tests/unit/synthetic/test_capital_markets.py`** — 90 tests covering checksum algorithms (CUSIP, SEDOL, ISIN/FIGI Luhn, LEI ISO 17442), structural invariants, generator contracts, and known-seed round-trips for all 12 capital-markets generators.
+- **`test_bridge.py` updated** — malformed-run_id 404 tests replaced with well-formed-but-unknown 404; explicit 400 test added for metacharacter run_ids in the report endpoint.
+
+### Verified
+
+- 1178/1178 tests pass (91 new vs v3.24.0).
+- Benchmark (banking tier, 1 000 records): CSV 2.8 s ±11 ms, XLSX 11.5 s ±17 ms, DOCX 37.1 s ±447 ms; peak memory 44 MB.
+
+## [3.24.0] — 2026-04-26
+
+### Added — capital markets payloads
+
+Fifteen new payload categories covering securities identifiers, financial messaging, and reference data. All checksum-validated synthetic generators with real seed values.
+
+| Category | Examples | Tier | Checksum |
+|---|---|---|---|
+| `isin` | US0378331005 (Apple), CA7800871021 (RBC) | banking | Luhn |
+| `cusip_num` | 037833100 (Apple), 46625H100 (JPMorgan) | banking | ANSI X9.6 |
+| `cins_num` | G0177J108 (UK), F22797108 (French) | core | ANSI X9.6 |
+| `sedol_num` | 2005973 (BP), 0540528 (HSBC) | core | weighted mod-10 |
+| `figi_num` | BBG000B9XRY4 (Apple), BBG000DMBXR2 (JPMorgan) | banking | Luhn |
+| `lei_num` | HWUPKR0MPOU8FGXBT394 (Apple), R0MUWSFPU8MPRO8K5P83 (BNP) | banking | ISO 17442 mod-97 |
+| `ticker_symbol` | AAPL, JPM, RY.TO, BRK.A | core | — |
+| `reuters_ric` | AAPL.O, JPM.N, BP.L | core | — |
+| `valor_num` | 3234936 (Apple/SIX), 1225514 (Nestlé) | core | — |
+| `wkn_num` | 865985 (Apple/Frankfurt), 840400 (BMW) | core | — |
+| `mt103_ref` | FT23148BTJK7LMNQ, PAYREF2024031401 | banking | — |
+| `mifid_tx_id` | MIFID20230517ABC0000000012345678… | core | — |
+| `chips_uid` | 0001JPMC | banking | — |
+| `sepa_ref` | RF18539007547034 | banking | — |
+| `fedwire_imad` | 20231015BNKUS33XXXX000123456789 | banking | — |
+
+BNP Paribas LEI seed corrected from an invalid mod-97 value to `R0MUWSFPU8MPRO8K5P83`.
+
+### Siphon coverage findings
+
+- **ISIN, FIGI, LEI**: detected (Securities Identifiers category).
+- **CUSIP**: false-positive — misidentified as IL Teudat Zehut / CL RUT; no dedicated CUSIP rule.
+- **SEDOL, CINS, Ticker, RIC, VALOR, WKN, MT103, MiFID, SEPA, CHIPS UID**: not detected.
+
+### Verified
+
+- 1087/1087 tests pass.
+- 501 unique payload categories across 593 payloads.
+
+## [3.23.3] — 2026-04-26
+
+### Security (bridge)
+
+- **Run ID collision** — `_allocate_run_id()` now appends a per-process sequence counter so two runs started within the same UTC second get distinct IDs.
+- **`confidence` field hardened** — coerced to `float | None` in `recent_results`; a subprocess-injected dict/list can no longer propagate into the public run view.
+- **`GET /v1/evadex/categories` cached** via `lru_cache(maxsize=1)` — category list was re-classified on every request despite being a static enum.
+- **`POST /v1/evadex/report` stale-file fallback removed** — the previous fallback returned the most-recently-modified JSON when no file matched the run_id timestamp, which could serve data from an unrelated scan or a planted file. Endpoint now returns 404 cleanly.
+- **`DELETE /v1/evadex/run/{run_id}` returns 409** when the run is already in a terminal state (completed / failed / cancelled) instead of silent 200.
+- **`recent_results` stripped from `get_run()` for terminal runs** so clients cannot cache stale live data after a scan finishes.
+- **Progress and `elapsed_s` are now monotonic** — a subprocess glitch emitting a lower value no longer regresses the UI counter.
+
+### Added — test coverage (+38 vs v3.23.2, 116 bridge tests total)
+
+- `TestNewEndpointSecurity` — 7 named tests for the fixes above.
+- `TestLiveOutput` — `recent_results` populates, caps at 20, clears on terminal state.
+- `TestReportEndpoint` — 200+HTML, 404 unknown, 400 non-completed, FP flag.
+- `TestInlineResultsShape` — `confidence_distribution`, `top_evasions`, `by_category`.
+- `TestFastMode` — `--fast` forwarded to argv; absent in full-scan argv.
+- `TestProgressTracking` — monotonicity, 100 on completion, `elapsed_s`.
+
+### Verified
+
+- 1178/1178 tests pass.
+
 ## [3.23.2] — 2026-04-25
 
 ### Fixed
