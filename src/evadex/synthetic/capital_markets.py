@@ -49,11 +49,6 @@ def _cusip_check(chars: str) -> str:
     return str((10 - total % 10) % 10)
 
 
-# CUSIP character set — uppercase + digits; no vowels or special chars to avoid
-# confusion with SEDOL.  In practice most CUSIPs are all-numeric except for a
-# letter in the issue field (e.g. for preferred shares).
-_CUSIP_CHARS = string.digits + "BCDFGHJKLMNPQRSTVWXYZ"
-
 # Well-known issuer codes (first 6 chars of CUSIP) for common equity.
 _CUSIP_ISSUERS = [
     "037833",   # Apple Inc

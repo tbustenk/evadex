@@ -46,7 +46,7 @@ evadex report results/scan.json      # generate HTML report
 | `banking` | Credit cards, SSN, SIN, IBAN, ABA routing — default |
 | `core` | Banking + broader coverage |
 | `regional` | Country-specific IDs, health cards, tax numbers |
-| `full` | All 593 payloads across 502 categories |
+| `full` | All 593 payloads across 501 categories |
 
 ---
 
@@ -144,7 +144,7 @@ evadex bridge --port 9191                   # start HTTP API bridge
 
 ## Requirements
 
-- Python 3.10+
+- Python 3.11+
 - A DLP scanner (Siphon recommended, dlpscan-rs supported, any CLI scanner via adapter)
 
 Optional extras:
@@ -163,7 +163,7 @@ pip install evadex[bridge]        # HTTP API bridge (FastAPI)
 See [docs/REFERENCE.md](docs/REFERENCE.md) for the complete CLI reference:
 
 - All flags and options for every command
-- Payload coverage by region (593 payloads, 502 categories)
+- Payload coverage by region (593 payloads, 501 categories)
 - Adapter configuration (Siphon, dlpscan-rs, Presidio)
 - Profile system and scheduling
 - Bridge/C2 integration
