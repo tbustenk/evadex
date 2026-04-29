@@ -23,13 +23,13 @@ The wizard detects your environment, configures your scanner, and runs a first t
 ## Core commands
 
 ```bash
-evadex scan                          # test your scanner (banking tier, auto-detect scanner)
-evadex scan --fast                   # top techniques only, ~4 min
+evadex scan                          # test your scanner (northam tier, auto-detect scanner)
+evadex scan --fast                   # top techniques only, ~5 min
 evadex scan --tier full              # comprehensive test, all payloads
 
 evadex generate                      # interactive: pick format, count, output
 evadex generate --format xlsx        # 100-record spreadsheet
-evadex generate --formats xlsx,docx,pdf --tier banking  # all formats at once
+evadex generate --formats xlsx,docx,pdf --tier northam  # all formats at once
 
 evadex falsepos                      # measure false positive rate (100 values)
 evadex falsepos --count 500          # more thorough
@@ -41,12 +41,13 @@ evadex report results/scan.json      # generate HTML report
 
 ## Tiers
 
-| Tier | Description |
-|---|---|
-| `banking` | Credit cards, SSN, SIN, IBAN, ABA routing — default |
-| `core` | Banking + broader coverage |
-| `regional` | Country-specific IDs, health cards, tax numbers |
-| `full` | All 593 payloads across 501 categories |
+| Tier | Focus | Est. Time | When to use |
+|------|-------|-----------|-------------|
+| `northam` **(default)** | Canada + US + capital markets | ~5 min | Daily North America testing |
+| `banking` | Canadian banking focus | ~4 min | Banking compliance (CA-only) |
+| `core` | Broad PII + international | ~10 min | Weekly benchmarks |
+| `regional` | Full international coverage | ~20 min | Global deployments |
+| `full` | Everything | ~30 min | Major releases |
 
 ---
 

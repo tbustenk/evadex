@@ -114,7 +114,7 @@ def _parse_key_float_pair(value: str) -> tuple[str, float]:
     type=_TIER_CHOICES,
     help=(
         "Payload tier to use when --category is not specified.  "
-        "One of: banking (default), core, regional, full."
+        "One of: northam (default), banking, core, regional, full."
     ),
 )
 @click.option(
@@ -387,11 +387,11 @@ def generate(
       evadex generate                                           # interactive mode
       evadex generate --format xlsx --count 100                 # 100-record spreadsheet
       evadex generate --format docx --template banking-statement # bank statement
-      evadex generate --formats xlsx,docx,pdf --tier banking    # all formats at once
+      evadex generate --formats xlsx,docx,pdf --tier northam    # all formats at once
       evadex generate --format txt  --random --count 100 --seed 42 --output test.txt
-      evadex generate --format json --tier banking --total 1000 --output export.json
-      evadex generate --format xlsx --tier banking --evasion-rate 0.5 --technique-group unicode_encoding --output test.xlsx
-      evadex generate --format docx --tier banking --template statement --count 100 --output stmt.docx
+      evadex generate --format json --tier northam --total 1000 --output export.json
+      evadex generate --format xlsx --tier northam --evasion-rate 0.5 --technique-group unicode_encoding --output test.xlsx
+      evadex generate --format docx --tier northam --template statement --count 100 --output stmt.docx
     """
     # ── Interactive mode when invoked with no format/output ───────────────────
     if not fmt and not batch_formats and output is None:
@@ -490,13 +490,13 @@ def generate(
     if categories:
         cats = [PayloadCategory(c) for c in categories]
     else:
-        effective_tier = tier or "banking"
+        effective_tier = tier or "northam"
         tier_cats = get_tier_categories(effective_tier)
         # tier_cats is None for full tier → generate_entries gets cats=None → all structured
         cats = list(tier_cats) if tier_cats is not None else None
         if not tier:
             err_console.print(
-                "[dim]Tier: banking (default) — use --tier full for all categories[/dim]"
+                "[dim]Tier: northam (default) — use --tier full for all categories[/dim]"
             )
         else:
             err_console.print(f"[dim]Tier: {effective_tier}[/dim]")
