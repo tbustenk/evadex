@@ -1,13 +1,14 @@
 """Tier definitions for evadex scan and generate commands.
 
-Four tiers are available:
+Five tiers are available:
 
-  banking  — default; ~80 payloads optimised for Canadian banking / RBC compliance
+  northam  — default; North America (Canada + US) with full capital markets coverage
+  banking  — Canadian banking focus; subset of northam without US IDs
   core     — ~150 payloads covering broader PII and financial identifiers
   regional — ~350 payloads with international coverage
   full     — all 554 payloads
 
-When no --tier or --category flag is given, evadex uses the banking tier.
+When no --tier or --category flag is given, evadex uses the northam tier.
 """
 from __future__ import annotations
 
@@ -270,6 +271,49 @@ REGIONAL_TIER: frozenset[PayloadCategory] = CORE_TIER | frozenset({
 })
 
 
+# ── North America tier (default) ─────────────────────────────────────────────
+# Banking tier + US national identifiers + full capital markets identifier set.
+# Covers Canada and the United States — the most common North American
+# compliance surface for financial institutions operating in both markets.
+NORTHAM_TIER: frozenset[PayloadCategory] = BANKING_TIER | frozenset({
+    # ── US national identifiers ────────────────────────────────────────
+    PayloadCategory.US_DL,
+    PayloadCategory.US_ITIN,
+    PayloadCategory.US_EIN,
+    PayloadCategory.US_MBI,
+    PayloadCategory.US_PASSPORT,
+    PayloadCategory.US_PASSPORT_CARD,
+    PayloadCategory.US_ZIP4,
+    PayloadCategory.US_DEA,
+    PayloadCategory.US_NPI,
+    PayloadCategory.US_KTN,
+    # ── Capital markets — securities identifiers ──────────────────────
+    PayloadCategory.CUSIP_NUM,
+    PayloadCategory.CINS_NUM,
+    PayloadCategory.SEDOL_NUM,
+    PayloadCategory.FIGI_NUM,
+    PayloadCategory.LEI_NUM,
+    PayloadCategory.REUTERS_RIC,
+    PayloadCategory.TICKER_SYMBOL,
+    PayloadCategory.MIFID_TX_ID,
+    PayloadCategory.VALOR_NUM,
+    PayloadCategory.WKN_NUM,
+    # ── Regulatory / compliance ───────────────────────────────────────
+    PayloadCategory.MERS_MIN,
+    PayloadCategory.REG_CTR,
+    PayloadCategory.REG_FINCEN,
+    PayloadCategory.REG_SAR,
+    PayloadCategory.REG_COMPLIANCE_CASE,
+    PayloadCategory.LTV_RATIO,
+    # ── Functional / PCI ─────────────────────────────────────────────
+    PayloadCategory.SESSION_ID,
+    PayloadCategory.BIOMETRIC_ID,
+    PayloadCategory.EMPLOYEE_ID,
+    PayloadCategory.DATE_ISO,
+    PayloadCategory.LOAN_NUM_SHORT,
+})
+
+
 # ── Full tier ─────────────────────────────────────────────────────────────────
 # All payloads. Pass include_heuristic=True separately to include heuristic ones.
 # This sentinel tells get_payloads to skip category filtering entirely.
@@ -277,11 +321,13 @@ FULL_TIER: None = None   # None → no category filter → all payloads
 
 
 # ── Tier registry ─────────────────────────────────────────────────────────────
-VALID_TIERS = {"banking", "core", "regional", "full"}
+VALID_TIERS = {"northam", "banking", "core", "regional", "full"}
 
 
 def get_tier_categories(tier: str) -> frozenset[PayloadCategory] | None:
     """Return the category set for *tier*, or None for the full tier (no filter)."""
+    if tier == "northam":
+        return NORTHAM_TIER
     if tier == "banking":
         return BANKING_TIER
     if tier == "core":

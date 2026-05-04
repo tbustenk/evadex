@@ -338,7 +338,7 @@ def _print_summary(results, err_console):
               help="Also run heuristic categories (JWT, AWS key). See README for limitations.")
 @click.option("--tier", "tier", default=None, type=TIER_CHOICES, show_default=False,
               help=(
-                  "Payload tier to run. One of: banking (default), core, regional, full. "
+                  "Payload tier to run. One of: northam (default), banking, core, regional, full. "
                   "Ignored when --category is also specified."
               ))
 @click.option("--scanner-label", "scanner_label", default="", show_default=False,
@@ -407,6 +407,10 @@ def _print_summary(results, err_console):
               help="Live per-variant output: each variant result prints to "
                    "stderr as it completes (✓ detected / ✗ evaded). Suppresses "
                    "the progress bar since per-variant lines scroll past it.")
+@click.option("--stream/--no-stream", "streaming", default=True, show_default=True,
+              help="Stream variants to the scanner as they are generated (default). "
+                   "--no-stream collects all variants into memory before submitting. "
+                   "Streaming uses less peak memory; --no-stream makes total known upfront.")
 def scan(
     ctx,
     config_path, tool, input_value, fmt, output, url, api_key, timeout,
@@ -416,17 +420,17 @@ def scan(
     save_baseline, compare_baseline, audit_log, feedback_report,
     require_context, wrap_context, no_wrap_context,
     c2_url, c2_key, save_as,
-    min_confidence, progress_json, fast_mode, verbose,
+    min_confidence, progress_json, fast_mode, verbose, streaming,
 ):
     """Test a DLP scanner against known sensitive data patterns.
 
     \b
-    Auto-detects scanner from PATH or evadex.yaml. Defaults to banking tier.
-    Use --fast for a ~4-minute quick check; omit for comprehensive testing.
+    Auto-detects scanner from PATH or evadex.yaml. Defaults to northam tier.
+    Use --fast for a ~5-minute quick check; omit for comprehensive testing.
 
     \b
     Examples:
-      evadex scan                                    # auto-detect scanner, banking tier
+      evadex scan                                    # auto-detect scanner, northam tier
       evadex scan --tier core                        # broader coverage, ~10 min
       evadex scan --fast                             # top techniques only, ~4 min
       evadex scan --exe /path/to/siphon --tier full  # comprehensive test
@@ -603,13 +607,13 @@ def scan(
                     )
                     sys.exit(1)
         else:
-            # No explicit category: resolve from tier (default: banking)
-            effective_tier = tier or "banking"
+            # No explicit category: resolve from tier (default: northam)
+            effective_tier = tier or "northam"
             tier_cats = get_tier_categories(effective_tier)
             filter_cats = tier_cats  # None for full tier → no category filter
-            if effective_tier == "banking" and not tier:
+            if effective_tier == "northam" and not tier:
                 err_console.print(
-                    "[dim]Tier: banking (default) — use --tier full for all payloads[/dim]"
+                    "[dim]Tier: northam (default) — use --tier full for all payloads[/dim]"
                 )
             elif tier:
                 err_console.print(f"[dim]Tier: {effective_tier}[/dim]")
@@ -765,7 +769,7 @@ def scan(
     # Header banner matches the user-facing UX: "scanning <tier> tier ·
     # weighted mode · concurrency N". When --verbose is on the progress
     # bar is suppressed because per-variant lines would scroll past it.
-    _effective_tier_name = tier or "banking" if not input_value and not categories else "custom"
+    _effective_tier_name = tier or "northam" if not input_value and not categories else "custom"
     _effective_mode = "fast" if fast_mode else (evasion_mode or "exhaustive").lower()
     err_console.print(
         f"[dim]scanning [bold]{_effective_tier_name}[/bold] tier · "
@@ -879,6 +883,7 @@ def scan(
         strategies=active_strategies,
         on_result=on_result,
         technique_filter=technique_filter,
+        streaming=streaming,
     )
 
     with progress:

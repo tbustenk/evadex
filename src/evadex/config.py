@@ -16,7 +16,7 @@ VALID_CATEGORIES = {
     "email", "phone", "aws_key", "jwt", "github_token", "stripe_key",
     "slack_token", "classification", "unknown",
 }
-VALID_TIERS = {"banking", "core", "regional", "full"}
+VALID_TIERS = {"northam", "banking", "core", "regional", "full"}
 KNOWN_KEYS = {
     "tool", "strategy", "min_detection_rate", "scanner_label", "exe",
     "cmd_style", "categories", "include_heuristic", "concurrency",
@@ -44,7 +44,7 @@ min_detection_rate: 85
 scanner_label: production
 exe: null
 cmd_style: python
-# tier: banking   # banking (default) | core | regional | full
+tier: northam  # North America — Canada and United States  |  banking | core | regional | full
 # categories:     # explicit category list — overrides tier when set
 #   - credit_card
 #   - ssn

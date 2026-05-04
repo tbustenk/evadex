@@ -39,11 +39,38 @@ TEMPLATE = """<!DOCTYPE html>
   .badge-error{background:rgba(249,115,22,.15);color:var(--orange)}
   .badge-absent{background:rgba(136,146,164,.15);color:var(--muted)}
   code{font-family:monospace;font-size:12px;background:#12151f;padding:1px 5px;border-radius:3px}
+  .verdict-banner{display:flex;align-items:center;gap:16px;padding:14px 20px;border-radius:8px;margin-bottom:24px;border:1px solid var(--border)}
+  .verdict-banner.improved{background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.3)}
+  .verdict-banner.regressed{background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.3)}
+  .verdict-banner.unchanged{background:rgba(136,146,164,.08);border-color:rgba(136,146,164,.3)}
+  .verdict-icon{font-size:28px;line-height:1}
+  .verdict-label{font-size:18px;font-weight:700}
+  .verdict-banner.improved .verdict-label{color:var(--green)}
+  .verdict-banner.regressed .verdict-label{color:var(--red)}
+  .verdict-banner.unchanged .verdict-label{color:var(--muted)}
+  .verdict-detail{font-size:12px;color:var(--muted);margin-top:2px}
 </style>
 </head>
 <body>
 <h1>evadex Comparison Report</h1>
 <div class="meta">{{ label_a | e }} vs {{ label_b | e }} &bull; Generated {{ timestamp }}</div>
+
+{% if verdict %}
+{% set v = verdict %}
+{% set css = 'improved' if v.verdict == 'IMPROVED' else ('regressed' if v.verdict == 'REGRESSED' else 'unchanged') %}
+{% set icon = '▲' if v.verdict == 'IMPROVED' else ('▼' if v.verdict == 'REGRESSED' else '—') %}
+<div class="verdict-banner {{ css }}">
+  <div class="verdict-icon">{{ icon }}</div>
+  <div>
+    <div class="verdict-label">{{ v.verdict }}</div>
+    <div class="verdict-detail">
+      {{ v.n_improved }} improved &bull; {{ v.n_regressed }} regressed
+      {% if v.n_new %}&bull; {{ v.n_new }} new{% endif %}
+      {% if v.worst_regressed %}&bull; worst: <code>{{ v.worst_regressed }}</code>{% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
 
 <div class="cards">
   <div class="card rate-a"><div class="card-label">{{ label_a | e }} rate</div><div class="card-value">{{ overall.a_rate }}%</div></div>
@@ -134,4 +161,5 @@ class CompareHtmlReporter(BaseReporter):
             by_category=comparison["by_category"],
             by_technique=comparison["by_technique"],
             diffs=comparison["diffs"],
+            verdict=comparison.get("verdict"),
         )

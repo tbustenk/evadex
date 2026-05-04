@@ -173,6 +173,16 @@ def _check_audit_log() -> _Check:
         return _Check(False, f"audit log not writable at {p}: {exc}")
 
 
+def _check_default_tier() -> _Check:
+    try:
+        from evadex.payloads.tiers import NORTHAM_TIER, get_tier_categories
+        cats = get_tier_categories("northam")
+        n = len(cats) if cats is not None else 0
+        return _Check(True, f"Default tier: northam (North America — Canada + US, {n} categories)")
+    except Exception as exc:
+        return _Check(False, f"Default tier check failed: {exc}")
+
+
 def _check_profiles() -> list[_Check]:
     from evadex.profiles.storage import profiles_dir, _BUILTINS_PACKAGE
     out: list[_Check] = []
@@ -212,6 +222,7 @@ def _run_checks() -> list[_Check]:
     results: list[_Check] = []
     results.append(_check_evadex_version())
     results.append(_check_python())
+    results.append(_check_default_tier())
     results.append(_check_siphon())
 
     # Optional extras — each labelled with the install command so the
