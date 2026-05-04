@@ -56,7 +56,7 @@ _ALLOWED_FORMATS = {
     "7z", "tar", "png", "jpg", "multi_barcode_png", "mbox", "ics", "warc",
 }
 _ALLOWED_LANGUAGES = {"en", "fr-CA"}
-_ALLOWED_TIERS = {"banking", "core", "regional", "full"}
+_ALLOWED_TIERS = {"northam", "banking", "core", "regional", "full"}
 _ALLOWED_EVASION_MODES = {"random", "exhaustive", "weighted", "adversarial"}
 _ALLOWED_TOOLS = {"dlpscan-cli", "siphon-cli", "siphon", "dlpscan", "presidio"}
 _ALLOWED_CMD_STYLES = {"python", "rust", "binary", "cargo", "stdin"}
@@ -594,6 +594,54 @@ def create_app() -> FastAPI:
     @app.get("/v1/evadex/categories", dependencies=[Depends(_require_api_key)])
     def list_categories() -> dict:
         return cat.group_all_categories()
+
+    # ── GET /v1/evadex/profiles ─────────────────────────────────
+    # List of user-saved and built-in profiles for the C2 profile
+    # dropdown. Each entry carries the fields the UI needs to populate
+    # the dropdown label and pre-fill the run form on selection.
+    @app.get("/v1/evadex/profiles", dependencies=[Depends(_require_api_key)])
+    def list_all_profiles() -> dict:
+        from evadex.profiles import (
+            list_builtin_profiles,
+            list_profiles,
+            load_builtin_profile,
+            load_profile,
+        )
+        from evadex.profiles.schema import ProfileError
+
+        profiles: list[dict] = []
+
+        for name in list_profiles():
+            try:
+                p = load_profile(name)
+                profiles.append({
+                    "name":        p.name,
+                    "description": p.description,
+                    "source":      "user",
+                    "tier":        p.scan.get("tier"),
+                    "tool":        p.scan.get("tool"),
+                    "created":     p.created,
+                    "last_run":    p.last_run,
+                })
+            except ProfileError:
+                profiles.append({"name": name, "source": "user", "error": "unreadable"})
+
+        for name in list_builtin_profiles():
+            try:
+                p = load_builtin_profile(name)
+                profiles.append({
+                    "name":        p.name,
+                    "description": p.description,
+                    "source":      "builtin",
+                    "tier":        p.scan.get("tier"),
+                    "tool":        p.scan.get("tool"),
+                    "created":     p.created,
+                    "last_run":    p.last_run,
+                })
+            except ProfileError:
+                profiles.append({"name": name, "source": "builtin", "error": "unreadable"})
+
+        return {"profiles": profiles, "total": len(profiles)}
 
     # ── GET /v1/evadex/metrics ──────────────────────────────────
     @app.get("/v1/evadex/metrics", dependencies=[Depends(_require_api_key)])
