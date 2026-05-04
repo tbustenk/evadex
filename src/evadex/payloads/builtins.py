@@ -906,6 +906,9 @@ BUILTIN_PAYLOADS = [
     # MiFID II transaction ID — up to 52 alphanumeric
     Payload("MIFID20230517ABC0000000012345678EFGH000000001AAPL",
             PayloadCategory.MIFID_TX_ID, "MiFID II transaction reference number"),
+    # FIX Protocol ClOrdID (tag 11) — siphon has no FIX patterns; documents gap
+    Payload("CLORD20240517JPMC00000001", PayloadCategory.FIX_CL_ORD_ID, "FIX ClOrdID (tag 11) — JPMC order ref"),
+    Payload("JPM-20240517-ORD001234",    PayloadCategory.FIX_CL_ORD_ID, "FIX ClOrdID — alphanumeric format"),
 
     # ── Social Media ─────────────────────────────────────────────────────────
     Payload("#FinancialData",     PayloadCategory.HASHTAG, "Hashtag (context req)"),

@@ -1,7 +1,6 @@
 """Tests for --min-detection-rate, --baseline/--compare-baseline, list-payloads, list-techniques."""
 import json
 import pytest
-from pathlib import Path
 from click.testing import CliRunner
 from unittest.mock import patch, AsyncMock
 from evadex.cli.app import main
@@ -140,7 +139,7 @@ def test_list_payloads_shows_all():
     assert result.exit_code == 0
     assert "Visa 16-digit" in result.output
     assert "US SSN" in result.output
-    assert "593 payload" in result.output
+    assert "595 payload" in result.output
 
 
 def test_list_payloads_filter_structured():
@@ -189,7 +188,7 @@ def test_list_techniques_unknown_generator():
 
 def test_engine_on_result_called():
     from evadex.core.engine import Engine
-    from evadex.adapters.base import BaseAdapter, AdapterConfig
+    from evadex.adapters.base import BaseAdapter
 
     class StubAdapter(BaseAdapter):
         async def submit(self, payload, variant):

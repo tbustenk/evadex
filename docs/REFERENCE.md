@@ -478,7 +478,7 @@ These lockfiles are generated with `pip-compile --generate-hashes` and updated w
 
 ## Quick start
 
-By default evadex runs the **banking tier** — ~80 payloads optimised for Canadian banking and RBC's compliance surface. No flags required:
+By default evadex runs the **northam tier** — Canada + US + capital markets payloads. No flags required:
 
 ```bash
 evadex scan --tool dlpscan-cli --strategy text
@@ -488,13 +488,14 @@ evadex scan --tool dlpscan-cli --strategy text
 
 | Tier | Payloads | Est. runtime (text strategy) | When to use |
 |---|---|---|---|
-| **`banking`** *(default)* | ~80 Canadian banking focused | ~5 min | Daily checks, quick patches, RBC production testing |
+| **`northam`** *(default)* | Canada + US + capital markets | ~5 min | Daily North America testing |
+| `banking` | ~80 Canadian banking focused | ~4 min | Banking compliance (CA-only) |
 | `core` | ~150 broader PII and financial | ~10 min | Weekly benchmarks, broader compliance checks |
 | `regional` | ~350 international coverage | ~20 min | Pre-release validation, international deployments |
-| `full` | All 593 payloads | ~30–40 min | Major releases, compliance audits, onboarding new scanners |
+| `full` | All 595 payloads | ~30–40 min | Major releases, compliance audits, onboarding new scanners |
 
 ```bash
-# default — banking tier
+# default — northam tier
 evadex scan --tool dlpscan-cli --strategy text
 
 # explicit tiers
@@ -546,7 +547,7 @@ min_detection_rate: 85
 scanner_label: production
 exe: null
 cmd_style: python
-# tier: banking   # banking (default) | core | regional | full
+# tier: northam   # northam (default) | banking | core | regional | full
 # categories:     # explicit category list — overrides tier when set
 #   - credit_card
 #   - ssn
@@ -585,7 +586,7 @@ evadex scan --config evadex.yaml --scanner-label staging
 | `scanner_label` | string | `--scanner-label` | Label recorded in JSON `meta.scanner` |
 | `exe` | string or null | `--exe` | Path to scanner executable |
 | `cmd_style` | `python`/`rust`/`binary`/`cargo` | `--cmd-style` | Command format. dlpscan-cli: `python` or `rust`. siphon-cli: `binary` or `cargo`. |
-| `tier` | string | `--tier` | Payload tier: `banking` (default), `core`, `regional`, `full`. Ignored when `categories` is set. |
+| `tier` | string | `--tier` | Payload tier: `northam` (default), `banking`, `core`, `regional`, `full`. Ignored when `categories` is set. |
 | `categories` | list of strings | `--category` | Payload categories to test (overrides `tier`) |
 | `include_heuristic` | boolean | `--include-heuristic` | Include heuristic categories |
 | `concurrency` | integer | `--concurrency` | Max concurrent requests (default: 20) |
@@ -710,11 +711,11 @@ evadex scan [OPTIONS]
 |---|---|---|
 | `--config` | *(auto-discovered)* | Path to `evadex.yaml` config file. Auto-discovered from current directory if present. CLI flags always override config values. |
 | `--tool`, `-t` | `dlpscan-cli` | Adapter to use. Built-in adapters: `dlpscan-cli`, `siphon-cli`, `dlpscan`, `siphon`, `presidio`. |
-| `--input`, `-i` | *(banking tier)* | Single value to test. If omitted, runs the banking tier (~80 payloads). Use `--tier` to change. Category is auto-detected (Luhn check, regex patterns for SSN/IBAN/AWS/JWT/email/phone). |
+| `--input`, `-i` | *(northam tier)* | Single value to test. If omitted, runs the northam tier (Canada + US + capital markets). Use `--tier` to change. Category is auto-detected (Luhn check, regex patterns for SSN/IBAN/AWS/JWT/email/phone). |
 | `--format`, `-f` | `json` | Output format: `json` or `html` |
 | `--output`, `-o` | stdout | Write report to file instead of stdout |
 | `--strategy` | all four | Submission strategy: `text`, `docx`, `pdf`, `xlsx`. Repeat the flag for multiple. Omit to run all four. |
-| `--tier` | `banking` | Payload tier: `banking` (default), `core`, `regional`, `full`. Ignored when `--category` is specified. |
+| `--tier` | `northam` | Payload tier: `northam` (default), `banking`, `core`, `regional`, `full`. Ignored when `--category` is specified. |
 | `--concurrency` | `20` | Max concurrent requests |
 | `--timeout` | `30.0` | Request timeout in seconds |
 | `--url` | `http://localhost:8080` | Base URL (for HTTP-based adapters: `dlpscan`, `siphon`, `presidio`) |
@@ -750,7 +751,7 @@ evadex generate (--format FORMAT | --formats FMT,FMT,...) --output PATH [OPTIONS
 | `--formats` | *(one of format/formats required)* | Comma-separated list of formats. Output is a path stem; extensions are appended. `--formats xlsx,docx,pdf --output dir/test` → `test.xlsx`, `test.docx`, `test.pdf` |
 | `--barcode-type` | `qr` | Barcode encoding for `png`/`jpg`/`multi_barcode_png`: `qr` (unicode, up to 4296 chars), `code128` (ASCII 1D), `ean13` (13 digits, zero-padded), `pdf417` (2D, requires optional `pdf417gen`), `datamatrix` (2D, requires optional `pylibdmtx`), or `random`. |
 | `--output` | *(required)* | Output file path (with `--format`) or path stem (with `--formats`) |
-| `--tier` | `banking` | Payload tier when `--category` is not set: `banking` (default), `core`, `regional`, `full` |
+| `--tier` | `northam` | Payload tier when `--category` is not set: `northam` (default), `banking`, `core`, `regional`, `full` |
 | `--category` | *(overrides --tier)* | Payload category to include. Repeat for multiple. |
 | `--count` | `100` | Number of test values to generate **per category** |
 | `--evasion-rate` | `0.5` | Fraction of values that are evasion variants (0.0–1.0) |
@@ -1119,7 +1120,7 @@ evadex benchmark [OPTIONS]
 
 | Flag | Default | Description |
 |---|---|---|
-| `--tier` | `banking` | Payload tier to generate during the benchmark. |
+| `--tier` | `northam` | Payload tier to generate during the benchmark. |
 | `--runs` | `3` | Number of repetitions per measurement (1–20). More = tighter stdev. |
 | `--count` | `1000` | Records per generate run (10–100000). |
 | `--formats` | `csv,xlsx,docx` | Comma-separated formats to benchmark `generate` on. |

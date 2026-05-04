@@ -597,6 +597,7 @@ class PayloadCategory(Enum):
     CINS_NUM = "cins_num"
     FIGI_NUM = "figi_num"
     LEI_NUM = "lei_num"
+    FIX_CL_ORD_ID = "fix_cl_ord_id"
     MIFID_TX_ID = "mifid_tx_id"
     MT103_REF = "mt103_ref"
     REUTERS_RIC = "reuters_ric"
