@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.26.2] — 2026-05-24
+
+### Fixed
+
+- **13 pre-existing integration test failures resolved.** Tests in `test_cli.py`, `test_config_cli.py`, `test_feedback_cli.py`, `test_new_features.py`, `test_quickstart_cli.py`, and `test_scan_v3_21.py` were all collapsing because the CLI auto-discovers `evadex.yaml` from the current working directory (via `evadex.config.find_config`). When pytest is launched from the repo root, that config sets `tool: siphon-cli` (silently bypassing the `DlpscanCliAdapter` mocks that those tests install), `min_detection_rate: 85` (causing low-detection mocked results to exit 1 and short-circuit downstream assertions), and `output: results.json` (diverting JSON output to a file when tests expected it on stdout). Added `tests/integration/conftest.py` with a single autouse fixture (`_isolate_cwd_from_repo_config`) that `monkeypatch.chdir(tmp_path)` for every integration test, so `find_config()` returns `None` unless a test explicitly writes its own `evadex.yaml` inside a `runner.isolated_filesystem()` block. Tests that already used `isolated_filesystem` continue to work because that context manager chdir's again on top.
+
+### Tests
+
+- **1347/1347 tests pass** (1047 unit + 300 integration). The "13 pre-existing scanner-default / Rich-output drift failures" tracked in the v3.26.1 entry are fully resolved — they were a config-leak issue, not a real product drift.
+
+### Verified
+
+- `pytest tests/ --tb=no -q` — `1347 passed in 56.32s`.
+
 ## [3.26.1] — 2026-05-24
 
 ### Fixed

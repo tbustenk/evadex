@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `evadex` is a scanner-agnostic DLP (data loss prevention) evasion test suite. It takes a sensitive value (credit card, SSN, IBAN, AWS key, etc.), runs it through a battery of evasion techniques (unicode tricks, delimiter swaps, encoding, regional digits, splitting, morse, etc.), embeds each variant in plain text and in real document formats (DOCX/PDF/XLSX/...), submits everything to a configured DLP scanner via an adapter, and reports what slipped through. Python 3.11+, distributed on PyPI, CLI-first (`evadex = evadex.cli.app:main`).
 
-Current version: **3.26.1** (see `pyproject.toml`; CHANGELOG is the user-facing release notes). Test suite: **1047 unit + 300 integration = 1347** total; **all 1047 unit tests pass**, 287/300 integration tests pass (13 pre-existing scanner-default / Rich-output drift failures, also present on the v3.26.0 tag — see v3.26.1 CHANGELOG entry). CI runs `tests/unit` on Python 3.11 and 3.13 plus a Docker image-build step.
+Current version: **3.26.2** (see `pyproject.toml`; CHANGELOG is the user-facing release notes). Test suite: **1047 unit + 300 integration = 1347** total; **all 1347 tests pass**. CI runs `tests/unit` on Python 3.11 and 3.13 plus a Docker image-build step.
 
 ## Common commands
 
@@ -118,6 +118,9 @@ Several Python scripts at the repo root (`evadex_regressions.py`, `check_*.py`, 
 ## Recent additions and gotchas
 
 These are behaviours added in recent point releases that aren't obvious from the code structure alone. Knowing them avoids re-deriving the same questions.
+
+### Integration tests must run from a clean cwd (v3.26.2)
+`tests/integration/conftest.py` installs an autouse fixture (`_isolate_cwd_from_repo_config`) that `monkeypatch.chdir(tmp_path)` for every integration test. The CLI auto-discovers `evadex.yaml` from `Path.cwd()` via `evadex.config.find_config`, so launching pytest from the repo root would otherwise leak the project's `tool: siphon-cli`, `min_detection_rate: 85`, and `output: results.json` into tests that mock `DlpscanCliAdapter` and read JSON from stdout. Tests that *do* want auto-discovery (e.g. `test_auto_discovery_loads_config`) write their own `evadex.yaml` inside a `runner.isolated_filesystem()` block, which chdir's again on top of the autouse chdir.
 
 ### `evadex.yaml` auto-discovery extends to `evadex falsepos` (v3.25.5)
 `evadex falsepos` now mirrors `evadex scan`'s `evadex.yaml` auto-discovery — `--config <path>` flag, plus auto-load from the working directory when no `--config` is passed. CLI flags continue to override config values. Before v3.25.5, profile runs failed on the falsepos step whenever the scanner binary lived outside `PATH` (built-in profiles deliberately omit `exe:` because that path is machine-local). See `src/evadex/cli/commands/falsepos.py`.
