@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.25.7] — 2026-05-24
+
+### Changed
+
+- **`ruff format` pass** on `src/evadex/cli/commands/report.py` and `src/evadex/cli/commands/profile.py` (whitespace-only adjustments; no behaviour change).
+- **CLAUDE.md refreshed** with a "Recent additions and gotchas" section covering v3.25.4 (registry F401 guards), v3.25.5 (`evadex falsepos` config auto-discovery, HTML report polish), v3.25.6 (`output.dir` plumbing, `--fast` not persisted by `--save-as`), and an "Open observations / known limitations" section calling out `output.retain_days` being informational, built-in profiles not writing `last_run`, and `output.format` only affecting the file extension.
+
+### Tests
+
+- **4 new CLI-level tests** in `tests/unit/profiles/test_cli.py` covering the v3.25.6 `output.dir` plumbing: dry-run emits `--output` flags for both scan and falsepos with paired timestamps; non-dry-run path creates the missing directory (`mkdir -p`); `~` expansion uses the current `HOME`/`USERPROFILE`; sanity check that profiles without `output.dir` don't emit `--output`. Total: 21 profile-CLI tests (was 17).
+- **1310/1310 tests pass** (was 1306).
+
+### Verified
+
+- `ruff check src/` — All checks passed.
+- `pip-audit` — No known vulnerabilities.
+- Live integration against latest siphon (`main` rebuilt fresh): `evadex scan --tier northam --evasion-mode weighted` ran end-to-end against 21,693 variants; detection rate **33.1%** (unchanged vs the previous baseline, 27 improved / 29 regressed categories; worst-regressed: `mt103_ref` at −8.4pp). Falsepos rate **14.2%** (114/800) with `--wrap-context` — entropy and phone are the noisy categories, the rest sit at 0%.
+
 ## [3.25.6] — 2026-05-24
 
 ### Changed

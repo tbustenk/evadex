@@ -109,6 +109,98 @@ def test_profile_run_unknown_exits_nonzero():
     assert res.exit_code != 0
 
 
+# ── profile run with output.dir (v3.25.6) ──────────────────────────────────
+
+
+def _save_profile_with_output_dir(name: str, out_dir, falsepos: bool = False) -> None:
+    """Helper: write a minimal user profile with output.dir set."""
+    p = Profile(
+        name=name,
+        scan={"tool": "siphon-cli", "tier": "banking"},
+        falsepos={"enabled": True, "count": 50} if falsepos else {},
+        output={"dir": str(out_dir), "format": "json"},
+    )
+    save_profile(p, overwrite=True)
+
+
+def test_profile_run_output_dir_emits_output_flag_in_dry_run(tmp_path):
+    out_dir = tmp_path / "evadex-results"
+    _save_profile_with_output_dir("with-out-dir", out_dir, falsepos=True)
+    res = _run("profile", "run", "with-out-dir", "--dry-run")
+    assert res.exit_code == 0, res.output
+    # Both scan and falsepos sub-invocations must carry an --output argument
+    # pointing under the configured directory. The path also embeds the
+    # profile name and a UTC timestamp so paired runs stay grouped.
+    # Rich line-wraps long paths in the printed argv, so collapse the
+    # output to a single line before checking for filename fragments.
+    flat = res.stdout.replace("\n", "")
+    assert "--output" in res.stdout
+    assert "with-out-dir_" in res.stdout
+    assert "_scan.json" in flat
+    assert "_falsepos.json" in flat
+    # The dry-run branch only prints argv; the actual mkdir of output.dir
+    # happens in the non-dry-run path (covered by the next test).
+
+
+def test_profile_run_output_dir_creates_missing_directory(tmp_path, monkeypatch):
+    """When output.dir doesn't exist, `profile run` must mkdir -p it before
+    invoking the subprocesses — otherwise --output points at a non-existent
+    parent and scan fails."""
+    out_dir = tmp_path / "deep" / "nested" / "results"
+    _save_profile_with_output_dir("mkdir-test", out_dir)
+    assert not out_dir.exists()
+
+    # Stub subprocess so we don't actually launch a scanner; the test only
+    # cares about the mkdir side effect before subprocess invocation.
+    calls = []
+
+    def fake_invoke(argv):
+        calls.append(argv)
+        return 0  # pretend scan succeeded
+
+    from evadex.cli.commands import profile as profile_mod
+
+    monkeypatch.setattr(profile_mod, "_invoke", fake_invoke)
+    res = _run("profile", "run", "mkdir-test")
+    assert res.exit_code == 0, res.output
+    assert out_dir.is_dir()  # mkdir -p ran
+    assert calls and "--output" in calls[0]
+
+
+def test_profile_run_output_dir_tilde_expansion(tmp_path, monkeypatch):
+    """`output.dir: ~/evadex-results` expands at run time. We monkeypatch
+    HOME so the test doesn't actually create files in the developer's
+    home directory."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))  # Windows
+    p = Profile(
+        name="tilde-test",
+        scan={"tool": "siphon-cli", "tier": "banking"},
+        output={"dir": "~/evadex-results"},
+    )
+    save_profile(p, overwrite=True)
+
+    from evadex.cli.commands import profile as profile_mod
+
+    monkeypatch.setattr(profile_mod, "_invoke", lambda argv: 0)
+    res = _run("profile", "run", "tilde-test")
+    assert res.exit_code == 0, res.output
+    assert (tmp_path / "evadex-results").is_dir()
+
+
+def test_profile_run_no_output_dir_no_output_flag(tmp_path):
+    """Sanity: when a profile omits output, dry-run must NOT inject --output."""
+    p = Profile(
+        name="no-out-dir",
+        scan={"tool": "siphon-cli", "tier": "banking"},
+    )
+    save_profile(p, overwrite=True)
+    res = _run("profile", "run", "no-out-dir", "--dry-run")
+    assert res.exit_code == 0, res.output
+    # No injected --output for either scan or falsepos.
+    assert "--output" not in res.stdout
+
+
 # ── schedule add / list / export ───────────────────────────────────────────
 
 

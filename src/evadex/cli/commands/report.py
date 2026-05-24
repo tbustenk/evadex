@@ -41,6 +41,7 @@ def _evadex_version() -> str:
     except PackageNotFoundError:
         return "dev"
 
+
 err_console = Console(stderr=True)
 
 

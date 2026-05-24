@@ -314,9 +314,7 @@ def profile_run(names: tuple, dry_run: bool, skip_falsepos: bool) -> None:
         # land side-by-side in output.dir when the profile pins one.
         ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         scan_argv = profile_to_scan_argv(p, timestamp=ts)
-        fp_argv = (
-            None if skip_falsepos else profile_to_falsepos_argv(p, timestamp=ts)
-        )
+        fp_argv = None if skip_falsepos else profile_to_falsepos_argv(p, timestamp=ts)
 
         if dry_run:
             err_console.print(f"[bold]{name}[/bold] — dry-run:")

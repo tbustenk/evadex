@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `evadex` is a scanner-agnostic DLP (data loss prevention) evasion test suite. It takes a sensitive value (credit card, SSN, IBAN, AWS key, etc.), runs it through a battery of evasion techniques (unicode tricks, delimiter swaps, encoding, regional digits, splitting, morse, etc.), embeds each variant in plain text and in real document formats (DOCX/PDF/XLSX/...), submits everything to a configured DLP scanner via an adapter, and reports what slipped through. Python 3.11+, distributed on PyPI, CLI-first (`evadex = evadex.cli.app:main`).
 
+Current version: **3.25.7** (see `pyproject.toml`; CHANGELOG is the user-facing release notes). Test suite: **1310 passing** (998 unit + 312 integration); CI runs `tests/unit` on Python 3.11 and 3.13 plus a Docker image-build step.
+
 ## Common commands
 
 Install dev environment:
@@ -112,3 +114,28 @@ When **adding a new payload category**: add to the enum, add to `CATEGORY_TYPES`
 ## Things in the working tree that are *not* part of the codebase
 
 Several Python scripts at the repo root (`evadex_regressions.py`, `check_*.py`, `inspect_results.py`) are untracked local analysis scratch files — they are not part of the package and are not run by tests or CI. Ignore them unless the user references them by name.
+
+## Recent additions and gotchas
+
+These are behaviours added in recent point releases that aren't obvious from the code structure alone. Knowing them avoids re-deriving the same questions.
+
+### `evadex.yaml` auto-discovery extends to `evadex falsepos` (v3.25.5)
+`evadex falsepos` now mirrors `evadex scan`'s `evadex.yaml` auto-discovery — `--config <path>` flag, plus auto-load from the working directory when no `--config` is passed. CLI flags continue to override config values. Before v3.25.5, profile runs failed on the falsepos step whenever the scanner binary lived outside `PATH` (built-in profiles deliberately omit `exe:` because that path is machine-local). See `src/evadex/cli/commands/falsepos.py`.
+
+### Profile `output.dir` is load-bearing (v3.25.6)
+When a profile YAML specifies `output.dir`, `evadex profile run` translates it into `--output` flags on the underlying `evadex scan` and `evadex falsepos` invocations. Files land as `<dir>/<profile-name>_<UTC-timestamp>_scan.json` and `<dir>/<profile-name>_<UTC-timestamp>_falsepos.json`; the same UTC stamp is shared so paired runs stay grouped. `~` and `${ENV}` are expanded. `output.format` (when set) picks the extension; defaults to `json`. Directory is created if absent. If `scan.output` is set explicitly on the profile, it still wins — `output.dir` is the implicit fallback. The plumbing lives in `src/evadex/profiles/runner.py::_resolve_output_path` and `src/evadex/cli/commands/profile.py::profile_run`.
+
+### `--save-as` does *not* persist `--fast` (documented in v3.25.6)
+`--fast` is intentionally excluded from `scan_flags_to_profile_dict` in `src/evadex/profiles/runner.py`. It resolves to a machine-specific technique whitelist via `pick_fast_techniques(audit_log)` in `src/evadex/feedback/fast_mode.py`, so persisting it would freeze a stale, host-local snapshot. Operators who want a locked-in reduced technique set should use `--variant-group` (which **is** persisted).
+
+### HTML report polish (v3.25.5)
+`src/evadex/cli/commands/report.py` reads `importlib.metadata.version("evadex")` and stamps it into the footer. "Top Evasion Techniques" is labelled "(ranked by variants bypassed)" with a clarifying note that the Recommendations section ranks separately by evasion rate with a 10-sample minimum — the two lists may legitimately differ. `_bar()` no longer emits `class="bar-fill "` with a trailing empty class.
+
+### Plugin registry protected against ruff autofix (v3.25.4)
+Every side-effect import in `src/evadex/core/registry.py::load_builtins()` carries a `# noqa: F401` marker. An earlier `ruff check --fix` deleted all 21 imports thinking they were unused; that broke the entire generator/adapter registry and only `test_adapter_registered` caught the regression. **Never run `ruff check --fix` on `registry.py` without re-reading it first.**
+
+## Open observations / known limitations
+
+- **`output.retain_days` on the profile schema is currently informational.** The schema accepts and round-trips it, but no code prunes old result files based on it. If you implement pruning, the canonical reader is `Profile.output["retain_days"]` (see `src/evadex/profiles/schema.py`).
+- **Built-in profiles never write `last_run`.** By design — they're read-only templates in `src/evadex/profiles/builtins/*.yaml`. To track runs you need a writable user copy via `evadex profile init` (or `profile create`).
+- **`output.format` only meaningfully affects the file extension.** The underlying `scan` / `falsepos` commands always emit JSON; the `format` field is a hint passed through to the path constructor so future formats can be added without a code change.
