@@ -18,8 +18,10 @@ import sys
 from typing import Optional
 
 import click
+from click.core import ParameterSource
 from rich.console import Console
 
+from evadex.config import find_config, load_config
 from evadex.core.registry import load_builtins, get_adapter
 from evadex.core.result import Payload, PayloadCategory, Variant
 from evadex.falsepos.generators import (
@@ -92,6 +94,14 @@ async def _scan_values(
 
 
 @click.command("falsepos")
+@click.option(
+    "--config",
+    "config_path",
+    type=click.Path(exists=True, dir_okay=False),
+    default=None,
+    help="Path to evadex.yaml config file. Auto-discovered from the working "
+    "directory if --config is not passed.",
+)
 @click.option(
     "--tool", "-t", default="dlpscan-cli", show_default=True, help="DLP adapter to use."
 )
@@ -209,7 +219,10 @@ async def _scan_values(
     envvar="EVADEX_C2_KEY",
     help="API key sent as 'x-api-key' to Siphon-C2. Falls back to EVADEX_C2_KEY.",
 )
+@click.pass_context
 def falsepos(
+    ctx: click.Context,
+    config_path: Optional[str],
     tool: str,
     categories: tuple[str, ...],
     count: int,
@@ -240,6 +253,35 @@ def falsepos(
       evadex falsepos --wrap-context      # test with surrounding keywords
     """
     load_builtins()
+
+    # ── Config file (matches scan's auto-discovery so a single evadex.yaml
+    # serves both commands; CLI flags always win) ────────────────────────────
+    cfg = None
+    if config_path:
+        cfg = load_config(config_path)
+    else:
+        auto_path = find_config()
+        if auto_path:
+            err_console.print(f"[dim]Using config: {auto_path}[/dim]")
+            cfg = load_config(auto_path)
+
+    if cfg is not None:
+
+        def _is_default(name: str) -> bool:
+            return ctx.get_parameter_source(name) == ParameterSource.DEFAULT
+
+        if _is_default("tool") and cfg.tool is not None:
+            tool = cfg.tool
+        if _is_default("executable") and cfg.exe is not None:
+            executable = cfg.exe
+        if _is_default("cmd_style") and cfg.cmd_style is not None:
+            cmd_style = cfg.cmd_style
+        if _is_default("timeout") and cfg.timeout is not None:
+            timeout = cfg.timeout
+        if _is_default("require_context") and cfg.require_context is not None:
+            require_context = cfg.require_context
+        if _is_default("wrap_context") and cfg.wrap_context is not None:
+            wrap_context = cfg.wrap_context
 
     active_cats = list(categories) if categories else sorted(FALSEPOS_GENERATORS.keys())
 
