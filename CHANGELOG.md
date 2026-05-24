@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.25.6] — 2026-05-24
+
+### Changed
+
+- **Profile `output.dir` is now load-bearing.** When a profile YAML specifies `output.dir`, `evadex profile run` translates it into `--output` flags on the underlying `evadex scan` and `evadex falsepos` invocations. Files land as `<dir>/<profile-name>_<UTC-timestamp>_scan.json` and `<dir>/<profile-name>_<UTC-timestamp>_falsepos.json`, with the same timestamp on both so paired runs stay visually grouped. `~` and `${ENV}` are expanded. `output.format` (when set) picks the file extension; defaults to `json`. The directory is created if it doesn't exist. If `scan.output` is set explicitly on the profile, it still wins — `output.dir` is the implicit fallback. Built-in profiles `banking-daily`, `canadian-ids`, `full-evasion`, `pci-dss`, and `quick-check` all carry an `output: {dir: ~/.evadex/results, ...}` block that previously had no effect; they now write to that path.
+
+### Documented
+
+- **`--save-as` deliberately does not persist `--fast`.** Added a docstring paragraph to `scan_flags_to_profile_dict` (in `src/evadex/profiles/runner.py`) explaining the rationale: `--fast` resolves to a machine-specific technique whitelist read from the local audit log via `evadex.feedback.fast_mode.pick_fast_techniques`, so saving it into a profile would freeze a stale, machine-specific snapshot. Operators who want a locked-in reduced technique set should use `--variant-group` (which is persisted) instead.
+
+### Tests
+
+- 7 new tests in `tests/unit/profiles/test_runner.py` cover: `output.dir` emits `--output` for scan and falsepos with a shared timestamp; default behaviour preserved when `output.dir` is absent; explicit `scan.output` wins over `output.dir`; `~` expansion; `output.format` selecting extension; and confirmation that `--fast` is dropped by `--save-as`.
+- 1306/1306 tests pass (was 1299).
+
 ## [3.25.5] — 2026-05-24
 
 ### Fixed

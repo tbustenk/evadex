@@ -158,3 +158,95 @@ def test_scan_flags_to_profile_maps_click_names_to_profile_keys():
     assert out["input"] == "4532015112830366"
     assert out["exe"] == "/bin/siphon"
     assert out["wrap_context"] is True
+
+
+def test_scan_flags_to_profile_drops_fast_mode():
+    # --fast resolves to a machine-specific technique whitelist based on the
+    # local audit-log history, so it must not be persisted by --save-as.
+    out = scan_flags_to_profile_dict({
+        "tool": "siphon-cli",
+        "tier": "northam",
+        "fast_mode": True,
+    })
+    assert "fast_mode" not in out
+    assert "fast" not in out
+
+
+# ── output.dir plumbing ────────────────────────────────────────────────────
+
+
+def test_output_dir_emits_output_flag_for_scan():
+    p = Profile(
+        name="daily",
+        scan={"tool": "siphon-cli", "tier": "northam"},
+        output={"dir": "/tmp/evadex-results", "format": "json"},
+    )
+    argv = profile_to_scan_argv(p, timestamp="20260524T200000Z")
+    assert "--output" in argv
+    out_idx = argv.index("--output")
+    val = argv[out_idx + 1]
+    # Path uses platform separator; check filename pieces directly.
+    assert "daily_20260524T200000Z_scan.json" in val.replace("\\", "/")
+    assert "/tmp/evadex-results" in val.replace("\\", "/")
+
+
+def test_output_dir_emits_output_flag_for_falsepos_with_same_timestamp():
+    p = Profile(
+        name="daily",
+        scan={"tool": "siphon-cli"},
+        falsepos={"enabled": True, "count": 50},
+        output={"dir": "/tmp/evadex-results"},
+    )
+    argv = profile_to_falsepos_argv(p, timestamp="20260524T200000Z")
+    assert argv is not None
+    assert "--output" in argv
+    val = argv[argv.index("--output") + 1]
+    assert "daily_20260524T200000Z_falsepos.json" in val.replace("\\", "/")
+
+
+def test_output_dir_not_set_no_output_flag():
+    # Default behavior must be preserved: when output.dir is absent, the
+    # runner does NOT inject --output (the scan command's own --output
+    # default / auto-archive path applies).
+    p = Profile(name="t", scan={"tool": "siphon-cli", "tier": "banking"})
+    argv = profile_to_scan_argv(p)
+    assert "--output" not in argv
+
+
+def test_explicit_scan_output_wins_over_profile_output_dir():
+    # If the user pinned scan.output explicitly, output.dir must not override.
+    p = Profile(
+        name="t",
+        scan={"tool": "siphon-cli", "output": "/etc/specific.json"},
+        output={"dir": "/tmp/should-be-ignored"},
+    )
+    argv = profile_to_scan_argv(p)
+    assert argv.count("--output") == 1
+    assert argv[argv.index("--output") + 1] == "/etc/specific.json"
+
+
+def test_output_dir_expands_tilde():
+    p = Profile(
+        name="t",
+        scan={"tool": "siphon-cli"},
+        output={"dir": "~/evadex-results"},
+    )
+    argv = profile_to_scan_argv(p, timestamp="20260524T200000Z")
+    val = argv[argv.index("--output") + 1].replace("\\", "/")
+    # ~ must be expanded; "~" should NOT appear literally in the resolved path.
+    assert "~" not in val
+    assert val.endswith("evadex-results/t_20260524T200000Z_scan.json")
+
+
+def test_output_dir_with_explicit_format_extension():
+    # output.format is a hint for the file extension when output.dir resolves
+    # the path. Only "json" is meaningful today, but the helper passes the
+    # value through so future formats work without a code change.
+    p = Profile(
+        name="t",
+        scan={"tool": "siphon-cli"},
+        output={"dir": "/tmp/x", "format": "json"},
+    )
+    argv = profile_to_scan_argv(p, timestamp="20260524T200000Z")
+    val = argv[argv.index("--output") + 1].replace("\\", "/")
+    assert val.endswith(".json")

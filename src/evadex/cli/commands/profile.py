@@ -18,6 +18,7 @@ import os
 import shlex
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -309,8 +310,13 @@ def profile_run(names: tuple, dry_run: bool, skip_falsepos: bool) -> None:
             exit_code = 1
             continue
 
-        scan_argv = profile_to_scan_argv(p)
-        fp_argv = None if skip_falsepos else profile_to_falsepos_argv(p)
+        # One shared UTC stamp per profile run so scan + falsepos outputs
+        # land side-by-side in output.dir when the profile pins one.
+        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        scan_argv = profile_to_scan_argv(p, timestamp=ts)
+        fp_argv = (
+            None if skip_falsepos else profile_to_falsepos_argv(p, timestamp=ts)
+        )
 
         if dry_run:
             err_console.print(f"[bold]{name}[/bold] — dry-run:")
@@ -322,6 +328,22 @@ def profile_run(names: tuple, dry_run: bool, skip_falsepos: bool) -> None:
                     "  falsepos: evadex falsepos " + " ".join(_shq(a) for a in fp_argv)
                 )
             continue
+
+        # mkdir output.dir so scan/falsepos can write into it. Honors ~ and
+        # ${ENV} after the profile-expand pass already applied by the runner.
+        out_cfg = p.output or {}
+        if out_cfg.get("dir"):
+            try:
+                Path(os.path.expanduser(os.path.expandvars(str(out_cfg["dir"])))).mkdir(
+                    parents=True, exist_ok=True
+                )
+            except OSError as e:
+                err_console.print(
+                    f"[red]Cannot create output.dir '{out_cfg['dir']}': "
+                    f"{e.strerror}[/red]"
+                )
+                exit_code = 1
+                continue
 
         err_console.print(f"[bold cyan]Running profile '{name}'[/bold cyan]")
         rc = _invoke(["scan"] + scan_argv)

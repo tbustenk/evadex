@@ -8,9 +8,42 @@ this layer side-effect-free makes argv construction trivial to unit test.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 from evadex.profiles.schema import Profile, expand_profile
+
+
+def _resolve_output_path(
+    profile: Profile, kind: str, timestamp: Optional[str] = None
+) -> Optional[Path]:
+    """Construct the per-run output path when ``profile.output.dir`` is set.
+
+    Returns ``None`` when the profile doesn't pin a directory — in that case
+    the caller falls back to ``--output`` from ``scan.output`` / the auto-
+    archive under ``results/scans/``.
+
+    ``kind`` is ``"scan"`` or ``"falsepos"`` and selects the filename prefix
+    so paired runs share a directory but stay distinguishable. ``timestamp``
+    defaults to ``datetime.now(timezone.utc)`` in the same compact ISO format
+    the auto-archive already uses. Passing it in explicitly keeps the unit
+    tests deterministic and lets the caller pair scan + falsepos under the
+    same stamp.
+
+    The output extension comes from ``profile.output.get("format")``
+    (defaults to ``"json"``). ``~`` and ``${ENV}`` placeholders are honoured.
+    """
+    out = profile.output or {}
+    raw_dir = out.get("dir")
+    if not raw_dir:
+        return None
+    fmt = (out.get("format") or "json").lower()
+    ext = "json" if fmt == "json" else fmt
+    ts = timestamp or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    safe_name = profile.name.replace("/", "_").replace("\\", "_")
+    base = Path(raw_dir).expanduser()
+    return base / f"{safe_name}_{ts}_{kind}.{ext}"
 
 
 # Scan flags that accept multiple values (Click ``multiple=True``).
@@ -73,6 +106,7 @@ def profile_to_scan_argv(
     profile: Profile,
     extra: Optional[list] = None,
     expand: bool = True,
+    timestamp: Optional[str] = None,
 ) -> list[str]:
     """Convert a profile's ``scan`` section into an argv list for ``evadex scan``.
 
@@ -82,6 +116,11 @@ def profile_to_scan_argv(
 
     The profile's ``c2`` section is promoted to ``--c2-url`` / ``--c2-key``
     because those flags live on the scan command, not in ``scan:`` itself.
+
+    When ``profile.output.dir`` is set and ``scan.output`` is not, a
+    timestamped path under that directory is emitted as ``--output``. Pass
+    ``timestamp`` to pair scan + falsepos paths under the same stamp; if
+    ``None``, the helper generates a UTC stamp at call time.
     """
     p = expand_profile(profile) if expand else profile
     argv: list[str] = []
@@ -111,6 +150,11 @@ def profile_to_scan_argv(
         if p.c2.get("key"):
             argv += ["--c2-key", str(p.c2["key"])]
 
+    if "output" not in scan:
+        out_path = _resolve_output_path(p, "scan", timestamp=timestamp)
+        if out_path is not None:
+            argv += ["--output", str(out_path)]
+
     if extra:
         argv += list(extra)
 
@@ -121,6 +165,7 @@ def profile_to_falsepos_argv(
     profile: Profile,
     extra: Optional[list] = None,
     expand: bool = True,
+    timestamp: Optional[str] = None,
 ) -> Optional[list[str]]:
     """Convert a profile's ``falsepos`` section into ``evadex falsepos`` argv.
 
@@ -128,6 +173,10 @@ def profile_to_falsepos_argv(
     The scanner binary config (``tool``, ``exe``, ``cmd_style``, ``timeout``,
     ``url``) is inherited from the ``scan`` section when absent from
     ``falsepos`` so a single profile can drive both runs.
+
+    When ``profile.output.dir`` is set and ``falsepos.output`` is not, a
+    timestamped path under that directory is emitted as ``--output``. Pass
+    ``timestamp`` to pair scan + falsepos paths under the same stamp.
     """
     p = expand_profile(profile) if expand else profile
     fp = p.falsepos or {}
@@ -168,6 +217,11 @@ def profile_to_falsepos_argv(
         if p.c2.get("key"):
             argv += ["--c2-key", str(p.c2["key"])]
 
+    if "output" not in effective:
+        out_path = _resolve_output_path(p, "falsepos", timestamp=timestamp)
+        if out_path is not None:
+            argv += ["--output", str(out_path)]
+
     if extra:
         argv += list(extra)
 
@@ -181,6 +235,15 @@ def scan_flags_to_profile_dict(flags: dict) -> dict:
     exposes on the scan function (e.g. ``tool``, ``tier``, ``strategies``,
     ``cmd_style``). Values that are None, empty tuples, or empty strings are
     dropped so the saved profile mirrors only what the user actually specified.
+
+    ``--fast`` is *intentionally not persisted*: it is an ad-hoc runtime
+    optimisation, not a configuration option. The technique whitelist that
+    ``--fast`` resolves to depends on the local audit-log history (see
+    ``evadex.feedback.fast_mode.pick_fast_techniques``), so the same
+    ``--fast`` invocation on two machines produces different scans. Saving
+    it into a profile would freeze a stale, machine-specific snapshot.
+    Operators who want to lock in a reduced technique set should use
+    ``--variant-group`` (persisted) instead.
     """
     mapped: dict = {}
     passthrough = {
