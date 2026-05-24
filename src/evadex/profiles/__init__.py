@@ -30,6 +30,7 @@ from evadex.profiles.storage import (
 from evadex.profiles.runner import (
     profile_to_falsepos_argv,
     profile_to_scan_argv,
+    prune_old_results,
 )
 
 __all__ = [
@@ -44,5 +45,6 @@ __all__ = [
     "profile_to_falsepos_argv",
     "profile_to_scan_argv",
     "profiles_dir",
+    "prune_old_results",
     "save_profile",
 ]

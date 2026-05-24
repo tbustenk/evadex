@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `evadex` is a scanner-agnostic DLP (data loss prevention) evasion test suite. It takes a sensitive value (credit card, SSN, IBAN, AWS key, etc.), runs it through a battery of evasion techniques (unicode tricks, delimiter swaps, encoding, regional digits, splitting, morse, etc.), embeds each variant in plain text and in real document formats (DOCX/PDF/XLSX/...), submits everything to a configured DLP scanner via an adapter, and reports what slipped through. Python 3.11+, distributed on PyPI, CLI-first (`evadex = evadex.cli.app:main`).
 
-Current version: **3.26.0** (see `pyproject.toml`; CHANGELOG is the user-facing release notes). Test suite: **1337 passing** (1023 unit + 314 integration); CI runs `tests/unit` on Python 3.11 and 3.13 plus a Docker image-build step.
+Current version: **3.26.1** (see `pyproject.toml`; CHANGELOG is the user-facing release notes). Test suite: **1047 unit + 300 integration = 1347** total; **all 1047 unit tests pass**, 287/300 integration tests pass (13 pre-existing scanner-default / Rich-output drift failures, also present on the v3.26.0 tag — see v3.26.1 CHANGELOG entry). CI runs `tests/unit` on Python 3.11 and 3.13 plus a Docker image-build step.
 
 ## Common commands
 
@@ -91,7 +91,7 @@ When **adding a new payload category**: add to the enum, add to `CATEGORY_TYPES`
 
 ### File-format strategies
 
-`src/evadex/generate/writers/` has one writer per output format (xlsx, docx, pdf, csv, txt, json, xml, sql, log, eml, parquet, sqlite, zip, 7z, mbox, png/jpg barcodes, warc, ics, msg, edm_json). The `--strategy` flag on `scan` chooses which document wrapper(s) variants get embedded in before submission, exercising the scanner's file-extraction pipeline rather than just its regex layer. **DOCX uses raw `lxml.etree.SubElement` instead of python-docx's ORM** for table rows/paragraphs (25× speedup, ~1.5s vs 37s for 1000 rows) — don't "fix" this back to the friendlier API.
+`src/evadex/generate/writers/` has one writer per output format (xlsx, docx, pdf, csv, txt, json, xml, sql, log, eml, parquet, sqlite, zip, 7z, mbox, png/jpg barcodes, warc, ics, msg, edm_json). The `--strategy` flag on `scan` chooses which document wrapper(s) variants get embedded in before submission, exercising the scanner's file-extraction pipeline rather than just its regex layer. **DOCX uses raw `lxml.etree.SubElement` instead of python-docx's ORM** for table rows/paragraphs (25× speedup, ~1.5s vs 37s for 1000 rows) — don't "fix" this back to the friendlier API. The paragraph-insertion path specifically uses `sect_pr.addprevious(p)` rather than `body.insert(idx, p)` — see v3.26.1 entry below for the O(n²) regression that fix resolved.
 
 ### Other subsystems
 
@@ -134,8 +134,16 @@ When a profile YAML specifies `output.dir`, `evadex profile run` translates it i
 ### Plugin registry protected against ruff autofix (v3.25.4)
 Every side-effect import in `src/evadex/core/registry.py::load_builtins()` carries a `# noqa: F401` marker. An earlier `ruff check --fix` deleted all 21 imports thinking they were unused; that broke the entire generator/adapter registry and only `test_adapter_registered` caught the regression. **Never run `ruff check --fix` on `registry.py` without re-reading it first.**
 
+### DOCX paragraph insertion uses `addprevious`, not positional `insert` (v3.26.1)
+`_fast_add_paragraphs` in `src/evadex/generate/writers/docx_writer.py` builds `<w:p>` elements and attaches them to the body via `sect_pr.addprevious(p)`. An earlier implementation used `body.insert(insert_at + idx, p)`, which is O(idx) in lxml because the C layer walks children to reach the position — over ~68 k prose paragraphs (full `northam` × `count=1000`) the cumulative cost was O(K²) ≈ 145 s. `addprevious` is a O(1) libxml2 linked-list insert. The fix dropped end-to-end CLI generation for that workload from 147 s to ~10 s. Don't refactor back to positional `body.insert` without re-benchmarking.
+
+### `output.retain_days` is enforced by `evadex profile run` (v3.26.1)
+The profile runner now prunes old result files after every successful run. The helper lives at `evadex.profiles.runner.prune_old_results(profile)` and is also re-exported from `evadex.profiles`. It deletes `<profile-name>_*_scan.*` and `<profile-name>_*_falsepos.*` files in `output.dir` whose mtime is older than `retain_days` days. Behaviour is intentionally defensive: no-op when `retain_days` is unset / zero / negative / non-integer; no-op when `output.dir` is missing; individual unlink failures are logged and skipped (the run never fails because of pruning). The match pattern is glob-scoped to the profile name, so sibling profiles in the same directory are not touched.
+
+### Credit-card synthetic generator uses reserved test BINs (v3.26.1)
+`src/evadex/synthetic/credit_card.py::_PREFIXES` and the duplicate pool in `src/evadex/generate/generator.py::_CC_PREFIXES` are restricted to brand-published test BIN ranges: `4111` (Visa), `5500` (Mastercard), `3714` / `3782` (Amex), `6011` (Discover). Output is still Luhn-valid and still recognised by brand-detection regexes, but the BIN never matches an issued card — safe to ship inside bank synthetic-test corpora without account-collision risk. Keep the two prefix lists in sync.
+
 ## Open observations / known limitations
 
-- **`output.retain_days` on the profile schema is currently informational.** The schema accepts and round-trips it, but no code prunes old result files based on it. If you implement pruning, the canonical reader is `Profile.output["retain_days"]` (see `src/evadex/profiles/schema.py`).
 - **Built-in profiles never write `last_run`.** By design — they're read-only templates in `src/evadex/profiles/builtins/*.yaml`. To track runs you need a writable user copy via `evadex profile init` (or `profile create`).
 - **`output.format` only meaningfully affects the file extension.** The underlying `scan` / `falsepos` commands always emit JSON; the `format` field is a hint passed through to the path constructor so future formats can be added without a code change.

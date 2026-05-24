@@ -143,20 +143,25 @@ def _fast_add_paragraphs(doc: Document, texts: list[str]) -> None:
     python-docx's Document.add_paragraph() allocates several Python ORM
     wrappers per call — acceptable for occasional use but expensive across
     thousands of entries. Building the <w:p> elements directly via lxml and
-    bulk-inserting them before <w:sectPr> is ~6× faster.
+    bulk-inserting them before <w:sectPr> is much faster.
+
+    Uses ``sectPr.addprevious(p)`` (libxml2 doubly-linked-list insert, O(1))
+    instead of ``body.insert(idx, p)`` (O(n) because lxml walks children to
+    find ``idx``). The old positional-insert path was O(K²) over K total
+    paragraphs and dominated DOCX generation at ~100 k entries (≈2.5 min
+    regression at full northam tier × count=1000; now ≈3 s).
     """
     from lxml import etree
 
     body = doc._body._element  # lxml Element for <w:body>
-    n = len(list(body))  # sectPr is always the last child
-    insert_at = n - 1
+    sect_pr = body[-1]  # <w:sectPr> is always the last child
 
-    for idx, text in enumerate(texts):
+    for text in texts:
         p = etree.Element(f"{_W}p")
         if text:
             r = etree.SubElement(p, f"{_W}r")
             _make_t(r, text)
-        body.insert(insert_at + idx, p)
+        sect_pr.addprevious(p)
 
 
 def write_docx(entries: list[GeneratedEntry], path: str) -> None:

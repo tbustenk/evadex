@@ -38,6 +38,7 @@ from evadex.profiles import (
     profile_to_falsepos_argv,
     profile_to_scan_argv,
     profiles_dir,
+    prune_old_results,
     save_profile,
 )
 from evadex.profiles.schema import parse_profile
@@ -359,6 +360,20 @@ def profile_run(names: tuple, dry_run: bool, skip_falsepos: bool) -> None:
             update_last_run(name)
         except ProfileError:
             pass
+
+        # Prune older result files when output.retain_days is configured. We
+        # run this *after* the scan/falsepos invocation so the freshly written
+        # files set a recent mtime baseline; an unintended consequence of
+        # pruning first would be deleting the file the scan is about to write.
+        try:
+            removed = prune_old_results(p)
+            if removed:
+                err_console.print(
+                    f"[dim]Pruned {len(removed)} result file(s) older than "
+                    f"{(p.output or {}).get('retain_days')}d for '{name}'.[/dim]"
+                )
+        except Exception as e:  # never let pruning break the run
+            err_console.print(f"[yellow]Pruning skipped: {e}[/yellow]")
 
     sys.exit(exit_code)
 

@@ -8,11 +8,14 @@ this layer side-effect-free makes argv construction trivial to unit test.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import logging
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
 from evadex.profiles.schema import Profile, expand_profile
+
+logger = logging.getLogger(__name__)
 
 
 def _resolve_output_path(
@@ -295,3 +298,56 @@ def scan_flags_to_profile_dict(flags: dict) -> dict:
         mapped[key] = val
 
     return mapped
+
+
+def prune_old_results(profile: Profile, *, now: Optional[datetime] = None) -> list[Path]:
+    """Delete scan/falsepos result files older than ``profile.output.retain_days``.
+
+    A no-op (returns ``[]``) unless ``profile.output`` pins both ``dir`` and
+    ``retain_days``. Walks the directory for files matching the profile's
+    output naming pattern (``<name>_<timestamp>_scan.*`` and
+    ``<name>_<timestamp>_falsepos.*``) and unlinks any whose mtime is older
+    than the cutoff. ``now`` defaults to ``datetime.now(timezone.utc)`` and is
+    parameterised so tests can pin time without monkey-patching ``datetime``.
+
+    Returns the list of files that were deleted (useful for tests and
+    structured logging). Failures to unlink an individual file are logged
+    and skipped — pruning never raises.
+    """
+    out = profile.output or {}
+    raw_dir = out.get("dir")
+    retain_days = out.get("retain_days")
+    if not raw_dir or not retain_days:
+        return []
+
+    try:
+        retain_days = int(retain_days)
+    except (TypeError, ValueError):
+        logger.warning(
+            "profile %s: output.retain_days=%r is not an integer; skipping prune",
+            profile.name,
+            retain_days,
+        )
+        return []
+    if retain_days <= 0:
+        return []
+
+    base = Path(raw_dir).expanduser()
+    if not base.is_dir():
+        return []
+
+    safe_name = profile.name.replace("/", "_").replace("\\", "_")
+    cutoff = (now or datetime.now(timezone.utc)) - timedelta(days=retain_days)
+    cutoff_ts = cutoff.timestamp()
+
+    deleted: list[Path] = []
+    for kind in ("scan", "falsepos"):
+        for f in base.glob(f"{safe_name}_*_{kind}.*"):
+            try:
+                if f.stat().st_mtime < cutoff_ts:
+                    f.unlink()
+                    deleted.append(f)
+                    logger.debug("pruned old result: %s", f)
+            except OSError as e:
+                logger.warning("failed to prune %s: %s", f, e)
+    return deleted

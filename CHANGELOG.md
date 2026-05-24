@@ -1,5 +1,26 @@
 # Changelog
 
+## [3.26.1] — 2026-05-24
+
+### Fixed
+
+- **DOCX generation O(n²) regression resolved** (`src/evadex/generate/writers/docx_writer.py::_fast_add_paragraphs`). The previous implementation used `body.insert(insert_at + idx, p)` to place each `<w:p>` immediately before `<w:sectPr>`; lxml's `Element.insert(idx, child)` is O(idx) because it walks children to reach the position, so the loop was quadratic in the number of paragraphs added across all categories. At full `northam` tier × `count=1000` (≈68 k prose paragraphs in a single document) this added up to ~145 s out of 151 s total — matching the v3.26.0 "DOCX is slow at 2.6 min/1000 records" observation. Switched to `sect_pr.addprevious(p)` (O(1) doubly-linked-list insert). New numbers: **count=100 ≈ 2.8 s** and **count=1000 ≈ 9.8 s** total CLI time end-to-end (was 147 s) — a ~15× speedup at the count=1000 scale, well under the 30 s target. Output is byte-identical from python-docx's perspective: the resulting file still has the same paragraph count (68,140), table count (102), and 34,170 table rows.
+- **`output.retain_days` is now enforced** rather than informational. After a profile run completes, `evadex profile run` calls the new `evadex.profiles.runner.prune_old_results(profile)` helper, which deletes any `<profile-name>_*_scan.*` and `<profile-name>_*_falsepos.*` files in `output.dir` whose mtime is older than `retain_days`. Failures to unlink a specific file are logged and skipped — pruning never raises and never breaks the run. Pruning is a no-op when `retain_days` is unset, zero/negative, or not a valid integer, and when `output.dir` is unset or missing. The old "Open observations" note in CLAUDE.md about this being informational has been removed accordingly.
+- **Credit-card synthetic generator now uses brand-published test BINs** (`src/evadex/synthetic/credit_card.py` and the duplicate prefix list in `src/evadex/generate/generator.py`). Replaced the real-issuer BIN pool (`4`, `51`-`55`, `34`/`37`, `6011`, `3528`/`3589`) with the reserved sandbox BINs: **4111** (Visa), **5500** (Mastercard), **3714**/**3782** (Amex), **6011** (Discover). Brand-detection regexes still classify the output correctly (so DLP scanner test coverage is preserved), but the BINs belong to ranges that are reserved by the brands and never issued — safe to ship inside a bank's synthetic-test corpus without accidentally colliding with a real customer account. Output remains Luhn-valid; only the leading BIN is constrained.
+
+### Tests
+
+- **9 new tests in `tests/unit/profiles/test_runner.py`** covering the new `prune_old_results` helper: deletes files older than `retain_days`; keeps files newer than `retain_days`; no-op when `retain_days` is unset / `dir` is unset / `retain_days` is invalid / `retain_days` is zero or negative; only touches files matching the profile name (sibling profiles in the same dir are untouched); only touches `_scan` / `_falsepos` files (unrelated files left alone); honours a caller-supplied `now` for deterministic time control without monkey-patching `datetime`.
+- **1 new test in `tests/unit/synthetic/test_credit_card.py`** (`test_generate_uses_reserved_test_bins_only`) locks in that 500 generated CCs at seed 123 all start with one of the five reserved test BINs — a regression here would mean shipping real-issuer prefixes again.
+- **1047 unit tests passing** (was 1023). Full collection: 1047 unit + 300 integration = 1347; 13 integration tests fail (mostly scanner-default and Rich-output formatting drift around `evadex scan` JSON / audit-log assertions). All 13 were verified to also fail on the unmodified v3.26.0 baseline (`35f2b2c`) by stashing this branch's changes — none are caused by the v3.26.1 fixes, and they are tracked for a separate follow-up.
+
+### Verified
+
+- `ruff check src/` — all checks passed.
+- `evadex generate --format docx --tier northam --count 1000` end-to-end CLI: 9.84 s (was 147.29 s on the same hardware).
+- Generated DOCX opens cleanly via `python-docx`: 68,140 paragraphs, 102 tables, 34,170 table rows — same structure as before the perf fix.
+- Sample 10-CC generation prints values like `4111043321819607`, `378294026542350`, `5500419283276489`, `6011…` — all in the test-BIN pool, all Luhn-valid.
+
 ## [3.26.0] — 2026-05-24
 
 ### Security

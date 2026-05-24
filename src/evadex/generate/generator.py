@@ -11,19 +11,18 @@ from evadex.core.result import PayloadCategory
 from evadex.payloads.builtins import get_payloads, HEURISTIC_CATEGORIES
 
 
-# Visa, Mastercard, Amex, Discover, JCB — (prefix, total_length)
+# Brand-recognised test BINs (Visa 4111, MC 5500, Amex 3714/3782, Discover 6011).
+# Keep this list in sync with evadex.synthetic.credit_card._PREFIXES — the same
+# rationale applies: scanner regexes still classify these as the right brand,
+# but the BIN belongs to a reserved sandbox range, so a synthetic test value
+# never collides with a real issued card. See credit_card.py for the source
+# citations.
 _CC_PREFIXES: list[tuple[str, int]] = [
-    ("4", 16),
-    ("51", 16),
-    ("52", 16),
-    ("53", 16),
-    ("54", 16),
-    ("55", 16),
-    ("34", 15),
-    ("37", 15),
-    ("6011", 16),
-    ("3528", 16),
-    ("3589", 16),
+    ("4111", 16),  # Visa test BIN
+    ("5500", 16),  # Mastercard test BIN
+    ("3714", 15),  # Amex test BIN
+    ("3782", 15),  # Amex test BIN (alt)
+    ("6011", 16),  # Discover test BIN
 ]
 
 

@@ -2,12 +2,16 @@
 plus the env-var expansion hand-off."""
 from __future__ import annotations
 
+import os
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from evadex.profiles.schema import Profile
 from evadex.profiles.runner import (
     profile_to_falsepos_argv,
     profile_to_scan_argv,
+    prune_old_results,
     scan_flags_to_profile_dict,
 )
 
@@ -250,3 +254,128 @@ def test_output_dir_with_explicit_format_extension():
     argv = profile_to_scan_argv(p, timestamp="20260524T200000Z")
     val = argv[argv.index("--output") + 1].replace("\\", "/")
     assert val.endswith(".json")
+
+
+# ── prune_old_results ──────────────────────────────────────────────────────
+
+
+def _write_result_file(tmp_path, name: str, age_days: float) -> "Path":  # noqa: F821
+    """Helper: create a file with mtime set to (now - age_days)."""
+    path = tmp_path / name
+    path.write_text("{}", encoding="utf-8")
+    target = (datetime.now(timezone.utc) - timedelta(days=age_days)).timestamp()
+    os.utime(path, (target, target))
+    return path
+
+
+def test_prune_deletes_files_older_than_retain_days(tmp_path):
+    old_scan = _write_result_file(tmp_path, "demo_20260101T000000Z_scan.json", age_days=45)
+    old_fp = _write_result_file(tmp_path, "demo_20260101T000000Z_falsepos.json", age_days=45)
+    p = Profile(
+        name="demo",
+        scan={"tool": "siphon-cli"},
+        output={"dir": str(tmp_path), "retain_days": 30},
+    )
+    deleted = prune_old_results(p)
+    deleted_set = {d.name for d in deleted}
+    assert old_scan.name in deleted_set
+    assert old_fp.name in deleted_set
+    assert not old_scan.exists()
+    assert not old_fp.exists()
+
+
+def test_prune_keeps_files_newer_than_retain_days(tmp_path):
+    fresh = _write_result_file(tmp_path, "demo_20260520T000000Z_scan.json", age_days=1)
+    p = Profile(
+        name="demo",
+        scan={"tool": "siphon-cli"},
+        output={"dir": str(tmp_path), "retain_days": 30},
+    )
+    deleted = prune_old_results(p)
+    assert deleted == []
+    assert fresh.exists()
+
+
+def test_prune_is_noop_when_retain_days_not_set(tmp_path):
+    ancient = _write_result_file(tmp_path, "demo_20240101T000000Z_scan.json", age_days=500)
+    p = Profile(
+        name="demo",
+        scan={"tool": "siphon-cli"},
+        output={"dir": str(tmp_path)},  # no retain_days
+    )
+    deleted = prune_old_results(p)
+    assert deleted == []
+    assert ancient.exists()
+
+
+def test_prune_is_noop_when_no_output_dir(tmp_path):
+    p = Profile(
+        name="demo",
+        scan={"tool": "siphon-cli"},
+        output={"retain_days": 30},  # no dir
+    )
+    assert prune_old_results(p) == []
+
+
+def test_prune_only_touches_files_matching_profile_name(tmp_path):
+    # Files from a sibling profile in the same dir must not be deleted.
+    mine_old = _write_result_file(tmp_path, "mine_20260101T000000Z_scan.json", age_days=45)
+    other_old = _write_result_file(tmp_path, "other_20260101T000000Z_scan.json", age_days=45)
+    p = Profile(
+        name="mine",
+        scan={"tool": "siphon-cli"},
+        output={"dir": str(tmp_path), "retain_days": 30},
+    )
+    deleted = prune_old_results(p)
+    assert {d.name for d in deleted} == {mine_old.name}
+    assert not mine_old.exists()
+    assert other_old.exists()
+
+
+def test_prune_ignores_non_result_files(tmp_path):
+    # Unrelated files in the same dir must be left alone even when matching age.
+    sentinel = _write_result_file(tmp_path, "README.md", age_days=999)
+    p = Profile(
+        name="demo",
+        scan={"tool": "siphon-cli"},
+        output={"dir": str(tmp_path), "retain_days": 30},
+    )
+    prune_old_results(p)
+    assert sentinel.exists()
+
+
+def test_prune_invalid_retain_days_is_noop(tmp_path):
+    old = _write_result_file(tmp_path, "demo_20260101T000000Z_scan.json", age_days=45)
+    p = Profile(
+        name="demo",
+        scan={"tool": "siphon-cli"},
+        output={"dir": str(tmp_path), "retain_days": "not-a-number"},
+    )
+    assert prune_old_results(p) == []
+    assert old.exists()
+
+
+def test_prune_zero_or_negative_retain_days_is_noop(tmp_path):
+    old = _write_result_file(tmp_path, "demo_20260101T000000Z_scan.json", age_days=45)
+    for value in (0, -1):
+        p = Profile(
+            name="demo",
+            scan={"tool": "siphon-cli"},
+            output={"dir": str(tmp_path), "retain_days": value},
+        )
+        assert prune_old_results(p) == []
+    assert old.exists()
+
+
+def test_prune_uses_caller_supplied_now_for_determinism(tmp_path):
+    # File is 10 days old by mtime; with retain_days=5 and now pinned to today,
+    # it should be deleted regardless of the wall clock when the test runs.
+    f = _write_result_file(tmp_path, "demo_20260514T000000Z_scan.json", age_days=10)
+    p = Profile(
+        name="demo",
+        scan={"tool": "siphon-cli"},
+        output={"dir": str(tmp_path), "retain_days": 5},
+    )
+    deleted = prune_old_results(p, now=datetime.now(timezone.utc))
+    assert [d.name for d in deleted] == [f.name]
+    assert not f.exists()

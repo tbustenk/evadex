@@ -63,3 +63,19 @@ def test_generate_length_15_or_16(gen):
     values = gen.generate(100, seed=8)
     for v in values:
         assert len(v) in (15, 16), f"Unexpected CC length: {len(v)}"
+
+
+def test_generate_uses_reserved_test_bins_only(gen):
+    """Every synthetic CC starts with a published brand-test BIN.
+
+    Why: this module ships inside DLP test corpora that bank operators load
+    onto production-adjacent hardware. Real-issuer BINs (e.g. starting "53"
+    for a Mastercard portfolio) could in principle collide with a real card
+    if an operator pastes the synthetic output into an unrelated system. The
+    published test BINs (4111, 5500, 3714, 3782, 6011) are reserved by the
+    brands and never issued, so they are safe to ship.
+    """
+    allowed = {"4111", "5500", "3714", "3782", "6011"}
+    values = gen.generate(500, seed=123)
+    bad = [v for v in values if v[:4] not in allowed]
+    assert not bad, f"Generated CCs outside allowed test-BIN pool: {bad[:5]}"
