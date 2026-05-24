@@ -188,18 +188,18 @@ class DelimiterGenerator(BaseVariantGenerator):
 
     def generate(self, value: str) -> Iterator[Variant]:
         # Strip existing delimiters to get raw alphanumeric string
-        raw = re.sub(r'[^A-Za-z0-9]', '', value)
-        groups = [raw[i:i+4] for i in range(0, len(raw), 4)]
+        raw = re.sub(r"[^A-Za-z0-9]", "", value)
+        groups = [raw[i : i + 4] for i in range(0, len(raw), 4)]
 
         yield self._make_variant(raw, "no_delimiter", "All delimiters removed")
 
         delimiters = [
-            (' ',  "space_delimiter",   "Groups separated by spaces"),
-            ('-',  "hyphen_delimiter",  "Groups separated by hyphens"),
-            ('.',  "dot_delimiter",     "Groups separated by dots"),
-            ('/',  "slash_delimiter",   "Groups separated by slashes"),
-            ('\t', "tab_delimiter",     "Groups separated by tabs"),
-            ('\n', "newline_delimiter", "Groups separated by newlines"),
+            (" ", "space_delimiter", "Groups separated by spaces"),
+            ("-", "hyphen_delimiter", "Groups separated by hyphens"),
+            (".", "dot_delimiter", "Groups separated by dots"),
+            ("/", "slash_delimiter", "Groups separated by slashes"),
+            ("\t", "tab_delimiter", "Groups separated by tabs"),
+            ("\n", "newline_delimiter", "Groups separated by newlines"),
         ]
 
         for sep, technique, desc in delimiters:
@@ -213,8 +213,8 @@ class DelimiterGenerator(BaseVariantGenerator):
             for i, g in enumerate(groups):
                 parts.append(g)
                 if i < len(groups) - 1:
-                    parts.append(' ' if i % 2 == 0 else '-')
-            mixed = ''.join(parts)
+                    parts.append(" " if i % 2 == 0 else "-")
+            mixed = "".join(parts)
             if mixed != value:
                 yield self._make_variant(
                     mixed,
@@ -223,6 +223,8 @@ class DelimiterGenerator(BaseVariantGenerator):
                 )
 
         # Excessive: double hyphens
-        excessive = '--'.join(groups)
+        excessive = "--".join(groups)
         if excessive != value:
-            yield self._make_variant(excessive, "excessive_delimiter", "Doubled hyphen delimiters")
+            yield self._make_variant(
+                excessive, "excessive_delimiter", "Doubled hyphen delimiters"
+            )

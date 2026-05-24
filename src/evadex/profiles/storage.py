@@ -10,6 +10,7 @@ Built-in profiles ship alongside the package at
 will not overwrite a built-in, and :func:`load_profile` falls back to the
 built-ins only when no user profile with that name exists.
 """
+
 from __future__ import annotations
 
 import os
@@ -162,6 +163,9 @@ def update_last_run(name: str, when: Optional[str] = None) -> None:
 
 
 def _utc_now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace(
-        "+00:00", "Z"
+    return (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
     )

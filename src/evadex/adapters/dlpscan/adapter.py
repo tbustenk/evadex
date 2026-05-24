@@ -42,7 +42,9 @@ class DlpscanAdapter(BaseAdapter):
             raw = await self._client.upload_file(data, filename, mime)
 
         detected = self._parse_response(raw)
-        return ScanResult(payload=payload, variant=variant, detected=detected, raw_response=raw)
+        return ScanResult(
+            payload=payload, variant=variant, detected=detected, raw_response=raw
+        )
 
     def _parse_response(self, raw: dict) -> bool:
         # Try configured key first. If the key is present, only use it — do not
@@ -54,7 +56,7 @@ class DlpscanAdapter(BaseAdapter):
             if isinstance(val, (int, float)):
                 return bool(val)
             if isinstance(val, str):
-                return val.lower() in ('true', '1', 'yes', 'detected')
+                return val.lower() in ("true", "1", "yes", "detected")
             if isinstance(val, list):
                 return len(val) > 0
             # Unrecognised type (None, dict, …) — treat as not detected.

@@ -19,4 +19,6 @@ def init_cmd():
         sys.exit(1)
     target.write_text(DEFAULT_CONFIG_YAML, encoding="utf-8")
     click.echo(f"Created {target}")
-    click.echo(f"Edit {CONFIG_FILENAME} then run: evadex scan --config {CONFIG_FILENAME}")
+    click.echo(
+        f"Edit {CONFIG_FILENAME} then run: evadex scan --config {CONFIG_FILENAME}"
+    )

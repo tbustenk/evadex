@@ -1,8 +1,10 @@
 """Shared validation utilities for synthetic value generators."""
+
 from __future__ import annotations
 
 
 # ── Luhn (credit card + Canadian SIN) ─────────────────────────────────────────
+
 
 def luhn_check(number: str) -> bool:
     """Return True if *number* (digits only) passes the Luhn algorithm."""
@@ -26,7 +28,7 @@ def luhn_check_digit(digits: list[int]) -> int:
     """
     total = 0
     for i, d in enumerate(reversed(digits)):
-        if i % 2 == 0:   # even from right → odd position (rightmost is pos 1)
+        if i % 2 == 0:  # even from right → odd position (rightmost is pos 1)
             d *= 2
             if d > 9:
                 d -= 9
@@ -35,6 +37,7 @@ def luhn_check_digit(digits: list[int]) -> int:
 
 
 # ── IBAN checksum ──────────────────────────────────────────────────────────────
+
 
 def iban_check_digits(country: str, bban: str) -> str:
     """Compute the two IBAN check digits for *country* + *bban*.
@@ -62,13 +65,13 @@ def iban_valid(iban: str) -> bool:
         return False
     rearranged = iban[4:] + iban[:4]
     numeric = "".join(
-        str(ord(ch) - ord("A") + 10) if ch.isalpha() else ch
-        for ch in rearranged
+        str(ord(ch) - ord("A") + 10) if ch.isalpha() else ch for ch in rearranged
     )
     return int(numeric) % 97 == 1
 
 
 # ── Canadian SIN checksum ──────────────────────────────────────────────────────
+
 
 def sin_valid(sin: str) -> bool:
     """Return True if *sin* passes the 9-digit Luhn check used for Canadian SINs.

@@ -25,6 +25,7 @@ Techniques
     mock invoice). Tests whether Siphon detects small barcodes embedded
     in a wider visual context.
 """
+
 from __future__ import annotations
 
 from typing import Iterator
@@ -79,7 +80,8 @@ class BarcodeEvasionGenerator(BaseVariantGenerator):
         # In the text path, a trailing unicode mark keeps the variant distinct
         # from the plain payload for dedupe.
         yield self._make_variant(
-            value + "\u200b",  # zero-width space — invisible to humans, trackable by scanner
+            value
+            + "\u200b",  # zero-width space — invisible to humans, trackable by scanner
             "barcode_noise",
             "Overlay salt-and-pepper noise on the rendered barcode",
         )

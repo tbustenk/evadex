@@ -16,6 +16,7 @@ from _add_child / xmlchemy calls that python-docx incurs per cell, reducing
 Prose paragraphs similarly use direct lxml insertion rather than
 Document.add_paragraph() to avoid per-paragraph wrapper allocation.
 """
+
 from __future__ import annotations
 
 import datetime
@@ -38,25 +39,25 @@ _XML_SPACE = "{http://www.w3.org/XML/1998/namespace}space"
 
 _SECTION_TITLES: dict[PayloadCategory, str] = {
     PayloadCategory.CREDIT_CARD: "Credit Card Numbers",
-    PayloadCategory.SSN:         "Social Security Numbers",
-    PayloadCategory.SIN:         "Canadian Social Insurance Numbers",
-    PayloadCategory.IBAN:        "International Bank Account Numbers",
-    PayloadCategory.SWIFT_BIC:   "SWIFT / BIC Codes",
+    PayloadCategory.SSN: "Social Security Numbers",
+    PayloadCategory.SIN: "Canadian Social Insurance Numbers",
+    PayloadCategory.IBAN: "International Bank Account Numbers",
+    PayloadCategory.SWIFT_BIC: "SWIFT / BIC Codes",
     PayloadCategory.ABA_ROUTING: "ABA Routing Numbers",
-    PayloadCategory.BITCOIN:     "Bitcoin Addresses",
-    PayloadCategory.ETHEREUM:    "Ethereum Addresses",
+    PayloadCategory.BITCOIN: "Bitcoin Addresses",
+    PayloadCategory.ETHEREUM: "Ethereum Addresses",
     PayloadCategory.US_PASSPORT: "US Passport Numbers",
-    PayloadCategory.AU_TFN:      "Australian Tax File Numbers",
-    PayloadCategory.DE_TAX_ID:   "German Tax Identification Numbers",
-    PayloadCategory.FR_INSEE:    "French INSEE / NIR Numbers",
-    PayloadCategory.AWS_KEY:     "AWS Access Keys",
-    PayloadCategory.GITHUB_TOKEN:"GitHub Personal Access Tokens",
-    PayloadCategory.STRIPE_KEY:  "Stripe API Keys",
+    PayloadCategory.AU_TFN: "Australian Tax File Numbers",
+    PayloadCategory.DE_TAX_ID: "German Tax Identification Numbers",
+    PayloadCategory.FR_INSEE: "French INSEE / NIR Numbers",
+    PayloadCategory.AWS_KEY: "AWS Access Keys",
+    PayloadCategory.GITHUB_TOKEN: "GitHub Personal Access Tokens",
+    PayloadCategory.STRIPE_KEY: "Stripe API Keys",
     PayloadCategory.SLACK_TOKEN: "Slack Bot Tokens",
-    PayloadCategory.JWT:         "JSON Web Tokens",
+    PayloadCategory.JWT: "JSON Web Tokens",
     PayloadCategory.CLASSIFICATION: "Classification Labels",
-    PayloadCategory.EMAIL:       "Email Addresses",
-    PayloadCategory.PHONE:       "Phone Numbers",
+    PayloadCategory.EMAIL: "Email Addresses",
+    PayloadCategory.PHONE: "Phone Numbers",
 }
 
 
@@ -82,10 +83,13 @@ def _make_t(parent, text: str):
 def _sub(parent, local: str):
     """Shorthand: SubElement in the w: namespace."""
     from lxml import etree
+
     return etree.SubElement(parent, f"{_W}{local}")
 
 
-def _add_table_section(doc: Document, entries: list[GeneratedEntry], cat: PayloadCategory) -> None:
+def _add_table_section(
+    doc: Document, entries: list[GeneratedEntry], cat: PayloadCategory
+) -> None:
     """Write a table section using direct lxml XML construction for data rows.
 
     Building <w:tr> elements directly via lxml is ~15× faster than calling
@@ -113,10 +117,10 @@ def _add_table_section(doc: Document, entries: list[GeneratedEntry], cat: Payloa
     for i, e in enumerate(entries, 1):
         tr = etree.SubElement(tbl_elem, f"{_W}tr")
         col_data = (
-            (str(i),                  False),
-            (e.variant_value,         bool(e.technique)),
-            (e.technique or "plain",  False),
-            (cat_value,               False),
+            (str(i), False),
+            (e.variant_value, bool(e.technique)),
+            (e.technique or "plain", False),
+            (cat_value, False),
         )
         for text, shade in col_data:
             tc = etree.SubElement(tr, f"{_W}tc")
@@ -143,8 +147,8 @@ def _fast_add_paragraphs(doc: Document, texts: list[str]) -> None:
     """
     from lxml import etree
 
-    body = doc._body._element   # lxml Element for <w:body>
-    n = len(list(body))         # sectPr is always the last child
+    body = doc._body._element  # lxml Element for <w:body>
+    n = len(list(body))  # sectPr is always the last child
     insert_at = n - 1
 
     for idx, text in enumerate(texts):
@@ -157,7 +161,10 @@ def _fast_add_paragraphs(doc: Document, texts: list[str]) -> None:
 
 def write_docx(entries: list[GeneratedEntry], path: str) -> None:
     from evadex.generate.writers import (
-        _active_template, _active_noise_level, _active_density, _active_seed,
+        _active_template,
+        _active_noise_level,
+        _active_density,
+        _active_seed,
         _active_language,
     )
 
@@ -183,8 +190,10 @@ def write_docx(entries: list[GeneratedEntry], path: str) -> None:
     # If a non-generic template is active, use the template system for content
     if _active_template != "generic":
         from evadex.generate.templates import apply_template
+
         lines = apply_template(
-            _active_template, entries,
+            _active_template,
+            entries,
             seed=_active_seed,
             noise_level=_active_noise_level,
             density=_active_density,

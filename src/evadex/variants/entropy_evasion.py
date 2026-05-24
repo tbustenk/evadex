@@ -18,6 +18,7 @@ characters, and flags tokens whose per-character Shannon entropy exceeds
 - ``entropy_space``       — insert a space every four chars to force the
                             tokenizer to split below the length floor.
 """
+
 import base64
 from typing import Iterator
 
@@ -60,18 +61,18 @@ class EntropyEvasionGenerator(BaseVariantGenerator):
         # is not enough for long tokens (a 32-char value split in half leaves
         # a 17-char half that still clears the threshold).
         chunk = 15
-        split_core = "\n".join(core[i:i + chunk] for i in range(0, len(core), chunk))
+        split_core = "\n".join(core[i : i + chunk] for i in range(0, len(core), chunk))
         split_value = f"{prefix}{split_core}{suffix}"
         yield self._make_variant(
-            split_value, "entropy_split", "Split high-entropy token across newlines every 15 chars"
+            split_value,
+            "entropy_split",
+            "Split high-entropy token across newlines every 15 chars",
         )
 
         # 2. entropy_comment — inject a ``;comment;`` sequence. Siphon's
         # delimiter set includes ``;``, ``"``, ``'``, ``,`` so surrounding
         # the comment with those chops the token into sub-16-char pieces.
-        comment_value = (
-            f'{prefix}{core[:split_at]}";c";{core[split_at:]}{suffix}'
-        )
+        comment_value = f'{prefix}{core[:split_at]}";c";{core[split_at:]}{suffix}'
         yield self._make_variant(
             comment_value,
             "entropy_comment",
@@ -114,7 +115,7 @@ class EntropyEvasionGenerator(BaseVariantGenerator):
 
         # 6. entropy_space — insert a space every 4 chars so every sub-run
         # is under the 16-char minimum.
-        spaced_core = " ".join(core[i:i + 4] for i in range(0, len(core), 4))
+        spaced_core = " ".join(core[i : i + 4] for i in range(0, len(core), 4))
         space_value = f"{prefix}{spaced_core}{suffix}"
         yield self._make_variant(
             space_value,

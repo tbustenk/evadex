@@ -13,6 +13,7 @@ Supports two modes controlled by the writer template:
   across the thread so the DLP scanner sees them in conversational
   context, not just a bulleted list.
 """
+
 from __future__ import annotations
 
 import datetime
@@ -113,7 +114,9 @@ def _quote(lines: list[str]) -> list[str]:
     return [("> " + ln) if ln else ">" for ln in lines]
 
 
-def _build_generic_single(entries: list[GeneratedEntry], rng: random.Random) -> EmailMessage:
+def _build_generic_single(
+    entries: list[GeneratedEntry], rng: random.Random
+) -> EmailMessage:
     """Original single-email body — one message listing entries by category."""
     today = datetime.date.today()
     by_cat: dict[PayloadCategory, list[GeneratedEntry]] = defaultdict(list)
@@ -143,7 +146,9 @@ def _build_generic_single(entries: list[GeneratedEntry], rng: random.Random) -> 
 
     body_lines += [
         "Please confirm receipt and let me know if you need any additional details.",
-        f"Please find attached the statement for card {entries[0].plain_value}" if entries else "",
+        f"Please find attached the statement for card {entries[0].plain_value}"
+        if entries
+        else "",
         "",
         "Best regards,",
         sender[0],
@@ -163,7 +168,9 @@ def _build_generic_single(entries: list[GeneratedEntry], rng: random.Random) -> 
     return msg
 
 
-def _chunk_entries(entries: list[GeneratedEntry], n_chunks: int) -> list[list[GeneratedEntry]]:
+def _chunk_entries(
+    entries: list[GeneratedEntry], n_chunks: int
+) -> list[list[GeneratedEntry]]:
     """Split ``entries`` into exactly ``n_chunks`` roughly-equal chunks.
     Empty chunks are allowed when len(entries) < n_chunks so every
     message still gets *some* prose (see _compose_turn)."""
@@ -172,7 +179,7 @@ def _chunk_entries(entries: list[GeneratedEntry], n_chunks: int) -> list[list[Ge
     # ceil division keeps earlier messages fuller than later ones, which
     # matches how real threads tend to front-load the data dump.
     size = max(1, (len(entries) + n_chunks - 1) // n_chunks)
-    chunks = [entries[i:i + size] for i in range(0, len(entries), size)]
+    chunks = [entries[i : i + size] for i in range(0, len(entries), size)]
     while len(chunks) < n_chunks:
         chunks.append([])
     return chunks[:n_chunks]
@@ -220,7 +227,9 @@ def _compose_turn(
         lines.append("")
 
     if turn_idx == total_turns - 1:
-        lines.append("Closing this thread once you've reviewed — thanks for the quick turnaround.")
+        lines.append(
+            "Closing this thread once you've reviewed — thanks for the quick turnaround."
+        )
     else:
         lines.append(rng.choice(_CLOSERS))
 
@@ -245,7 +254,9 @@ def _build_thread(entries: list[GeneratedEntry], rng: random.Random) -> EmailMes
     cc_pool = participants[2:]
     ref = f"{rng.randint(100000, 999999)}"
     seed_subject = rng.choice(_THREAD_SEED_SUBJECTS).format(ref=ref)
-    base_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=rng.randint(0, 3))
+    base_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+        days=rng.randint(0, 3)
+    )
 
     chunks = _chunk_entries(entries, n_turns)
 
@@ -271,15 +282,17 @@ def _build_thread(entries: list[GeneratedEntry], rng: random.Random) -> EmailMes
             rng=rng,
         )
         sent = base_date + datetime.timedelta(hours=t * rng.randint(1, 6))
-        turns.append({
-            "sender": sender,
-            "recipient": recipient,
-            "cc": cc_here,
-            "subject": (f"Re: {seed_subject}" if t > 0 else seed_subject),
-            "date": sent,
-            "body": body_lines,
-            "message_id": make_msgid(domain="evadex.bank"),
-        })
+        turns.append(
+            {
+                "sender": sender,
+                "recipient": recipient,
+                "cc": cc_here,
+                "subject": (f"Re: {seed_subject}" if t > 0 else seed_subject),
+                "date": sent,
+                "body": body_lines,
+                "message_id": make_msgid(domain="evadex.bank"),
+            }
+        )
 
     # Newest turn is at the top; older turns quoted beneath.
     newest = turns[-1]

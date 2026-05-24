@@ -7,6 +7,7 @@ Digit encodings (ITU-R M.1677-1):
     0 = -----   1 = .----   2 = ..---   3 = ...--   4 = ....-
     5 = .....   6 = -....   7 = --...   8 = ---..   9 = ----.
 """
+
 from typing import Iterator
 from evadex.core.registry import register_generator
 from evadex.core.result import PayloadCategory, Variant

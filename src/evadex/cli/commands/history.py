@@ -1,4 +1,5 @@
 """evadex history — show past scan and falsepos run results."""
+
 from __future__ import annotations
 
 import sys
@@ -49,21 +50,49 @@ def _fmt_date(ts: str) -> str:
 
 
 @click.command("history")
-@click.option("--last", default=20, show_default=True, type=int,
-              help="Number of most recent entries to show.")
-@click.option("--type", "entry_type", default=None,
-              type=click.Choice(["scan", "falsepos"]),
-              help="Filter by entry type.")
-@click.option("--results-dir", default="results", show_default=True,
-              help="Path to results directory (must contain audit.jsonl).")
-@click.option("--push-c2", "push_c2", is_flag=True, default=False,
-              help="Backfill every audit entry to Siphon-C2 in one batched POST to "
-                   "/v1/evadex/history. Use when first connecting evadex to a fresh "
-                   "C2 instance. Never alters the audit log.")
-@click.option("--c2-url", "c2_url", default=None, envvar="EVADEX_C2_URL",
-              help="Siphon-C2 URL. Required when --push-c2 is set. Falls back to EVADEX_C2_URL.")
-@click.option("--c2-key", "c2_key", default=None, envvar="EVADEX_C2_KEY",
-              help="API key sent as 'x-api-key' to Siphon-C2. Falls back to EVADEX_C2_KEY.")
+@click.option(
+    "--last",
+    default=20,
+    show_default=True,
+    type=int,
+    help="Number of most recent entries to show.",
+)
+@click.option(
+    "--type",
+    "entry_type",
+    default=None,
+    type=click.Choice(["scan", "falsepos"]),
+    help="Filter by entry type.",
+)
+@click.option(
+    "--results-dir",
+    default="results",
+    show_default=True,
+    help="Path to results directory (must contain audit.jsonl).",
+)
+@click.option(
+    "--push-c2",
+    "push_c2",
+    is_flag=True,
+    default=False,
+    help="Backfill every audit entry to Siphon-C2 in one batched POST to "
+    "/v1/evadex/history. Use when first connecting evadex to a fresh "
+    "C2 instance. Never alters the audit log.",
+)
+@click.option(
+    "--c2-url",
+    "c2_url",
+    default=None,
+    envvar="EVADEX_C2_URL",
+    help="Siphon-C2 URL. Required when --push-c2 is set. Falls back to EVADEX_C2_URL.",
+)
+@click.option(
+    "--c2-key",
+    "c2_key",
+    default=None,
+    envvar="EVADEX_C2_KEY",
+    help="API key sent as 'x-api-key' to Siphon-C2. Falls back to EVADEX_C2_KEY.",
+)
 def history(
     last: int,
     entry_type: Optional[str],
@@ -101,6 +130,7 @@ def history(
     # --last slice shown on stdout.
     if push_c2:
         from evadex.reporters.c2_reporter import push_history_batch, resolve_c2_config
+
         _c2_url, _c2_key = resolve_c2_config(c2_url, c2_key)
         if not _c2_url:
             err_console.print(
@@ -125,12 +155,12 @@ def history(
     entries = list(reversed(entries))[:last]
 
     table = Table(show_header=True, header_style="bold", box=None, pad_edge=False)
-    table.add_column("Date",          style="dim",    min_width=16)
-    table.add_column("Type",          style="cyan",   min_width=8)
-    table.add_column("Scanner Label", style="",       min_width=18, overflow="fold")
-    table.add_column("Total",         style="",       min_width=6,  justify="right")
-    table.add_column("Rate",          style="",       min_width=10, justify="right")
-    table.add_column("Commit",        style="dim",    min_width=8)
+    table.add_column("Date", style="dim", min_width=16)
+    table.add_column("Type", style="cyan", min_width=8)
+    table.add_column("Scanner Label", style="", min_width=18, overflow="fold")
+    table.add_column("Total", style="", min_width=6, justify="right")
+    table.add_column("Rate", style="", min_width=10, justify="right")
+    table.add_column("Commit", style="dim", min_width=8)
 
     for e in entries:
         rate_str = _fmt_rate(e)

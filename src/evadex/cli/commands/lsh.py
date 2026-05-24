@@ -21,6 +21,7 @@ Two transports are supported:
   ``siphon lsh register`` and ``siphon lsh query`` against a local
   state file. Works against any Siphon binary built today.
 """
+
 from __future__ import annotations
 
 import json
@@ -46,6 +47,7 @@ DEFAULT_DISTORTION_RATES = (0.05, 0.10, 0.15, 0.20, 0.30, 0.50)
 
 
 # ── Transports ─────────────────────────────────────────────────────────────
+
 
 class _HttpTransport:
     """LSH register/query against a live Siphon HTTP API."""
@@ -104,9 +106,18 @@ class _CliTransport:
             doc_path = fp.name
         try:
             subprocess.run(
-                [self.exe, "lsh", "register", doc_id, doc_path,
-                 "--state", self.state_path],
-                check=True, capture_output=True, text=True,
+                [
+                    self.exe,
+                    "lsh",
+                    "register",
+                    doc_id,
+                    doc_path,
+                    "--state",
+                    self.state_path,
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
             )
         finally:
             Path(doc_path).unlink(missing_ok=True)
@@ -119,10 +130,19 @@ class _CliTransport:
             doc_path = fp.name
         try:
             result = subprocess.run(
-                [self.exe, "lsh", "query", doc_path,
-                 "--threshold", f"{threshold:.4f}",
-                 "--state", self.state_path],
-                check=True, capture_output=True, text=True,
+                [
+                    self.exe,
+                    "lsh",
+                    "query",
+                    doc_path,
+                    "--threshold",
+                    f"{threshold:.4f}",
+                    "--state",
+                    self.state_path,
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
             )
         finally:
             Path(doc_path).unlink(missing_ok=True)
@@ -158,34 +178,65 @@ def _parse_cli_query(stdout: str) -> list[dict]:
 
 # ── Command ────────────────────────────────────────────────────────────────
 
+
 @click.command(name="lsh")
-@click.option("--transport", type=click.Choice(["http", "cli"]), default=None,
-              help="LSH transport. Defaults to 'http' when --url is set, "
-                   "else 'cli'.")
-@click.option("--url", default=None,
-              help="Siphon HTTP API URL for --transport http.")
-@click.option("--api-key", default=None,
-              help="Siphon API key for HTTP transport (or EVADEX_API_KEY).")
-@click.option("--exe", default=None,
-              help="Path to siphon binary for --transport cli "
-                   "(default: 'siphon' on PATH).")
-@click.option("--state", "state_path", default=None,
-              help="LSH state file path for --transport cli "
-                   "(default: a temp file, cleaned up at exit).")
-@click.option("--similarity", "query_threshold", type=float, default=0.5,
-              help="Similarity threshold passed to Siphon's query "
-                   "(0.0–1.0). Variants with empirical Jaccard above "
-                   "this value are expected to be flagged.  [default: 0.5]")
-@click.option("--document", "doc_choice",
-              type=click.Choice(sorted(BASE_DOCUMENTS.keys())),
-              default="loan_decision",
-              help="Which built-in base document to test against.")
-@click.option("--seed", type=int, default=0,
-              help="RNG seed for deterministic variant generation.")
-@click.option("--timeout", type=float, default=30.0,
-              help="HTTP timeout in seconds (HTTP transport only).")
-@click.option("-o", "--output", "output", type=click.Path(), default=None,
-              help="Write a JSON report to this path.")
+@click.option(
+    "--transport",
+    type=click.Choice(["http", "cli"]),
+    default=None,
+    help="LSH transport. Defaults to 'http' when --url is set, else 'cli'.",
+)
+@click.option("--url", default=None, help="Siphon HTTP API URL for --transport http.")
+@click.option(
+    "--api-key",
+    default=None,
+    help="Siphon API key for HTTP transport (or EVADEX_API_KEY).",
+)
+@click.option(
+    "--exe",
+    default=None,
+    help="Path to siphon binary for --transport cli (default: 'siphon' on PATH).",
+)
+@click.option(
+    "--state",
+    "state_path",
+    default=None,
+    help="LSH state file path for --transport cli "
+    "(default: a temp file, cleaned up at exit).",
+)
+@click.option(
+    "--similarity",
+    "query_threshold",
+    type=float,
+    default=0.5,
+    help="Similarity threshold passed to Siphon's query "
+    "(0.0–1.0). Variants with empirical Jaccard above "
+    "this value are expected to be flagged.  [default: 0.5]",
+)
+@click.option(
+    "--document",
+    "doc_choice",
+    type=click.Choice(sorted(BASE_DOCUMENTS.keys())),
+    default="loan_decision",
+    help="Which built-in base document to test against.",
+)
+@click.option(
+    "--seed", type=int, default=0, help="RNG seed for deterministic variant generation."
+)
+@click.option(
+    "--timeout",
+    type=float,
+    default=30.0,
+    help="HTTP timeout in seconds (HTTP transport only).",
+)
+@click.option(
+    "-o",
+    "--output",
+    "output",
+    type=click.Path(),
+    default=None,
+    help="Write a JSON report to this path.",
+)
 def lsh(
     transport: Optional[str],
     url: Optional[str],
@@ -279,15 +330,18 @@ def _run_test(
         (m["similarity"] for m in sanity_matches if m["doc_id"] == doc_id),
         0.0,
     )
-    rows.append({
-        "label": "exact (sanity)",
-        "distortion_rate": 0.0,
-        "empirical_jaccard": 1.0,
-        "siphon_detected": bool(sanity_matches),
-        "siphon_reported_similarity": sanity_sim,
-    })
+    rows.append(
+        {
+            "label": "exact (sanity)",
+            "distortion_rate": 0.0,
+            "empirical_jaccard": 1.0,
+            "siphon_detected": bool(sanity_matches),
+            "siphon_reported_similarity": sanity_sim,
+        }
+    )
 
     import random
+
     rng = random.Random(seed)
     for rate in DEFAULT_DISTORTION_RATES:
         variant = distorted_variant(base_text, rate, rng)
@@ -296,20 +350,21 @@ def _run_test(
         reported = next(
             (m["similarity"] for m in matches if m["doc_id"] == doc_id), 0.0
         )
-        rows.append({
-            "label": f"distort {rate:.0%}",
-            "distortion_rate": rate,
-            "empirical_jaccard": round(empirical, 4),
-            "siphon_detected": bool(matches),
-            "siphon_reported_similarity": round(reported, 4),
-        })
+        rows.append(
+            {
+                "label": f"distort {rate:.0%}",
+                "distortion_rate": rate,
+                "empirical_jaccard": round(empirical, 4),
+                "siphon_detected": bool(matches),
+                "siphon_reported_similarity": round(reported, 4),
+            }
+        )
 
     _render_table(rows, threshold, doc_id)
     min_detected = _minimum_detected(rows)
     if min_detected is not None:
         err_console.print(
-            f"\n[bold]Minimum reliably detected similarity:[/bold] "
-            f"{min_detected:.0%}"
+            f"\n[bold]Minimum reliably detected similarity:[/bold] {min_detected:.0%}"
         )
     else:
         err_console.print(
@@ -325,16 +380,14 @@ def _run_test(
             "rows": rows,
             "minimum_detected_similarity": min_detected,
         }
-        Path(output).write_text(
-            json.dumps(report, indent=2), encoding="utf-8"
-        )
+        Path(output).write_text(json.dumps(report, indent=2), encoding="utf-8")
         err_console.print(f"[dim]Report written to {output}[/dim]")
 
 
 def _render_table(rows: list[dict], threshold: float, doc_id: str) -> None:
     table = Table(
         title=f"LSH near-duplicate detection vs. '{doc_id}'  "
-              f"(threshold={threshold:.0%})"
+        f"(threshold={threshold:.0%})"
     )
     table.add_column("Variant", style="cyan")
     table.add_column("Empirical Jaccard", justify="right")
@@ -342,8 +395,9 @@ def _render_table(rows: list[dict], threshold: float, doc_id: str) -> None:
     table.add_column("Detected?", justify="center")
     for r in rows:
         det = "[green]yes[/green]" if r["siphon_detected"] else "[red]no[/red]"
-        reported = (f"{r['siphon_reported_similarity']:.0%}"
-                    if r["siphon_detected"] else "—")
+        reported = (
+            f"{r['siphon_reported_similarity']:.0%}" if r["siphon_detected"] else "—"
+        )
         table.add_row(
             r["label"],
             f"{r['empirical_jaccard']:.0%}",

@@ -1,4 +1,5 @@
 """evadex trend — ASCII chart of detection/FP rate over time."""
+
 from __future__ import annotations
 
 import sys
@@ -34,7 +35,9 @@ def _short_date(ts: str) -> str:
         return ts[:5]
 
 
-def _render_chart(points: list[tuple[str, float]], width: int = 60, height: int = 12) -> str:
+def _render_chart(
+    points: list[tuple[str, float]], width: int = 60, height: int = 12
+) -> str:
     """Render a simple ASCII line chart.
 
     *points* is a list of (label, value) tuples, value in [0, 100].
@@ -57,6 +60,7 @@ def _render_chart(points: list[tuple[str, float]], width: int = 60, height: int 
     grid = [[" "] * width for _ in range(height)]
 
     n = len(points)
+
     # Map each point to a column (evenly distributed)
     def col(i: int) -> int:
         if n == 1:
@@ -124,20 +128,43 @@ def _render_chart(points: list[tuple[str, float]], width: int = 60, height: int 
 
 
 @click.command("trend")
-@click.option("--last", default=30, show_default=True, type=int,
-              help="Number of most recent entries to include in the chart.")
-@click.option("--type", "entry_type", default="scan",
-              type=click.Choice(["scan", "falsepos"]),
-              show_default=True,
-              help="Which metric to chart: scan detection rate or false positive rate.")
-@click.option("--scanner-label", "scanner_label", default=None,
-              help="Filter to a specific scanner label.")
-@click.option("--results-dir", default="results", show_default=True,
-              help="Path to results directory (must contain audit.jsonl).")
-@click.option("--width", default=60, show_default=True, type=int,
-              help="Chart width in characters.")
-@click.option("--height", default=12, show_default=True, type=int,
-              help="Chart height in rows.")
+@click.option(
+    "--last",
+    default=30,
+    show_default=True,
+    type=int,
+    help="Number of most recent entries to include in the chart.",
+)
+@click.option(
+    "--type",
+    "entry_type",
+    default="scan",
+    type=click.Choice(["scan", "falsepos"]),
+    show_default=True,
+    help="Which metric to chart: scan detection rate or false positive rate.",
+)
+@click.option(
+    "--scanner-label",
+    "scanner_label",
+    default=None,
+    help="Filter to a specific scanner label.",
+)
+@click.option(
+    "--results-dir",
+    default="results",
+    show_default=True,
+    help="Path to results directory (must contain audit.jsonl).",
+)
+@click.option(
+    "--width",
+    default=60,
+    show_default=True,
+    type=int,
+    help="Chart width in characters.",
+)
+@click.option(
+    "--height", default=12, show_default=True, type=int, help="Chart height in rows."
+)
 def trend(
     last: int,
     entry_type: str,
@@ -206,6 +233,4 @@ def trend(
     console.print()
     chart = _render_chart(points, width=width, height=height)
     console.print(chart)
-    console.print(
-        f"\n[dim]{len(points)} data point(s) from {audit_path}[/dim]"
-    )
+    console.print(f"\n[dim]{len(points)} data point(s) from {audit_path}[/dim]")

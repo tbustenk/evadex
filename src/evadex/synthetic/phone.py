@@ -7,6 +7,7 @@ Canadian NPAs (area codes) are in the range 200-999 excluding special codes.
 We use a representative sample of real Canadian area codes to keep
 generated numbers realistic for DLP pattern matching.
 """
+
 from __future__ import annotations
 
 import random
@@ -19,19 +20,49 @@ from evadex.synthetic.registry import register_synthetic
 # Representative sample of real Canadian area codes
 _CA_AREA_CODES = [
     # Ontario
-    416, 647, 437, 905, 289, 365, 519, 226, 249, 343, 613, 807, 705, 249,
+    416,
+    647,
+    437,
+    905,
+    289,
+    365,
+    519,
+    226,
+    249,
+    343,
+    613,
+    807,
+    705,
+    249,
     # Quebec
-    514, 438, 450, 579, 418, 581, 819, 873,
+    514,
+    438,
+    450,
+    579,
+    418,
+    581,
+    819,
+    873,
     # British Columbia
-    604, 778, 236, 250, 672,
+    604,
+    778,
+    236,
+    250,
+    672,
     # Alberta
-    403, 587, 825, 780,
+    403,
+    587,
+    825,
+    780,
     # Manitoba
-    204, 431,
+    204,
+    431,
     # Saskatchewan
-    306, 639,
+    306,
+    639,
     # Nova Scotia / New Brunswick / PEI
-    902, 782,
+    902,
+    782,
     # Newfoundland
     709,
     # Territories

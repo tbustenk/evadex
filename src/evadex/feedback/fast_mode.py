@@ -27,6 +27,7 @@ The blend matches the documented behaviour of the ``weighted`` evasion
 mode: 70 % history / 30 % seed when history is available, pure seed
 otherwise.
 """
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -56,9 +57,7 @@ def _technique_bypass_weight(
       family seed.
     """
     seed = (
-        TECHNIQUE_SEED_WEIGHTS.get(technique)
-        or SEED_WEIGHTS.get(generator_name)
-        or 0.5
+        TECHNIQUE_SEED_WEIGHTS.get(technique) or SEED_WEIGHTS.get(generator_name) or 0.5
     )
     hist = history_bypass.get(technique)
     if hist is None:
@@ -71,10 +70,7 @@ def _load_history_bypass(audit_log: Optional[str]) -> dict[str, float]:
     if not audit_log or not has_history(audit_log):
         return {}
     stats = load_technique_history(audit_log)
-    return {
-        t: max(0.0, min(1.0, 1.0 - s.average_success))
-        for t, s in stats.items()
-    }
+    return {t: max(0.0, min(1.0, 1.0 - s.average_success)) for t, s in stats.items()}
 
 
 def pick_fast_techniques(
@@ -119,7 +115,9 @@ def pick_fast_techniques(
             if v.technique in seen:
                 continue
             seen[v.technique] = _technique_bypass_weight(
-                v.technique, gen.name, history_bypass,
+                v.technique,
+                gen.name,
+                history_bypass,
             )
         total_enumerated += len(seen)
         ranked = sorted(seen.items(), key=lambda kv: -kv[1])
@@ -143,9 +141,9 @@ def pick_fast_techniques(
 
     diag = {
         "total_enumerated": total_enumerated,
-        "kept":             len(allowed),
-        "dropped":          dropped,
-        "per_generator":    dict(kept_per_gen),
-        "has_history":      bool(history_bypass),
+        "kept": len(allowed),
+        "dropped": dropped,
+        "per_generator": dict(kept_per_gen),
+        "has_history": bool(history_bypass),
     }
     return allowed, diag

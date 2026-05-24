@@ -8,6 +8,7 @@ shingles, so the empirical similarity to the base is roughly
 afterwards and report it — distortion rate is the knob, similarity
 is the observation.
 """
+
 from __future__ import annotations
 
 import random
@@ -98,14 +99,56 @@ BASE_DOCUMENTS: dict[str, str] = {
 # the same banking domain so the variants stay semantically plausible
 # and don't produce documents that visibly look like noise.
 _FILLER_WORDS: list[str] = [
-    "review", "process", "record", "system", "report", "matter", "item",
-    "context", "case", "entry", "document", "section", "summary", "step",
-    "phase", "stage", "task", "measure", "control", "policy", "guideline",
-    "standard", "procedure", "operation", "function", "service", "branch",
-    "office", "team", "group", "unit", "division", "department", "channel",
-    "workflow", "session", "instance", "event", "outcome", "result",
-    "observation", "remark", "footnote", "addendum", "exhibit", "schedule",
-    "attachment", "reference", "supplement", "annex",
+    "review",
+    "process",
+    "record",
+    "system",
+    "report",
+    "matter",
+    "item",
+    "context",
+    "case",
+    "entry",
+    "document",
+    "section",
+    "summary",
+    "step",
+    "phase",
+    "stage",
+    "task",
+    "measure",
+    "control",
+    "policy",
+    "guideline",
+    "standard",
+    "procedure",
+    "operation",
+    "function",
+    "service",
+    "branch",
+    "office",
+    "team",
+    "group",
+    "unit",
+    "division",
+    "department",
+    "channel",
+    "workflow",
+    "session",
+    "instance",
+    "event",
+    "outcome",
+    "result",
+    "observation",
+    "remark",
+    "footnote",
+    "addendum",
+    "exhibit",
+    "schedule",
+    "attachment",
+    "reference",
+    "supplement",
+    "annex",
 ]
 
 
@@ -146,7 +189,7 @@ def jaccard_similarity(text_a: str, text_b: str, k: int = 3) -> float:
 # the very PII / PCI values we want Siphon to recognise across
 # variants — defeating the purpose of an LSH near-duplicate test.
 _SENSITIVE_PATTERNS = (
-    "@",          # emails
+    "@",  # emails
     "$",
 )
 

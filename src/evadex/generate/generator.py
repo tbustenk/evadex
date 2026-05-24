@@ -1,4 +1,5 @@
 """Core generation logic for evadex generate command."""
+
 from __future__ import annotations
 
 import random
@@ -13,10 +14,16 @@ from evadex.payloads.builtins import get_payloads, HEURISTIC_CATEGORIES
 # Visa, Mastercard, Amex, Discover, JCB — (prefix, total_length)
 _CC_PREFIXES: list[tuple[str, int]] = [
     ("4", 16),
-    ("51", 16), ("52", 16), ("53", 16), ("54", 16), ("55", 16),
-    ("34", 15), ("37", 15),
+    ("51", 16),
+    ("52", 16),
+    ("53", 16),
+    ("54", 16),
+    ("55", 16),
+    ("34", 15),
+    ("37", 15),
     ("6011", 16),
-    ("3528", 16), ("3589", 16),
+    ("3528", 16),
+    ("3589", 16),
 ]
 
 
@@ -24,12 +31,12 @@ _CC_PREFIXES: list[tuple[str, int]] = [
 class GeneratedEntry:
     category: PayloadCategory
     plain_value: str
-    variant_value: str       # equals plain_value when no evasion applied
-    technique: Optional[str]       # None when no evasion
+    variant_value: str  # equals plain_value when no evasion applied
+    technique: Optional[str]  # None when no evasion
     generator_name: Optional[str]  # None when no evasion
     transform_name: Optional[str]  # None when no evasion
     has_keywords: bool
-    embedded_text: str       # final sentence/paragraph for the document
+    embedded_text: str  # final sentence/paragraph for the document
 
 
 @dataclass
@@ -39,23 +46,25 @@ class GenerateConfig:
     count: int = 100
     evasion_rate: float = 0.5
     keyword_rate: float = 0.5
-    techniques: Optional[list[str]] = None   # None = all techniques allowed
+    techniques: Optional[list[str]] = None  # None = all techniques allowed
     random_mode: bool = False
     seed: Optional[int] = None
     output: str = "output"
     include_heuristic: bool = False
-    language: str = "en"   # "en" or "fr-CA"
+    language: str = "en"  # "en" or "fr-CA"
     # Granular amount options
-    count_per_category: Optional[dict[str, int]] = None   # category_name -> count
-    total: Optional[int] = None                           # distribute N across categories
-    density: str = "medium"                               # low, medium, high
+    count_per_category: Optional[dict[str, int]] = None  # category_name -> count
+    total: Optional[int] = None  # distribute N across categories
+    density: str = "medium"  # low, medium, high
     # Granular evasion options
-    technique_group: Optional[list[str]] = None           # generator family names
-    technique_mix: Optional[dict[str, float]] = None      # generator_name -> proportion
-    evasion_per_category: Optional[dict[str, float]] = None  # category_name -> evasion rate
+    technique_group: Optional[list[str]] = None  # generator family names
+    technique_mix: Optional[dict[str, float]] = None  # generator_name -> proportion
+    evasion_per_category: Optional[dict[str, float]] = (
+        None  # category_name -> evasion rate
+    )
     # Template / noise options
     template: str = "generic"
-    noise_level: str = "medium"                           # low, medium, high
+    noise_level: str = "medium"  # low, medium, high
     # Smart evasion selection (v3.13.0+)
     # "random" (default), "weighted", "adversarial", "exhaustive"
     evasion_mode: str = "random"
@@ -67,6 +76,7 @@ class GenerateConfig:
 
 
 # ── Luhn-valid credit card generation ─────────────────────────────────────────
+
 
 def _luhn_check_digit(digits: list[int]) -> int:
     """Return Luhn check digit for a digit list (without the check digit)."""
@@ -89,6 +99,7 @@ def _generate_cc(rng: random.Random, prefix: str, length: int) -> str:
 
 
 # ── Value pool helpers ─────────────────────────────────────────────────────────
+
 
 def _pick_plain_value(
     rng: random.Random,
@@ -141,7 +152,8 @@ def _pick_variant(
     # shifts the shuffle output and breaks deterministic tests that depend on
     # --seed alone.
     applicable = [
-        g for g in generators
+        g
+        for g in generators
         if g.applicable_categories is None or cat in g.applicable_categories
     ]
     # Skip generators that opt out of random selection unless the user has
@@ -150,7 +162,8 @@ def _pick_variant(
     if technique_mix:
         explicit_names.update(technique_mix.keys())
     applicable = [
-        g for g in applicable
+        g
+        for g in applicable
         if getattr(g, "auto_applicable", True) or g.name in explicit_names
     ]
     applicable.sort(key=lambda g: g.name)
@@ -186,6 +199,7 @@ def _pick_variant(
     # Once audit history exists, blend 70 % history + 30 % seed so a
     # handful of early scans cannot push the bias off a cliff.
     from evadex.feedback.seed_weights import blend_with_history
+
     history = technique_history or {}
     if evasion_mode == "exhaustive":
         order = list(applicable)  # deterministic — first generator wins
@@ -194,8 +208,9 @@ def _pick_variant(
         # ≤ 0.5. Generators with no data on either side default to
         # 1 - SEED_WEIGHTS[name] (i.e. scanner pass rate implied by the
         # seed bypass probability), then 0.5 if no seed either.
-        blended = blend_with_history(history or None,
-                                     generators=(g.name for g in applicable))
+        blended = blend_with_history(
+            history or None, generators=(g.name for g in applicable)
+        )
         kept = [g for g in applicable if blended.get(g.name, 0.5) <= 0.5]
         if not kept:
             kept = list(applicable)  # fall back rather than emit nothing
@@ -204,8 +219,9 @@ def _pick_variant(
     elif evasion_mode == "weighted":
         # Weight = 1 - pass_rate. Without history we lean on the seed
         # bypass probabilities directly (= 1 - seed_pass in blend_with_history).
-        blended = blend_with_history(history or None,
-                                     generators=(g.name for g in applicable))
+        blended = blend_with_history(
+            history or None, generators=(g.name for g in applicable)
+        )
         weights = [1.0 - blended.get(g.name, 0.5) for g in applicable]
         # Avoid all-zero weights (a 100 %-detected generator would otherwise
         # be impossible to pick at all, which makes history brittle).
@@ -228,9 +244,12 @@ def _pick_variant(
     return None
 
 
-def _random_categories(rng: random.Random, include_heuristic: bool) -> list[PayloadCategory]:
+def _random_categories(
+    rng: random.Random, include_heuristic: bool
+) -> list[PayloadCategory]:
     pool = [
-        c for c in PayloadCategory
+        c
+        for c in PayloadCategory
         if c != PayloadCategory.UNKNOWN
         and (include_heuristic or c not in HEURISTIC_CATEGORIES)
     ]
@@ -240,6 +259,7 @@ def _random_categories(rng: random.Random, include_heuristic: bool) -> list[Payl
 
 # ── Public API ─────────────────────────────────────────────────────────────────
 
+
 def generate_entries(config: GenerateConfig) -> list[GeneratedEntry]:
     """
     Generate a list of GeneratedEntry objects based on config.
@@ -248,6 +268,7 @@ def generate_entries(config: GenerateConfig) -> list[GeneratedEntry]:
     """
     load_builtins()
     from evadex.synthetic.registry import load_synthetic_generators
+
     load_synthetic_generators()
     rng = random.Random(config.seed)
 
@@ -308,7 +329,7 @@ def generate_entries(config: GenerateConfig) -> list[GeneratedEntry]:
         # Pre-generate a synthetic pool if a generator is registered for this category
         syn_gen = get_synthetic_generator(cat)
         if syn_gen is not None and count_for_cat > len(seeds):
-            seed_val = rng.randint(0, 2 ** 31)
+            seed_val = rng.randint(0, 2**31)
             _synthetic_pools[cat] = syn_gen.generate(count_for_cat, seed=seed_val)
 
         # Per-category evasion rate override
@@ -328,7 +349,11 @@ def generate_entries(config: GenerateConfig) -> list[GeneratedEntry]:
 
             if do_evasion:
                 v = _pick_variant(
-                    rng, plain, cat, gens, techniques,
+                    rng,
+                    plain,
+                    cat,
+                    gens,
+                    techniques,
                     technique_group=config.technique_group,
                     technique_mix=config.technique_mix,
                     evasion_mode=config.evasion_mode,
@@ -346,21 +371,25 @@ def generate_entries(config: GenerateConfig) -> list[GeneratedEntry]:
                 embedded = variant_value
                 kw = True
             elif rng.random() < keyword_rate:
-                embedded = get_keyword_sentence(rng, cat, variant_value, config.language)
+                embedded = get_keyword_sentence(
+                    rng, cat, variant_value, config.language
+                )
                 kw = True
             else:
                 embedded = variant_value
                 kw = False
 
-            entries.append(GeneratedEntry(
-                category=cat,
-                plain_value=plain,
-                variant_value=variant_value,
-                technique=technique,
-                generator_name=gen_name,
-                transform_name=transform,
-                has_keywords=kw,
-                embedded_text=embedded,
-            ))
+            entries.append(
+                GeneratedEntry(
+                    category=cat,
+                    plain_value=plain,
+                    variant_value=variant_value,
+                    technique=technique,
+                    generator_name=gen_name,
+                    transform_name=transform,
+                    has_keywords=kw,
+                    embedded_text=embedded,
+                )
+            )
 
     return entries

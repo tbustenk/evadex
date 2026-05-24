@@ -5,6 +5,7 @@ The runner deliberately does not invoke the commands itself — the caller
 :func:`subprocess.run` or Click's :class:`CliRunner` for tests. Keeping
 this layer side-effect-free makes argv construction trivial to unit test.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -13,9 +14,11 @@ from evadex.profiles.schema import Profile, expand_profile
 
 
 # Scan flags that accept multiple values (Click ``multiple=True``).
-_SCAN_MULTI_FLAGS = {"strategy": "--strategy",
-                     "categories": "--category",
-                     "variant_groups": "--variant-group"}
+_SCAN_MULTI_FLAGS = {
+    "strategy": "--strategy",
+    "categories": "--category",
+    "variant_groups": "--variant-group",
+}
 
 # Scan flags that are booleans (``is_flag=True``).
 _SCAN_BOOL_FLAGS = {
@@ -181,10 +184,24 @@ def scan_flags_to_profile_dict(flags: dict) -> dict:
     """
     mapped: dict = {}
     passthrough = {
-        "tool", "tier", "min_detection_rate", "scanner_label", "exe",
-        "cmd_style", "concurrency", "timeout", "format", "audit_log",
-        "evasion_mode", "input", "feedback_report", "url", "api_key",
-        "include_heuristic", "require_context", "wrap_context",
+        "tool",
+        "tier",
+        "min_detection_rate",
+        "scanner_label",
+        "exe",
+        "cmd_style",
+        "concurrency",
+        "timeout",
+        "format",
+        "audit_log",
+        "evasion_mode",
+        "input",
+        "feedback_report",
+        "url",
+        "api_key",
+        "include_heuristic",
+        "require_context",
+        "wrap_context",
     }
     # Click's scan uses ``strategies`` (tuple) and ``categories`` (tuple)
     # and ``variant_groups`` (tuple) — profile uses singular / list form.

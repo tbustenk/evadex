@@ -1,4 +1,5 @@
 """Log writer for evadex generate — application log format."""
+
 from __future__ import annotations
 
 import datetime
@@ -11,9 +12,16 @@ _LOG_LEVELS = ["INFO", "DEBUG", "WARN", "ERROR"]
 _LOG_LEVEL_WEIGHTS = [0.5, 0.2, 0.2, 0.1]
 
 _SERVICES = [
-    "payment-service", "auth-service", "kyc-service", "account-service",
-    "compliance-engine", "transaction-processor", "notification-service",
-    "audit-logger", "report-generator", "batch-processor",
+    "payment-service",
+    "auth-service",
+    "kyc-service",
+    "account-service",
+    "compliance-engine",
+    "transaction-processor",
+    "notification-service",
+    "audit-logger",
+    "report-generator",
+    "batch-processor",
 ]
 
 _ACTIONS: dict[PayloadCategory, list[str]] = {
@@ -94,7 +102,7 @@ def write_log(entries: list[GeneratedEntry], path: str) -> None:
             # Structured log
             line = (
                 f"{ts_str} {level} service={service} "
-                f"action=\"{action}\" "
+                f'action="{action}" '
                 f"request_id={ref} duration_ms={rng.randint(1, 500)}"
             )
         else:

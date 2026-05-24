@@ -13,6 +13,7 @@ Exit codes:
 That split lets CI pipelines gate on ``evadex doctor`` without
 tripping on optional-extra warnings.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -34,8 +35,8 @@ err_console = Console()
 
 # Status symbols — kept as plain ASCII so a Windows console without
 # CP65001 still renders cleanly.
-_OK = "[green]✓[/green]"      # ✓
-_BAD = "[red]✗[/red]"         # ✗
+_OK = "[green]✓[/green]"  # ✓
+_BAD = "[red]✗[/red]"  # ✗
 _WARN = "[yellow]⚠[/yellow]"  # ⚠
 
 
@@ -81,6 +82,7 @@ def _check_siphon() -> _Check:
     # ./target/release/siphon isn't reported as missing.
     try:
         from evadex.bridge.server import _resolve_siphon_exe
+
         resolved = _resolve_siphon_exe()
     except Exception:
         resolved = None
@@ -122,10 +124,12 @@ def _check_bridge() -> list[_Check]:
         checks.append(_Check(True, "evadex\\[bridge] installed"))
         installed = True
     except ImportError:
-        checks.append(_Check(
-            False,
-            "evadex\\[bridge] not installed — HTTP API server unavailable",
-        ))
+        checks.append(
+            _Check(
+                False,
+                "evadex\\[bridge] not installed — HTTP API server unavailable",
+            )
+        )
         installed = False
 
     if not installed:
@@ -142,11 +146,13 @@ def _check_bridge() -> list[_Check]:
     elif _bridge_reachable(url.rstrip("/") + "/docs"):
         checks.append(_Check(True, f"bridge reachable at {url}"))
     else:
-        checks.append(_Check(
-            True,
-            f"bridge not running at {url} (start with `evadex bridge`)",
-            warn=True,
-        ))
+        checks.append(
+            _Check(
+                True,
+                f"bridge not running at {url} (start with `evadex bridge`)",
+                warn=True,
+            )
+        )
     return checks
 
 
@@ -175,16 +181,20 @@ def _check_audit_log() -> _Check:
 
 def _check_default_tier() -> _Check:
     try:
-        from evadex.payloads.tiers import NORTHAM_TIER, get_tier_categories
+        from evadex.payloads.tiers import get_tier_categories
+
         cats = get_tier_categories("northam")
         n = len(cats) if cats is not None else 0
-        return _Check(True, f"Default tier: northam (North America — Canada + US, {n} categories)")
+        return _Check(
+            True, f"Default tier: northam (North America — Canada + US, {n} categories)"
+        )
     except Exception as exc:
         return _Check(False, f"Default tier check failed: {exc}")
 
 
 def _check_profiles() -> list[_Check]:
     from evadex.profiles.storage import profiles_dir, _BUILTINS_PACKAGE
+
     out: list[_Check] = []
     try:
         pdir = profiles_dir()
@@ -199,22 +209,28 @@ def _check_profiles() -> list[_Check]:
     builtins = [p.stem for p in _BUILTINS_PACKAGE.glob("*.yaml")]
     missing_from_user = [b for b in builtins if b not in user_profiles]
     if missing_from_user and not user_profiles:
-        out.append(_Check(
-            True,
-            f"{len(builtins)} built-in profiles available, 0 user profiles — "
-            f"run `evadex profile init` to seed user copies",
-            warn=True,
-        ))
+        out.append(
+            _Check(
+                True,
+                f"{len(builtins)} built-in profiles available, 0 user profiles — "
+                f"run `evadex profile init` to seed user copies",
+                warn=True,
+            )
+        )
     elif not user_profiles and not builtins:
-        out.append(_Check(
-            False,
-            "no profiles found (neither user nor built-in)",
-        ))
+        out.append(
+            _Check(
+                False,
+                "no profiles found (neither user nor built-in)",
+            )
+        )
     else:
-        out.append(_Check(
-            True,
-            f"{len(user_profiles)} user profiles, {len(builtins)} built-in profiles",
-        ))
+        out.append(
+            _Check(
+                True,
+                f"{len(user_profiles)} user profiles, {len(builtins)} built-in profiles",
+            )
+        )
     return out
 
 
@@ -227,18 +243,27 @@ def _run_checks() -> list[_Check]:
 
     # Optional extras — each labelled with the install command so the
     # operator can copy-paste.
-    results.append(_check_extra(
-        "qrcode", "barcodes",
-        "QR/barcode generation unavailable — `pip install evadex\\[barcodes]`",
-    ))
-    results.append(_check_extra(
-        "pyarrow", "data-formats",
-        "Parquet unavailable — `pip install evadex\\[data-formats]`",
-    ))
-    results.append(_check_extra(
-        "py7zr", "archives",
-        "7z archive generation unavailable — `pip install evadex\\[archives]`",
-    ))
+    results.append(
+        _check_extra(
+            "qrcode",
+            "barcodes",
+            "QR/barcode generation unavailable — `pip install evadex\\[barcodes]`",
+        )
+    )
+    results.append(
+        _check_extra(
+            "pyarrow",
+            "data-formats",
+            "Parquet unavailable — `pip install evadex\\[data-formats]`",
+        )
+    )
+    results.append(
+        _check_extra(
+            "py7zr",
+            "archives",
+            "7z archive generation unavailable — `pip install evadex\\[archives]`",
+        )
+    )
 
     results.extend(_check_bridge())
     results.append(_check_audit_log())
@@ -248,7 +273,8 @@ def _run_checks() -> list[_Check]:
 
 @click.command("doctor")
 @click.option(
-    "--json", "emit_json",
+    "--json",
+    "emit_json",
     is_flag=True,
     default=False,
     help="Emit the check results as JSON.",
@@ -268,10 +294,8 @@ def doctor(emit_json: bool) -> None:
 
     if emit_json:
         import json as _json
-        payload = [
-            {"ok": c.ok, "warn": c.warn, "message": c.msg}
-            for c in checks
-        ]
+
+        payload = [{"ok": c.ok, "warn": c.warn, "message": c.msg} for c in checks]
         click.echo(_json.dumps(payload, indent=2))
     else:
         err_console.print("[bold]evadex doctor[/bold] — environment check")

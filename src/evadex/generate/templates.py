@@ -4,6 +4,7 @@ Each formatter accepts a ``language`` argument (default ``"en"``). Passing
 ``"fr-CA"`` switches labels, noise copy, and sample business details to
 Canadian-French — used for bilingual-scanner evaluation at Canadian banks.
 """
+
 from __future__ import annotations
 
 import datetime
@@ -77,8 +78,9 @@ _BUSINESS_FILLER = {
 }
 
 
-def _noise_lines(rng: random.Random, noise_level: str, count: int,
-                  language: str = "en") -> list[str]:
+def _noise_lines(
+    rng: random.Random, noise_level: str, count: int, language: str = "en"
+) -> list[str]:
     """Return filler text lines appropriate for the noise level + locale."""
     today = datetime.date.today().isoformat()
     if noise_level == "low":
@@ -94,6 +96,7 @@ def _noise_lines(rng: random.Random, noise_level: str, count: int,
 
 # ── Template formatters ──────────────────────────────────────────────────────
 # Each returns a list of text lines ready for writing.
+
 
 def format_generic(
     entries: list[GeneratedEntry],
@@ -135,7 +138,7 @@ def format_invoice(
     lang = _lang_key(language)
     today = datetime.date.today()
     inv_no = f"INV-{rng.randint(100000, 999999)}"
-    po_no  = f"PO-{rng.randint(1000, 9999)}-{rng.randint(100, 999)}"
+    po_no = f"PO-{rng.randint(1000, 9999)}-{rng.randint(100, 999)}"
 
     if lang == "fr-CA":
         hdr = [
@@ -194,9 +197,13 @@ def format_invoice(
     # Line-items table
     lines.append("  " + "-" * 66)
     if lang == "fr-CA":
-        lines.append(f"  {'#':>4}  {'Description':<30} {'Quantité':>9}  {'Prix':>8}  {'Référence'}")
+        lines.append(
+            f"  {'#':>4}  {'Description':<30} {'Quantité':>9}  {'Prix':>8}  {'Référence'}"
+        )
     else:
-        lines.append(f"  {'#':>4}  {'Description':<30} {'Qty':>9}  {'Price':>8}  {'Reference'}")
+        lines.append(
+            f"  {'#':>4}  {'Description':<30} {'Qty':>9}  {'Price':>8}  {'Reference'}"
+        )
     lines.append("  " + "-" * 66)
 
     running_total = 0.0
@@ -206,22 +213,36 @@ def format_invoice(
         line_total = qty * unit
         running_total += line_total
         # Wording varies by entry category to keep the invoice readable.
-        desc = e.embedded_text if len(e.embedded_text) <= 30 else e.embedded_text[:27] + "…"
+        desc = (
+            e.embedded_text
+            if len(e.embedded_text) <= 30
+            else e.embedded_text[:27] + "…"
+        )
         ref = e.variant_value if len(e.variant_value) <= 18 else e.variant_value[:18]
         lines.append(f"  {i:>4}  {desc:<30} {qty:>9}  {unit:>8.2f}  {ref}")
 
     lines.append("  " + "-" * 66)
-    tax_rate, tax_label = (0.14975, "TPS+TVQ 14.975%") if lang == "fr-CA" else (0.13, "HST 13%")
-    lines.append(f"  {'':>4}  {('Sous-total' if lang == 'fr-CA' else 'SUBTOTAL'):<30} {running_total:>18.2f}")
+    tax_rate, tax_label = (
+        (0.14975, "TPS+TVQ 14.975%") if lang == "fr-CA" else (0.13, "HST 13%")
+    )
+    lines.append(
+        f"  {'':>4}  {('Sous-total' if lang == 'fr-CA' else 'SUBTOTAL'):<30} {running_total:>18.2f}"
+    )
     lines.append(f"  {'':>4}  {tax_label:<30} {running_total * tax_rate:>18.2f}")
-    lines.append(f"  {'':>4}  {('TOTAL DÛ' if lang == 'fr-CA' else 'TOTAL DUE'):<30} {running_total * (1 + tax_rate):>18.2f}")
+    lines.append(
+        f"  {'':>4}  {('TOTAL DÛ' if lang == 'fr-CA' else 'TOTAL DUE'):<30} {running_total * (1 + tax_rate):>18.2f}"
+    )
     lines.append("  " + "-" * 66)
     lines.append("")
     if lang == "fr-CA":
-        lines.append("  Modes de paiement: virement bancaire (IBAN/SWIFT ci-dessus), chèque, carte de crédit.")
+        lines.append(
+            "  Modes de paiement: virement bancaire (IBAN/SWIFT ci-dessus), chèque, carte de crédit."
+        )
         lines.append("  Questions: comptes-fournisseurs@transbec-grp.ca · 514-555-0199")
     else:
-        lines.append("  Payment methods: wire transfer (IBAN/SWIFT above), cheque, or corporate credit card.")
+        lines.append(
+            "  Payment methods: wire transfer (IBAN/SWIFT above), cheque, or corporate credit card."
+        )
         lines.append("  Questions: accounts-payable@transbec-grp.ca · 514-555-0199")
     lines.append("")
     return lines
@@ -249,17 +270,27 @@ def format_statement(
     # the corpus doesn't look templated across runs.
     if lang == "fr-CA":
         bank_choices = [
-            ("Mouvement Desjardins",      "Caisse populaire Saint-Laurent",  "815",  "30001"),
-            ("Banque Nationale du Canada","Succursale Centre-ville Montréal","12345","00006"),
-            ("Banque Royale du Canada",   "Succursale McGill College",        "00003","00346"),
+            ("Mouvement Desjardins", "Caisse populaire Saint-Laurent", "815", "30001"),
+            (
+                "Banque Nationale du Canada",
+                "Succursale Centre-ville Montréal",
+                "12345",
+                "00006",
+            ),
+            ("Banque Royale du Canada", "Succursale McGill College", "00003", "00346"),
         ]
     else:
         bank_choices = [
-            ("Royal Bank of Canada",        "Bay & King Branch",            "00003", "00006"),
-            ("TD Canada Trust",             "Union Station Branch",         "19201", "00004"),
-            ("Bank of Montreal",            "First Canadian Place Branch",  "00011", "00001"),
-            ("Scotiabank",                  "Scotia Plaza Branch",          "02256", "00002"),
-            ("Canadian Imperial Bank (CIBC)","Commerce Court Branch",       "00005", "00010"),
+            ("Royal Bank of Canada", "Bay & King Branch", "00003", "00006"),
+            ("TD Canada Trust", "Union Station Branch", "19201", "00004"),
+            ("Bank of Montreal", "First Canadian Place Branch", "00011", "00001"),
+            ("Scotiabank", "Scotia Plaza Branch", "02256", "00002"),
+            (
+                "Canadian Imperial Bank (CIBC)",
+                "Commerce Court Branch",
+                "00005",
+                "00010",
+            ),
         ]
     bank, branch, transit, institution = rng.choice(bank_choices)
 
@@ -269,8 +300,20 @@ def format_statement(
     balance = opening
 
     if lang == "fr-CA":
-        months_fr = ["janvier", "février", "mars", "avril", "mai", "juin",
-                     "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
+        months_fr = [
+            "janvier",
+            "février",
+            "mars",
+            "avril",
+            "mai",
+            "juin",
+            "juillet",
+            "août",
+            "septembre",
+            "octobre",
+            "novembre",
+            "décembre",
+        ]
         stmt_label = f"{months_fr[today.month - 1]} {today.year}"
         hdr = [
             "=" * 78,
@@ -290,7 +333,7 @@ def format_statement(
             "",
         ]
     else:
-        stmt_label = today.strftime('%B %Y')
+        stmt_label = today.strftime("%B %Y")
         hdr = [
             "=" * 78,
             f"  {bank}",
@@ -317,9 +360,13 @@ def format_statement(
 
     # Transaction table header.
     if lang == "fr-CA":
-        lines.append(f"  {'Date':<12} {'Description':<40} {'Débit':>10} {'Crédit':>10} {'Solde':>12}")
+        lines.append(
+            f"  {'Date':<12} {'Description':<40} {'Débit':>10} {'Crédit':>10} {'Solde':>12}"
+        )
     else:
-        lines.append(f"  {'Date':<12} {'Description':<40} {'Debit':>10} {'Credit':>10} {'Balance':>12}")
+        lines.append(
+            f"  {'Date':<12} {'Description':<40} {'Debit':>10} {'Credit':>10} {'Balance':>12}"
+        )
     lines.append("  " + "-" * 88)
 
     # Plausible transaction descriptions — English / French variants
@@ -358,8 +405,10 @@ def format_statement(
 
     for i, e in enumerate(entries):
         dt = stmt_start + datetime.timedelta(
-            days=min((stmt_end - stmt_start).days,
-                     int(i * max(1, (stmt_end - stmt_start).days) / max(1, len(entries))))
+            days=min(
+                (stmt_end - stmt_start).days,
+                int(i * max(1, (stmt_end - stmt_start).days) / max(1, len(entries))),
+            )
         )
         is_debit = rng.random() < 0.62
         amount = round(rng.uniform(15, 2_800), 2)
@@ -385,16 +434,26 @@ def format_statement(
         lines.append(f"  SOLDE DE CLÔTURE: {balance:>14,.2f} $ CAD")
         lines.append("")
         lines.append("  CONDITIONS DU COMPTE")
-        lines.append("  ↳ Les dépôts faits après 18 h peuvent ne pas apparaître sur le prochain relevé.")
-        lines.append("  ↳ Les questions doivent être soumises dans les 30 jours (Loi sur les banques, art. 452).")
-        lines.append("  ↳ Un avis de cotisation fiscale (feuillet T5) vous sera envoyé au plus tard le 28 février.")
+        lines.append(
+            "  ↳ Les dépôts faits après 18 h peuvent ne pas apparaître sur le prochain relevé."
+        )
+        lines.append(
+            "  ↳ Les questions doivent être soumises dans les 30 jours (Loi sur les banques, art. 452)."
+        )
+        lines.append(
+            "  ↳ Un avis de cotisation fiscale (feuillet T5) vous sera envoyé au plus tard le 28 février."
+        )
     else:
         lines.append(f"  CLOSING BALANCE: CAD {balance:>14,.2f}")
         lines.append("")
         lines.append("  ACCOUNT TERMS")
-        lines.append("  ↳ Deposits made after 6:00 PM may not appear on your next statement.")
+        lines.append(
+            "  ↳ Deposits made after 6:00 PM may not appear on your next statement."
+        )
         lines.append("  ↳ Queries must be submitted within 30 days (Bank Act s. 452).")
-        lines.append("  ↳ A T5 tax slip will be mailed by February 28 for interest earned year-to-date.")
+        lines.append(
+            "  ↳ A T5 tax slip will be mailed by February 28 for interest earned year-to-date."
+        )
     lines.append("")
     return lines
 
@@ -414,19 +473,56 @@ def format_hr_record(
     today = datetime.date.today()
 
     if lang == "fr-CA":
-        first_names = ["Jean-François", "Marie-Ève", "Philippe", "Catherine",
-                       "Étienne", "Geneviève", "Maxime", "Valérie", "Luc",
-                       "Sophie-Anne", "Yannick", "Marie-Claude"]
-        last_names  = ["Tremblay", "Gagnon", "Roy", "Côté", "Bouchard",
-                       "Gauthier", "Morin", "Lavoie", "Fortin", "Girard",
-                       "Bélanger", "Pelletier"]
-        depts = ["Finances", "Conformité", "Ressources humaines",
-                 "Technologies de l'information", "Exploitation",
-                 "Affaires juridiques", "Gestion des risques", "Trésorerie"]
-        managers = ["Isabelle Laporte", "Marc-André Girard", "Sylvie Bergeron",
-                    "Jean-Sébastien Parent"]
-        status_pool = ["Actif · temps plein", "Actif · temps partiel",
-                       "Congé parental", "Actif · télétravail"]
+        first_names = [
+            "Jean-François",
+            "Marie-Ève",
+            "Philippe",
+            "Catherine",
+            "Étienne",
+            "Geneviève",
+            "Maxime",
+            "Valérie",
+            "Luc",
+            "Sophie-Anne",
+            "Yannick",
+            "Marie-Claude",
+        ]
+        last_names = [
+            "Tremblay",
+            "Gagnon",
+            "Roy",
+            "Côté",
+            "Bouchard",
+            "Gauthier",
+            "Morin",
+            "Lavoie",
+            "Fortin",
+            "Girard",
+            "Bélanger",
+            "Pelletier",
+        ]
+        depts = [
+            "Finances",
+            "Conformité",
+            "Ressources humaines",
+            "Technologies de l'information",
+            "Exploitation",
+            "Affaires juridiques",
+            "Gestion des risques",
+            "Trésorerie",
+        ]
+        managers = [
+            "Isabelle Laporte",
+            "Marc-André Girard",
+            "Sylvie Bergeron",
+            "Jean-Sébastien Parent",
+        ]
+        status_pool = [
+            "Actif · temps plein",
+            "Actif · temps partiel",
+            "Congé parental",
+            "Actif · télétravail",
+        ]
         addresses = [
             "1250 rue University, Montréal, QC  H3B 4W8",
             "2500 boul. Daniel-Johnson, Laval, QC  H7T 2P6",
@@ -434,16 +530,56 @@ def format_hr_record(
             "1010 rue de la Gauchetière O., Montréal, QC  H3B 2N2",
         ]
     else:
-        first_names = ["John", "Sarah", "David", "Maria", "Robert", "Emily",
-                       "Michael", "Jennifer", "Priya", "Wei", "Amit", "Fatima"]
-        last_names  = ["Smith", "Chen", "Wilson", "Garcia", "Johnson", "Brown",
-                       "Lee", "Taylor", "Patel", "Singh", "Nguyen", "O'Brien"]
-        depts = ["Finance", "Compliance", "Human Resources", "Information Technology",
-                 "Operations", "Legal", "Risk Management", "Treasury"]
-        managers = ["Patricia Lin", "Marcus Webb", "Sandra Kowalski",
-                    "David Abramowitz"]
-        status_pool = ["Active · Full-time", "Active · Part-time",
-                       "Active · Remote", "Parental Leave"]
+        first_names = [
+            "John",
+            "Sarah",
+            "David",
+            "Maria",
+            "Robert",
+            "Emily",
+            "Michael",
+            "Jennifer",
+            "Priya",
+            "Wei",
+            "Amit",
+            "Fatima",
+        ]
+        last_names = [
+            "Smith",
+            "Chen",
+            "Wilson",
+            "Garcia",
+            "Johnson",
+            "Brown",
+            "Lee",
+            "Taylor",
+            "Patel",
+            "Singh",
+            "Nguyen",
+            "O'Brien",
+        ]
+        depts = [
+            "Finance",
+            "Compliance",
+            "Human Resources",
+            "Information Technology",
+            "Operations",
+            "Legal",
+            "Risk Management",
+            "Treasury",
+        ]
+        managers = [
+            "Patricia Lin",
+            "Marcus Webb",
+            "Sandra Kowalski",
+            "David Abramowitz",
+        ]
+        status_pool = [
+            "Active · Full-time",
+            "Active · Part-time",
+            "Active · Remote",
+            "Parental Leave",
+        ]
         addresses = [
             "200 Bay Street, Toronto, ON  M5J 2J2",
             "1 First Canadian Place, Toronto, ON  M5X 1A4",
@@ -491,8 +627,9 @@ def format_hr_record(
             start_days_ago = rng.randint(180, 4_000)
             start = today - datetime.timedelta(days=start_days_ago)
             dob = today.replace(year=today.year - rng.randint(24, 62))
-            salary = rng.choice([65_000, 78_000, 92_500, 110_000,
-                                  128_000, 155_000, 182_000, 210_000])
+            salary = rng.choice(
+                [65_000, 78_000, 92_500, 110_000, 128_000, 155_000, 182_000, 210_000]
+            )
 
             lines.append("-" * 72)
             if lang == "fr-CA":
@@ -500,38 +637,68 @@ def format_hr_record(
                 lines.append(f"  Nom légal:                 {first} {last}")
                 lines.append(f"  Préféré:                  {first}")
                 lines.append(f"  Date de naissance:        {dob.isoformat()}")
-                lines.append(f"  Sexe (déclaré):            {rng.choice(['F', 'H', 'X', 'non divulgué'])}")
+                lines.append(
+                    f"  Sexe (déclaré):            {rng.choice(['F', 'H', 'X', 'non divulgué'])}"
+                )
                 lines.append(f"  Adresse domicile:          {rng.choice(addresses)}")
-                lines.append(f"  Courriel personnel:        {first.lower().replace('-', '').replace(' ', '')}.{last.lower()}@gmail.com")
-                lines.append(f"  Téléphone mobile:          514-555-{rng.randint(1000, 9999)}")
-                lines.append(f"  Contact d'urgence:         {rng.choice(first_names)} {last} (conjoint·e)")
-                lines.append(f"  Tél. urgence:             438-555-{rng.randint(1000, 9999)}")
+                lines.append(
+                    f"  Courriel personnel:        {first.lower().replace('-', '').replace(' ', '')}.{last.lower()}@gmail.com"
+                )
+                lines.append(
+                    f"  Téléphone mobile:          514-555-{rng.randint(1000, 9999)}"
+                )
+                lines.append(
+                    f"  Contact d'urgence:         {rng.choice(first_names)} {last} (conjoint·e)"
+                )
+                lines.append(
+                    f"  Tél. urgence:             438-555-{rng.randint(1000, 9999)}"
+                )
                 lines.append(f"  Département:              {dept}")
                 lines.append(f"  Gestionnaire:             {manager}")
-                lines.append(f"  Date d'embauche:          {start.isoformat()}  ({start_days_ago // 365} ans, {(start_days_ago % 365) // 30} mois)")
+                lines.append(
+                    f"  Date d'embauche:          {start.isoformat()}  ({start_days_ago // 365} ans, {(start_days_ago % 365) // 30} mois)"
+                )
                 lines.append(f"  Statut:                   {status}")
                 lines.append(f"  Rémunération annuelle:    {salary:,} $ CAD")
-                lines.append("  Dépôt direct — banque:    Institution 006 · Transit 12345")
-                lines.append(f"  Dépôt direct — compte:    ****{rng.randint(1000, 9999)}")
+                lines.append(
+                    "  Dépôt direct — banque:    Institution 006 · Transit 12345"
+                )
+                lines.append(
+                    f"  Dépôt direct — compte:    ****{rng.randint(1000, 9999)}"
+                )
                 lines.append("  Champs sensibles extraits ci-dessous:")
             else:
                 lines.append(f"  Employee ID:              EMP-{emp_counter}")
                 lines.append(f"  Legal name:               {first} {last}")
                 lines.append(f"  Preferred name:           {first}")
                 lines.append(f"  Date of birth:            {dob.isoformat()}")
-                lines.append(f"  Self-ID gender:           {rng.choice(['F', 'M', 'X', 'not disclosed'])}")
+                lines.append(
+                    f"  Self-ID gender:           {rng.choice(['F', 'M', 'X', 'not disclosed'])}"
+                )
                 lines.append(f"  Home address:             {rng.choice(addresses)}")
-                lines.append(f"  Personal email:           {first.lower().replace(chr(39), '')}.{last.lower().replace(chr(39), '')}@gmail.com")
-                lines.append(f"  Mobile phone:             416-555-{rng.randint(1000, 9999)}")
-                lines.append(f"  Emergency contact:        {rng.choice(first_names)} {last} (spouse)")
-                lines.append(f"  Emergency phone:          647-555-{rng.randint(1000, 9999)}")
+                lines.append(
+                    f"  Personal email:           {first.lower().replace(chr(39), '')}.{last.lower().replace(chr(39), '')}@gmail.com"
+                )
+                lines.append(
+                    f"  Mobile phone:             416-555-{rng.randint(1000, 9999)}"
+                )
+                lines.append(
+                    f"  Emergency contact:        {rng.choice(first_names)} {last} (spouse)"
+                )
+                lines.append(
+                    f"  Emergency phone:          647-555-{rng.randint(1000, 9999)}"
+                )
                 lines.append(f"  Department:               {dept}")
                 lines.append(f"  Reports to (manager):     {manager}")
-                lines.append(f"  Hire date:                {start.isoformat()}  ({start_days_ago // 365}y {(start_days_ago % 365) // 30}m tenure)")
+                lines.append(
+                    f"  Hire date:                {start.isoformat()}  ({start_days_ago // 365}y {(start_days_ago % 365) // 30}m tenure)"
+                )
                 lines.append(f"  Employment status:        {status}")
                 lines.append(f"  Base salary:              CAD ${salary:,.2f} / year")
                 lines.append("  Direct deposit institution: 003 · Transit: 00006")
-                lines.append(f"  Direct deposit account:   ****{rng.randint(1000, 9999)}")
+                lines.append(
+                    f"  Direct deposit account:   ****{rng.randint(1000, 9999)}"
+                )
                 lines.append("  Sensitive fields extracted below:")
 
         field = e.category.value.replace("_", " ").title()
@@ -594,13 +761,17 @@ def format_audit_report(
         lines.append(f"    Evidence:    {e.embedded_text}")
         if e.technique:
             lines.append(f"    Evasion:     {e.technique} ({e.generator_name})")
-        lines.append(f"    Action:      Remediate within {'24h' if sev == 'CRITICAL' else '72h' if sev == 'HIGH' else '2 weeks'}")
+        lines.append(
+            f"    Action:      Remediate within {'24h' if sev == 'CRITICAL' else '72h' if sev == 'HIGH' else '2 weeks'}"
+        )
         lines.append("")
 
     lines.append("  3. RECOMMENDATIONS")
     lines.append("  " + "-" * 50)
     lines.append("  - Implement automated DLP scanning for all outbound channels")
-    lines.append("  - Review evasion technique coverage in current scanner configuration")
+    lines.append(
+        "  - Review evasion technique coverage in current scanner configuration"
+    )
     lines.append("  - Schedule follow-up audit within 90 days")
     lines.append("")
     return lines
@@ -624,10 +795,12 @@ def format_source_code(
 
     lines = [
         "#!/usr/bin/env python3",
-        '"""' + C(
+        '"""'
+        + C(
             "Application configuration and database setup — DO NOT COMMIT.",
             "Configuration applicative et connexion base de données — NE PAS COMMITTER.",
-        ) + '"""',
+        )
+        + '"""',
         "",
         "from __future__ import annotations",
         "",
@@ -642,7 +815,8 @@ def format_source_code(
         "",
         "logger = logging.getLogger(__name__)",
         "",
-        "# " + C(
+        "# "
+        + C(
             "Environment secrets — populated from vault in prod, inline for dev.",
             "Secrets d'environnement — provenant du coffre-fort en prod, intégrés pour le dev.",
         ),
@@ -651,8 +825,10 @@ def format_source_code(
         'DB_NAME = os.environ.get("DB_NAME", "retail_banking")',
         'DB_USER = os.environ.get("DB_USER", "svc_retail_ro")',
         'DB_PASSWORD = os.environ.get("DB_PASSWORD", "Correct-Horse-Battery-Staple-91!")  '
-            + C("# TODO: pull from HashiCorp Vault",
-                "# TODO: extraire du coffre HashiCorp Vault"),
+        + C(
+            "# TODO: pull from HashiCorp Vault",
+            "# TODO: extraire du coffre HashiCorp Vault",
+        ),
         "",
         'AWS_REGION = "ca-central-1"',
         'S3_BUCKET  = "retail-statements-2026-prod"',
@@ -662,7 +838,8 @@ def format_source_code(
         'STRIPE_SECRET_KEY = "sk_test_EVADEX_PLACEHOLDER_REPLACE_AT_RUNTIME"',
         'SENDGRID_API_KEY  = "SG.EVADEX_PLACEHOLDER.replace_with_test_key_at_runtime"',
         "",
-        "# " + C(
+        "# "
+        + C(
             "Database connection — all retail-banking reads flow through here.",
             "Connexion à la base de données — toutes les lectures des opérations de détail passent par ici.",
         ),
@@ -687,7 +864,8 @@ def format_source_code(
 
     if noise_level != "low":
         lines += [
-            "# " + C(
+            "# "
+            + C(
                 "Feature flags — safe to hardcode, read at startup only.",
                 "Indicateurs de fonctionnalités — sûrs à coder en dur, lus au démarrage seulement.",
             ),
@@ -709,8 +887,10 @@ def format_source_code(
         var_base = cat.value.upper()
         emit_lang = rng.choice(emit_langs)
 
-        lines.append(f"# --- {cat.value.replace('_', ' ').title()} "
-                     + C("Data ---", "données ---"))
+        lines.append(
+            f"# --- {cat.value.replace('_', ' ').title()} "
+            + C("Data ---", "données ---")
+        )
 
         if emit_lang == "python":
             for i, e in enumerate(cat_entries):
@@ -718,52 +898,70 @@ def format_source_code(
                 ev = f"  # evasion: {e.technique}" if e.technique else ""
                 roll = rng.random()
                 if roll < 0.25:
-                    lines.append(f'{var_name} = "{e.variant_value}"{ev}  '
-                                 + C("# FIXME: hardcoded, rotate quarterly",
-                                     "# À CORRIGER: codé en dur, à renouveler trimestriellement"))
+                    lines.append(
+                        f'{var_name} = "{e.variant_value}"{ev}  '
+                        + C(
+                            "# FIXME: hardcoded, rotate quarterly",
+                            "# À CORRIGER: codé en dur, à renouveler trimestriellement",
+                        )
+                    )
                 elif roll < 0.55:
                     lines.append(f'os.environ["{var_name}"] = "{e.variant_value}"{ev}')
                 else:
                     lines.append(f'{var_name} = "{e.variant_value}"{ev}')
                 if noise_level == "high" and rng.random() < 0.35:
-                    lines.append(f'logger.debug("loaded %s (len=%d)", "{var_name}", '
-                                 f'len({var_name}))')
+                    lines.append(
+                        f'logger.debug("loaded %s (len=%d)", "{var_name}", '
+                        f"len({var_name}))"
+                    )
 
         elif emit_lang == "javascript":
             lines.append("")
-            lines.append("// " + C(
-                "Front-end helpers — compiled with webpack",
-                "Assistants front-end — compilés avec webpack",
-            ))
+            lines.append(
+                "// "
+                + C(
+                    "Front-end helpers — compiled with webpack",
+                    "Assistants front-end — compilés avec webpack",
+                )
+            )
             for i, e in enumerate(cat_entries):
                 var_name = cat.value.lower() + (f"_{i}" if i > 0 else "")
                 ev = f"  // evasion: {e.technique}" if e.technique else ""
                 roll = rng.random()
                 if roll < 0.3:
-                    lines.append(f'const {var_name} = "{e.variant_value}";{ev}  '
-                                 + C("// FIXME: remove before commit",
-                                     "// À CORRIGER: retirer avant commit"))
+                    lines.append(
+                        f'const {var_name} = "{e.variant_value}";{ev}  '
+                        + C(
+                            "// FIXME: remove before commit",
+                            "// À CORRIGER: retirer avant commit",
+                        )
+                    )
                 elif roll < 0.6:
-                    lines.append(f'process.env.{var_name.upper()} = "{e.variant_value}";{ev}')
+                    lines.append(
+                        f'process.env.{var_name.upper()} = "{e.variant_value}";{ev}'
+                    )
                 else:
                     lines.append(f'let {var_name} = "{e.variant_value}";{ev}')
         else:  # generic
             for i, e in enumerate(cat_entries):
-                lines.append(f'# {cat.value}[{i}] = {e.variant_value}')
+                lines.append(f"# {cat.value}[{i}] = {e.variant_value}")
         lines.append("")
 
     lines += [
-        "# " + C(
+        "# "
+        + C(
             "Example connection strings (kept here for the operations runbook):",
             "Chaînes de connexion d'exemple (conservées pour le guide d'opérations):",
         ),
         'PG_DSN = "postgresql://svc_retail_ro:Correct-Horse-Battery-Staple-91!@'
-            'db.prod.bnc-secure.ca:5432/retail_banking?sslmode=require"',
+        'db.prod.bnc-secure.ca:5432/retail_banking?sslmode=require"',
         'MONGO_URI = "mongodb+srv://admin:s3cr3t@cluster0.mongodb.net/?retryWrites=true&w=majority"',
         "",
         "# --- " + C("End of configuration ---", "Fin de la configuration ---"),
         'if __name__ == "__main__":',
-        '    print(' + C('"Config loaded successfully"', '"Configuration chargée avec succès"') + ')',
+        "    print("
+        + C('"Config loaded successfully"', '"Configuration chargée avec succès"')
+        + ")",
         "",
     ]
     return lines
@@ -791,13 +989,15 @@ def format_config_file(
 
     if fmt == "env":
         lines += [
-            "# " + C(
+            "# "
+            + C(
                 "Application Configuration — CONFIDENTIAL",
                 "Configuration applicative — CONFIDENTIEL",
             ),
-            "# " + C(f"Generated: {today.isoformat()}",
-                    f"Généré le: {today.isoformat()}"),
-            "# " + C(
+            "# "
+            + C(f"Generated: {today.isoformat()}", f"Généré le: {today.isoformat()}"),
+            "# "
+            + C(
                 "Loaded by boot.sh via `set -o allexport && . .env`",
                 "Chargée par boot.sh via `set -o allexport && . .env`",
             ),
@@ -809,7 +1009,8 @@ def format_config_file(
             "DB_USER=svc_retail_ro",
             "DB_PASSWORD=Correct-Horse-Battery-Staple-91!",
             "",
-            "# " + C(
+            "# "
+            + C(
                 "Object storage — customer statements bucket",
                 "Stockage objet — seau de relevés clients",
             ),
@@ -828,25 +1029,34 @@ def format_config_file(
             "FEATURE_OPEN_BANKING_BETA=false",
             "MAX_DB_CONNECTIONS=200",
             "",
-            "# " + C("Evasion-variant sensitive values (for DLP testing)",
-                    "Valeurs sensibles (variantes d'évasion) pour tests DLP"),
+            "# "
+            + C(
+                "Evasion-variant sensitive values (for DLP testing)",
+                "Valeurs sensibles (variantes d'évasion) pour tests DLP",
+            ),
         ]
         for e in entries:
             key = e.category.value.upper()
             comment = f"  # evasion: {e.technique}" if e.technique else ""
             lines.append(f"{key}={e.variant_value}{comment}")
             if noise_level == "high":
-                lines.append("# " + C(
-                    f"Last rotated: {today.isoformat()}",
-                    f"Dernière rotation: {today.isoformat()}",
-                ))
+                lines.append(
+                    "# "
+                    + C(
+                        f"Last rotated: {today.isoformat()}",
+                        f"Dernière rotation: {today.isoformat()}",
+                    )
+                )
 
     elif fmt == "ini":
         lines += [
-            "; " + C("Application Configuration — CONFIDENTIAL",
-                    "Configuration applicative — CONFIDENTIEL"),
-            "; " + C(f"Generated: {today.isoformat()}",
-                    f"Généré le: {today.isoformat()}"),
+            "; "
+            + C(
+                "Application Configuration — CONFIDENTIAL",
+                "Configuration applicative — CONFIDENTIEL",
+            ),
+            "; "
+            + C(f"Generated: {today.isoformat()}", f"Généré le: {today.isoformat()}"),
             "",
             "[database]",
             "host = db-prod.bnc-secure.ca",
@@ -874,10 +1084,13 @@ def format_config_file(
 
     else:  # yaml — `application.yaml` style (Spring Boot / Micronaut)
         lines += [
-            "# " + C("Application Configuration — CONFIDENTIAL",
-                    "Configuration applicative — CONFIDENTIEL"),
-            "# " + C(f"Generated: {today.isoformat()}",
-                    f"Généré le: {today.isoformat()}"),
+            "# "
+            + C(
+                "Application Configuration — CONFIDENTIAL",
+                "Configuration applicative — CONFIDENTIEL",
+            ),
+            "# "
+            + C(f"Generated: {today.isoformat()}", f"Généré le: {today.isoformat()}"),
             "",
             "spring:",
             "  application:",
@@ -905,7 +1118,7 @@ def format_config_file(
         ]
         for e in entries:
             key = e.category.value.lower()
-            lines.append(f"  {key}: \"{e.variant_value}\"")
+            lines.append(f'  {key}: "{e.variant_value}"')
 
     lines.append("")
     return lines
@@ -918,7 +1131,18 @@ def format_chat_log(
     density: str = "medium",
 ) -> list[str]:
     """Messaging/chat export with sensitive values shared between participants."""
-    names = ["John", "Sarah", "David", "Maria", "Robert", "Emily", "Michael", "Jennifer", "Alex", "Wei"]
+    names = [
+        "John",
+        "Sarah",
+        "David",
+        "Maria",
+        "Robert",
+        "Emily",
+        "Michael",
+        "Jennifer",
+        "Alex",
+        "Wei",
+    ]
     participants = rng.sample(names, min(4, len(names)))
 
     base_dt = datetime.datetime(2026, 4, 17, 9, 0, 0)
@@ -950,10 +1174,16 @@ def format_chat_log(
         sender = rng.choice(participants)
 
         # Occasionally add filler messages for noise
-        if noise_level != "low" and rng.random() < (0.5 if noise_level == "high" else 0.25):
+        if noise_level != "low" and rng.random() < (
+            0.5 if noise_level == "high" else 0.25
+        ):
             filler_ts = ts - datetime.timedelta(seconds=rng.randint(10, 50))
-            filler_sender = rng.choice([p for p in participants if p != sender] or participants)
-            lines.append(f"[{filler_ts.strftime('%H:%M')}] {filler_sender}: {rng.choice(filler_msgs)}")
+            filler_sender = rng.choice(
+                [p for p in participants if p != sender] or participants
+            )
+            lines.append(
+                f"[{filler_ts.strftime('%H:%M')}] {filler_sender}: {rng.choice(filler_msgs)}"
+            )
 
         cat_label = e.category.value.replace("_", " ")
         prompts = [
@@ -986,10 +1216,26 @@ def format_medical_record(
     today = datetime.date.today()
 
     if lang == "fr-CA":
-        first_names = ["Jean", "Marie-Hélène", "Alexandre", "Mélanie",
-                       "Pierre-Olivier", "Catherine", "Louis", "Rosalie"]
-        last_names  = ["Tremblay", "Gagnon", "Roy", "Côté", "Bouchard",
-                       "Gauthier", "Morin", "Lavoie"]
+        first_names = [
+            "Jean",
+            "Marie-Hélène",
+            "Alexandre",
+            "Mélanie",
+            "Pierre-Olivier",
+            "Catherine",
+            "Louis",
+            "Rosalie",
+        ]
+        last_names = [
+            "Tremblay",
+            "Gagnon",
+            "Roy",
+            "Côté",
+            "Bouchard",
+            "Gauthier",
+            "Morin",
+            "Lavoie",
+        ]
         conditions = [
             "Diabète de type 2 avec neuropathie périphérique",
             "Hypertension essentielle, stade 2",
@@ -1001,9 +1247,14 @@ def format_medical_record(
             "Fibrillation auriculaire paroxystique",
         ]
         medications = [
-            "Metformine 500 mg BID", "Lisinopril 10 mg die", "Sertraline 50 mg die",
-            "Naproxen 500 mg PRN", "Atorvastatine 20 mg HS", "Métoprolol 25 mg BID",
-            "Gabapentine 300 mg TID", "Acétaminophène 500 mg PRN",
+            "Metformine 500 mg BID",
+            "Lisinopril 10 mg die",
+            "Sertraline 50 mg die",
+            "Naproxen 500 mg PRN",
+            "Atorvastatine 20 mg HS",
+            "Métoprolol 25 mg BID",
+            "Gabapentine 300 mg TID",
+            "Acétaminophène 500 mg PRN",
         ]
         physicians = [
             "Dre Marie-Josée Tremblay, MD CCFP",
@@ -1016,9 +1267,26 @@ def format_medical_record(
             "CISSS de Laval — Hôpital de la Cité-de-la-Santé",
         ]
     else:
-        first_names = ["John", "Sarah", "David", "Maria", "Robert", "Emily", "Priya", "Wei"]
-        last_names  = ["Smith", "Chen", "Wilson", "Garcia", "Johnson", "Brown",
-                       "Patel", "Nguyen"]
+        first_names = [
+            "John",
+            "Sarah",
+            "David",
+            "Maria",
+            "Robert",
+            "Emily",
+            "Priya",
+            "Wei",
+        ]
+        last_names = [
+            "Smith",
+            "Chen",
+            "Wilson",
+            "Garcia",
+            "Johnson",
+            "Brown",
+            "Patel",
+            "Nguyen",
+        ]
         conditions = [
             "Type 2 Diabetes Mellitus with peripheral neuropathy",
             "Essential Hypertension, Stage 2",
@@ -1030,9 +1298,14 @@ def format_medical_record(
             "Paroxysmal Atrial Fibrillation",
         ]
         medications = [
-            "Metformin 500mg BID", "Lisinopril 10mg daily", "Sertraline 50mg daily",
-            "Naproxen 500mg PRN", "Atorvastatin 20mg HS", "Metoprolol 25mg BID",
-            "Gabapentin 300mg TID", "Acetaminophen 500mg PRN",
+            "Metformin 500mg BID",
+            "Lisinopril 10mg daily",
+            "Sertraline 50mg daily",
+            "Naproxen 500mg PRN",
+            "Atorvastatin 20mg HS",
+            "Metoprolol 25mg BID",
+            "Gabapentin 300mg TID",
+            "Acetaminophen 500mg PRN",
         ]
         physicians = [
             "Dr. Patricia Lin, MD FRCPC — Internal Medicine",
@@ -1084,7 +1357,7 @@ def format_medical_record(
             first = rng.choice(first_names)
             last = rng.choice(last_names)
             birth_year = rng.randint(1940, 2005)
-            dob = f"{birth_year}-{rng.randint(1,12):02d}-{rng.randint(1,28):02d}"
+            dob = f"{birth_year}-{rng.randint(1, 12):02d}-{rng.randint(1, 28):02d}"
             age = today.year - birth_year
             condition = rng.choice(conditions)
             med = rng.choice(medications)
@@ -1104,9 +1377,15 @@ def format_medical_record(
                 lines.append(f"  Médication au congé:  {med}")
                 lines.append("")
                 lines.append("  Histoire de la maladie actuelle:")
-                lines.append(f"  Le·la patient·e, connu·e pour {condition.lower()}, se présente pour un")
-                lines.append("  suivi post-hospitalisation. Les signes vitaux sont stables. Aucune")
-                lines.append("  plainte aiguë rapportée lors de l'examen d'aujourd'hui.")
+                lines.append(
+                    f"  Le·la patient·e, connu·e pour {condition.lower()}, se présente pour un"
+                )
+                lines.append(
+                    "  suivi post-hospitalisation. Les signes vitaux sont stables. Aucune"
+                )
+                lines.append(
+                    "  plainte aiguë rapportée lors de l'examen d'aujourd'hui."
+                )
                 lines.append("")
                 lines.append("  Identifiants administratifs associés au dossier:")
             else:
@@ -1122,11 +1401,17 @@ def format_medical_record(
                 lines.append(f"  Discharge meds:      {med}")
                 lines.append("")
                 lines.append("  History of Present Illness:")
-                lines.append(f"  The patient, known for {condition.lower()}, presents for")
-                lines.append("  post-hospitalization follow-up. Vital signs are stable. No")
+                lines.append(
+                    f"  The patient, known for {condition.lower()}, presents for"
+                )
+                lines.append(
+                    "  post-hospitalization follow-up. Vital signs are stable. No"
+                )
                 lines.append("  acute complaints reported on today's examination.")
                 lines.append("")
-                lines.append("  Administrative identifiers associated with this record:")
+                lines.append(
+                    "  Administrative identifiers associated with this record:"
+                )
 
         field = e.category.value.replace("_", " ").title()
         lines.append(f"    ↳ {field + ':':<24} {e.embedded_text}")
@@ -1145,6 +1430,7 @@ def format_medical_record(
 
 
 # ── Public API ───────────────────────────────────────────────────────────────
+
 
 def format_env_file(
     entries: list[GeneratedEntry],
@@ -1204,8 +1490,14 @@ def format_secrets_file(
     catches it.
     """
     keywords = [
-        "api_key", "secret_key", "access_token", "private_key",
-        "password", "bearer_token", "signing_key", "encryption_key",
+        "api_key",
+        "secret_key",
+        "access_token",
+        "private_key",
+        "password",
+        "bearer_token",
+        "signing_key",
+        "encryption_key",
     ]
 
     lines = [
@@ -1265,7 +1557,9 @@ def format_code_with_secrets(
             # hides the value as a positional literal so only EntropyMode::All
             # (or a keyword Siphon happens to treat as context) catches it.
             comment = f"  # evasion: {e.technique}" if e.technique else ""
-            lines.append(f'_verify("{e.variant_value}", "nonce_abc", "sig_xyz"){comment}')
+            lines.append(
+                f'_verify("{e.variant_value}", "nonce_abc", "sig_xyz"){comment}'
+            )
         lines.append("")
 
     return lines
@@ -1316,9 +1610,11 @@ def format_lsh_variants(
         variant = f"{variant} Reference identifier: {entry.variant_value}."
         empirical = jaccard_similarity(base, variant)
         lines.append(f"--- VARIANT {idx} ---")
-        lines.append(f"Distortion rate: {rate:.0%}  "
-                     f"Empirical Jaccard vs base: {empirical:.0%}  "
-                     f"Embedded category: {entry.category.value}")
+        lines.append(
+            f"Distortion rate: {rate:.0%}  "
+            f"Empirical Jaccard vs base: {empirical:.0%}  "
+            f"Embedded category: {entry.category.value}"
+        )
         lines.append("")
         lines.append(variant)
         lines.append("")
@@ -1345,19 +1641,30 @@ def format_trade_confirmation(
     ref_no = f"TC-{today.strftime('%Y%m%d')}-{rng.randint(100000, 999999)}"
 
     if lang == "fr-CA":
-        brokers = ["RBC Marchés des Capitaux", "BMO Marchés des capitaux",
-                   "Banque Nationale marchés financiers", "CIBC Marchés des capitaux"]
-        exchanges = ["Bourse de Toronto (TSX)", "Bourse de Montréal (MX)",
-                     "NASDAQ", "NYSE"]
+        brokers = [
+            "RBC Marchés des Capitaux",
+            "BMO Marchés des capitaux",
+            "Banque Nationale marchés financiers",
+            "CIBC Marchés des capitaux",
+        ]
+        exchanges = [
+            "Bourse de Toronto (TSX)",
+            "Bourse de Montréal (MX)",
+            "NASDAQ",
+            "NYSE",
+        ]
         currencies = ["CAD", "CAD", "CAD", "USD"]
-        inst_names = ["Banque Royale du Canada", "BMO Groupe financier",
-                      "Banque Nationale du Canada", "Caisse de dépôt et placement du Québec"]
+        inst_names = [
+            "Banque Royale du Canada",
+            "BMO Groupe financier",
+            "Banque Nationale du Canada",
+            "Caisse de dépôt et placement du Québec",
+        ]
         hdr_label = "CONFIRMATION D'OPÉRATION — TITRE BOURSIER"
         acct_label = "Compte donneur d'ordre"
         broker_label = "Courtier"
         trade_date_label = "Date de négociation"
         settle_date_label = "Date de règlement (T+2)"
-        direction_label = "Sens"
         qty_label = "Quantité"
         price_label = "Cours"
         gross_label = "Montant brut"
@@ -1369,19 +1676,30 @@ def format_trade_confirmation(
         sec_label = "TITRE"
         direction_choices = ["ACHAT", "VENTE"]
     else:
-        brokers = ["RBC Capital Markets", "BMO Capital Markets",
-                   "National Bank Financial", "CIBC Capital Markets"]
-        exchanges = ["Toronto Stock Exchange (TSX)", "Montréal Exchange (MX)",
-                     "NASDAQ", "NYSE"]
+        brokers = [
+            "RBC Capital Markets",
+            "BMO Capital Markets",
+            "National Bank Financial",
+            "CIBC Capital Markets",
+        ]
+        exchanges = [
+            "Toronto Stock Exchange (TSX)",
+            "Montréal Exchange (MX)",
+            "NASDAQ",
+            "NYSE",
+        ]
         currencies = ["CAD", "CAD", "USD", "USD"]
-        inst_names = ["Royal Bank of Canada", "Bank of Montreal",
-                      "National Bank of Canada", "Ontario Teachers' Pension Plan"]
+        inst_names = [
+            "Royal Bank of Canada",
+            "Bank of Montreal",
+            "National Bank of Canada",
+            "Ontario Teachers' Pension Plan",
+        ]
         hdr_label = "TRADE CONFIRMATION — EQUITY SECURITY"
         acct_label = "Client Account"
         broker_label = "Executing Broker"
         trade_date_label = "Trade Date"
         settle_date_label = "Settlement Date (T+2)"
-        direction_label = "Side"
         qty_label = "Quantity"
         price_label = "Price"
         gross_label = "Gross Amount"
@@ -1402,7 +1720,9 @@ def format_trade_confirmation(
     price = round(rng.uniform(10, 500), 2)
     gross = round(qty * price, 2)
     commission = round(gross * 0.001, 2)
-    net = round(gross + commission if direction in ("BUY", "ACHAT") else gross - commission, 2)
+    net = round(
+        gross + commission if direction in ("BUY", "ACHAT") else gross - commission, 2
+    )
 
     lines: list[str] = [
         "=" * 76,
@@ -1424,20 +1744,24 @@ def format_trade_confirmation(
     for i, e in enumerate(entries, 1):
         cat = e.category.value
         # Classify entry type to place value in the right field
-        is_isin  = "isin"  in cat
+        is_isin = "isin" in cat
         is_cusip = "cusip" in cat
         is_sedol = "sedol" in cat
-        is_figi  = "figi"  in cat
-        is_lei   = "lei"   in cat
-        is_iban  = "iban"  in cat
-        is_bic   = "swift" in cat or "bic" in cat
-        is_acct  = cat in ("account_balance", "bank_ref", "loan_number", "employee_id")
+        is_figi = "figi" in cat
+        is_lei = "lei" in cat
+        is_iban = "iban" in cat
+        is_bic = "swift" in cat or "bic" in cat
+        is_acct = cat in ("account_balance", "bank_ref", "loan_number", "employee_id")
 
         lines.append(f"  {'─' * 72}")
         if lang == "fr-CA":
-            lines.append(f"  Opération {i:>4}  |  {direction}  |  {currency}  |  {exchange}")
+            lines.append(
+                f"  Opération {i:>4}  |  {direction}  |  {currency}  |  {exchange}"
+            )
         else:
-            lines.append(f"  Trade {i:>4}  |  {direction}  |  {currency}  |  {exchange}")
+            lines.append(
+                f"  Trade {i:>4}  |  {direction}  |  {currency}  |  {exchange}"
+            )
         lines.append("")
         lines.append(f"  {sec_label}")
         if is_isin:
@@ -1466,7 +1790,9 @@ def format_trade_confirmation(
             lines.append(f"    Name:              {counterparty}")
         else:
             lines.append(f"    Name:              {counterparty}")
-            lines.append(f"    {lei_label:<18}{'549300' + str(rng.randint(10**14, 10**15 - 1))[:14]}")
+            lines.append(
+                f"    {lei_label:<18}{'549300' + str(rng.randint(10**14, 10**15 - 1))[:14]}"
+            )
         lines.append("")
         if lang == "fr-CA":
             lines.append("  RÈGLEMENT")
@@ -1477,15 +1803,19 @@ def format_trade_confirmation(
         elif is_acct:
             lines.append(f"    Compte:            {e.embedded_text}")
         else:
-            lines.append(f"    Custodian:         DTCC / CDS")
+            lines.append("    Custodian:         DTCC / CDS")
         lines.append("")
 
     lines.append("  " + "=" * 72)
     if lang == "fr-CA":
-        lines.append("  Cette confirmation est émise conformément au Règlement 31-103 des ACVM.")
+        lines.append(
+            "  Cette confirmation est émise conformément au Règlement 31-103 des ACVM."
+        )
         lines.append("  Toute divergence doit être signalée dans les 24 h ouvrables.")
     else:
-        lines.append("  This confirmation is issued pursuant to NI 31-103 and MiFID II requirements.")
+        lines.append(
+            "  This confirmation is issued pursuant to NI 31-103 and MiFID II requirements."
+        )
         lines.append("  Any discrepancy must be reported within one (1) business day.")
     lines.append("")
     return lines
@@ -1509,8 +1839,8 @@ def format_swift_mt103(
 
     if lang == "fr-CA":
         sender_bics = ["BNDCCAMMXXX", "ROYCCAT2XXX", "TDOMCATTXXX", "NBBACAMMXXX"]
-        recv_bics   = ["DEUTDEFFXXX", "BARCGB22XXX", "BNPAFRPPXXX", "HSBCHKHHXXX"]
-        currencies  = ["CAD", "USD", "EUR", "CHF"]
+        recv_bics = ["DEUTDEFFXXX", "BARCGB22XXX", "BNPAFRPPXXX", "HSBCHKHHXXX"]
+        currencies = ["CAD", "USD", "EUR", "CHF"]
         sender_names = [
             "BANQUE NATIONALE DU CANADA\n  1155 METCALFE\n  MONTREAL QC H3B 4S9 CA",
             "ROYAL BANK OF CANADA\n  200 BAY STREET\n  TORONTO ON M5J 2J2 CA",
@@ -1520,8 +1850,8 @@ def format_swift_mt103(
         batch_lbl = "Lot"
     else:
         sender_bics = ["ROYCCAT2XXX", "TDOMCATTXXX", "BOFMCAM2XXX", "CIBCCATTXXX"]
-        recv_bics   = ["DEUTDEFFXXX", "BARCGB22XXX", "BNPAFRPPXXX", "CHASUS33XXX"]
-        currencies  = ["CAD", "USD", "EUR", "GBP"]
+        recv_bics = ["DEUTDEFFXXX", "BARCGB22XXX", "BNPAFRPPXXX", "CHASUS33XXX"]
+        currencies = ["CAD", "USD", "EUR", "GBP"]
         sender_names = [
             "ROYAL BANK OF CANADA\n  200 BAY STREET\n  TORONTO ON M5J 2J2 CA",
             "BANK OF MONTREAL\n  100 KING ST W\n  TORONTO ON M5X 1A1 CA",
@@ -1544,21 +1874,21 @@ def format_swift_mt103(
 
     for i, e in enumerate(entries, 1):
         cat = e.category.value
-        is_iban  = "iban" in cat
-        is_bic   = "swift" in cat or "bic" in cat
+        is_iban = "iban" in cat
+        is_bic = "swift" in cat or "bic" in cat
         is_mt103 = "mt103" in cat or "wire_ref" in cat or "fedwire" in cat
 
         sender_bic = rng.choice(sender_bics)
-        recv_bic   = rng.choice(recv_bics)
-        currency   = rng.choice(currencies)
-        amount     = round(rng.uniform(1_000, 500_000), 2)
+        recv_bic = rng.choice(recv_bics)
+        currency = rng.choice(currencies)
+        amount = round(rng.uniform(1_000, 500_000), 2)
         sender_name = rng.choice(sender_names)
-        val_date   = today.strftime("%y%m%d")
+        val_date = today.strftime("%y%m%d")
 
         if is_mt103:
             ref_20 = e.variant_value[:16]
         elif is_bic:
-            ref_20 = f"REF{today.strftime('%Y%m%d')}{rng.randint(100,999)}"
+            ref_20 = f"REF{today.strftime('%Y%m%d')}{rng.randint(100, 999)}"
         else:
             ref_20 = f"PMT{today.strftime('%Y%m%d')}{rng.randint(1000, 9999)}"
 
@@ -1569,10 +1899,10 @@ def format_swift_mt103(
 
         if is_iban:
             ordering_account = e.variant_value
-            benef_account    = f"GB{''.join(str(rng.randint(0,9)) for _ in range(20))}"
+            benef_account = f"GB{''.join(str(rng.randint(0, 9)) for _ in range(20))}"
         else:
-            ordering_account = f"CA{''.join(str(rng.randint(0,9)) for _ in range(20))}"
-            benef_account    = f"DE{''.join(str(rng.randint(0,9)) for _ in range(20))}"
+            ordering_account = f"CA{''.join(str(rng.randint(0, 9)) for _ in range(20))}"
+            benef_account = f"DE{''.join(str(rng.randint(0, 9)) for _ in range(20))}"
 
         lines.append(f"  ── Message {i} {'─' * 60}")
         lines.append(f"  {{1:F01{sender_bic}0000000001}}")
@@ -1589,7 +1919,9 @@ def format_swift_mt103(
         lines.append(f"  :59:/{benef_account}")
         if not is_iban and not is_bic and not is_mt103:
             lines.append(f"  {e.embedded_text[:60]}")
-        lines.append(f"  :70:/INV/{today.strftime('%Y-%m-%d')}/{rng.randint(10000,99999)}")
+        lines.append(
+            f"  :70:/INV/{today.strftime('%Y-%m-%d')}/{rng.randint(10000, 99999)}"
+        )
         lines.append("  :71A:SHA")
         lines.append("  -}")
         lines.append("")
@@ -1628,7 +1960,11 @@ def format_settlement_instruction(
             ("Banque Royale du Canada — Garde", "ROYCCAT2XXX"),
         ]
         hdr_title = "INSTRUCTION DE RÈGLEMENT DE VALEURS MOBILIÈRES"
-        inst_type_choices = ["LIVRAISON CONTRE PAIEMENT", "RÉCEPTION CONTRE PAIEMENT", "LIVRAISON LIBRE"]
+        inst_type_choices = [
+            "LIVRAISON CONTRE PAIEMENT",
+            "RÉCEPTION CONTRE PAIEMENT",
+            "LIVRAISON LIBRE",
+        ]
         status_choices = ["EN ATTENTE", "CONFIRMÉE", "RÉGLÉE"]
         deliver_lbl = "Agent livraison"
         receive_lbl = "Agent réception"
@@ -1643,7 +1979,11 @@ def format_settlement_instruction(
             ("CDS Clearing and Depository Services", "CDSLCATTXXX"),
         ]
         hdr_title = "SECURITIES SETTLEMENT INSTRUCTION"
-        inst_type_choices = ["DELIVERY vs PAYMENT", "RECEIVE vs PAYMENT", "FREE DELIVERY"]
+        inst_type_choices = [
+            "DELIVERY vs PAYMENT",
+            "RECEIVE vs PAYMENT",
+            "FREE DELIVERY",
+        ]
         status_choices = ["PENDING MATCHING", "MATCHED — PENDING SETTLEMENT", "SETTLED"]
         deliver_lbl = "Delivering Agent"
         receive_lbl = "Receiving Agent"
@@ -1675,11 +2015,11 @@ def format_settlement_instruction(
 
     for i, e in enumerate(entries, 1):
         cat = e.category.value
-        is_isin  = "isin"  in cat
+        is_isin = "isin" in cat
         is_cusip = "cusip" in cat
-        is_bic   = "swift" in cat or "bic" in cat
-        is_iban  = "iban"  in cat
-        is_lei   = "lei"   in cat
+        is_bic = "swift" in cat or "bic" in cat
+        is_iban = "iban" in cat
+        is_lei = "lei" in cat
 
         qty = rng.randint(1_000, 100_000)
         price = round(rng.uniform(5, 1_000), 4)
@@ -1692,13 +2032,19 @@ def format_settlement_instruction(
         lines.append(f"  {sec_lbl}")
         if is_isin:
             lines.append(f"    ISIN:                   {e.variant_value}")
-            lines.append(f"    CUSIP:                  {'037833100' if 'US' in e.variant_value else '46625H100'}")
+            lines.append(
+                f"    CUSIP:                  {'037833100' if 'US' in e.variant_value else '46625H100'}"
+            )
         elif is_cusip:
             lines.append(f"    CUSIP:                  {e.variant_value}")
-            lines.append(f"    ISIN:                   US{''.join(str(rng.randint(0,9)) for _ in range(9))}{'0'}")
+            lines.append(
+                f"    ISIN:                   US{''.join(str(rng.randint(0, 9)) for _ in range(9))}{'0'}"
+            )
         else:
             lines.append(f"    Security ref:           {e.embedded_text[:50]}")
-        lines.append(f"    Market / Exchange:      {'TSX' if currency == 'CAD' else 'NYSE'}")
+        lines.append(
+            f"    Market / Exchange:      {'TSX' if currency == 'CAD' else 'NYSE'}"
+        )
         lines.append("")
         lines.append(f"  {trade_lbl}")
         lines.append(f"    Quantity:               {qty:>10,} shares")
@@ -1710,11 +2056,17 @@ def format_settlement_instruction(
             lines.append(f"    BIC:                    {e.variant_value[:11]}")
         else:
             lines.append(f"    BIC:                    {csd_bic}")
-        lines.append(f"    Account:                ACC-{rng.randint(10**9, 10**10 - 1)}")
+        lines.append(
+            f"    Account:                ACC-{rng.randint(10**9, 10**10 - 1)}"
+        )
         lines.append("")
         lines.append(f"  {receive_lbl}")
-        lines.append(f"    BIC:                    {rng.choice([c[1] for c in custodians])}")
-        lines.append(f"    Account:                ACC-{rng.randint(10**9, 10**10 - 1)}")
+        lines.append(
+            f"    BIC:                    {rng.choice([c[1] for c in custodians])}"
+        )
+        lines.append(
+            f"    Account:                ACC-{rng.randint(10**9, 10**10 - 1)}"
+        )
         lines.append("")
         lines.append(f"  {settle_lbl}")
         if is_iban:
@@ -1727,9 +2079,13 @@ def format_settlement_instruction(
 
     lines.append("  " + "=" * 72)
     if lang == "fr-CA":
-        lines.append("  Instructions soumises conformément aux règles ACSS et à la Loi sur le transfert de valeurs mobilières.")
+        lines.append(
+            "  Instructions soumises conformément aux règles ACSS et à la Loi sur le transfert de valeurs mobilières."
+        )
     else:
-        lines.append("  Instructions submitted pursuant to DTCC Operating Procedures and applicable securities transfer legislation.")
+        lines.append(
+            "  Instructions submitted pursuant to DTCC Operating Procedures and applicable securities transfer legislation."
+        )
     lines.append("")
     return lines
 
@@ -1755,31 +2111,56 @@ def format_bloomberg_export(
 
     if lang == "fr-CA":
         hdr_lines = [
-            f"# BLOOMBERG PROFESSIONAL SERVICE — EXPORTATION DE DONNÉES",
-            f"# Date d'export:,{today.isoformat()}T{rng.randint(8,17):02d}:{rng.randint(0,59):02d}:00Z",
-            f"# Type de sécurité:,ÉQUITÉ / TITRE À REVENU FIXE",
-            f"# Champs exportés:,TICKER,ISIN,SEDOL,FIGI,CUSIP,NOM,PX_LAST,VOLUME,DEVISE",
+            "# BLOOMBERG PROFESSIONAL SERVICE — EXPORTATION DE DONNÉES",
+            f"# Date d'export:,{today.isoformat()}T{rng.randint(8, 17):02d}:{rng.randint(0, 59):02d}:00Z",
+            "# Type de sécurité:,ÉQUITÉ / TITRE À REVENU FIXE",
+            "# Champs exportés:,TICKER,ISIN,SEDOL,FIGI,CUSIP,NOM,PX_LAST,VOLUME,DEVISE",
             "#",
         ]
         col_header = "TICKER,ISIN,SEDOL,FIGI,CUSIP,NOM,PX_LAST,VOLUME,DEVISE"
     else:
         hdr_lines = [
-            f"# BLOOMBERG PROFESSIONAL SERVICE DATA EXPORT",
-            f"# Export Date:,{today.isoformat()}T{rng.randint(8,17):02d}:{rng.randint(0,59):02d}:00Z",
-            f"# Security Type:,EQUITY / FIXED INCOME",
-            f"# Fields:,TICKER,ISIN,SEDOL,FIGI,CUSIP,NAME,PX_LAST,VOLUME,CRNCY",
+            "# BLOOMBERG PROFESSIONAL SERVICE DATA EXPORT",
+            f"# Export Date:,{today.isoformat()}T{rng.randint(8, 17):02d}:{rng.randint(0, 59):02d}:00Z",
+            "# Security Type:,EQUITY / FIXED INCOME",
+            "# Fields:,TICKER,ISIN,SEDOL,FIGI,CUSIP,NAME,PX_LAST,VOLUME,CRNCY",
             "#",
         ]
         col_header = "TICKER,ISIN,SEDOL,FIGI,CUSIP,NAME,PX_LAST,VOLUME,CRNCY"
 
     # Bloomberg-style ticker pool
-    _tickers = ["AAPL US", "JPM US", "RY CT", "TD CT", "BNS CT",
-                "HSBA LN", "BP/ LN", "SAN SM", "BNP FP", "DBK GY"]
-    _names = ['"Apple Inc"', '"JPMorgan Chase & Co"', '"Royal Bank of Canada"',
-              '"TD Bank Group"', '"Bank of Nova Scotia"', '"HSBC Holdings"',
-              '"BP plc"', '"Santander Group"', '"BNP Paribas"', '"Deutsche Bank"']
-    _figi_pool = ["BBG000B9XRY4", "BBG000DMBXR2", "BBG000BCQZS4",
-                  "BBG000FD8G46", "BBG000BXNJ07", "BBG000BS69D5"]
+    _tickers = [
+        "AAPL US",
+        "JPM US",
+        "RY CT",
+        "TD CT",
+        "BNS CT",
+        "HSBA LN",
+        "BP/ LN",
+        "SAN SM",
+        "BNP FP",
+        "DBK GY",
+    ]
+    _names = [
+        '"Apple Inc"',
+        '"JPMorgan Chase & Co"',
+        '"Royal Bank of Canada"',
+        '"TD Bank Group"',
+        '"Bank of Nova Scotia"',
+        '"HSBC Holdings"',
+        '"BP plc"',
+        '"Santander Group"',
+        '"BNP Paribas"',
+        '"Deutsche Bank"',
+    ]
+    _figi_pool = [
+        "BBG000B9XRY4",
+        "BBG000DMBXR2",
+        "BBG000BCQZS4",
+        "BBG000FD8G46",
+        "BBG000BXNJ07",
+        "BBG000BS69D5",
+    ]
     _sedol_pool = ["2046251", "2190385", "0922450", "2005973", "0540528", "B0WNLY7"]
     _cusip_pool = ["037833100", "46625H100", "78011F103", "06406RAA3", "064159109"]
 
@@ -1787,42 +2168,46 @@ def format_bloomberg_export(
 
     for i, e in enumerate(entries, 1):
         cat = e.category.value
-        is_isin   = "isin"   in cat
-        is_sedol  = "sedol"  in cat
-        is_figi   = "figi"   in cat
-        is_cusip  = "cusip"  in cat
+        is_isin = "isin" in cat
+        is_sedol = "sedol" in cat
+        is_figi = "figi" in cat
+        is_cusip = "cusip" in cat
         is_ticker = "ticker" in cat or "ric" in cat
 
         ticker = rng.choice(_tickers) if not is_ticker else e.variant_value[:10]
-        name   = rng.choice(_names)
-        px     = round(rng.uniform(10, 800), 2)
+        name = rng.choice(_names)
+        px = round(rng.uniform(10, 800), 2)
         volume = rng.randint(100_000, 50_000_000)
-        crncy  = rng.choice(["USD", "CAD", "GBP", "EUR"])
+        crncy = rng.choice(["USD", "CAD", "GBP", "EUR"])
 
         if is_isin:
             isin_val = e.variant_value
             sedol_val = rng.choice(_sedol_pool)
-            figi_val  = rng.choice(_figi_pool)
+            figi_val = rng.choice(_figi_pool)
             cusip_val = rng.choice(_cusip_pool)
         elif is_sedol:
-            isin_val  = f"GB{''.join(str(rng.randint(0,9)) for _ in range(10))}"
+            isin_val = f"GB{''.join(str(rng.randint(0, 9)) for _ in range(10))}"
             sedol_val = e.variant_value
-            figi_val  = rng.choice(_figi_pool)
+            figi_val = rng.choice(_figi_pool)
             cusip_val = rng.choice(_cusip_pool)
         elif is_figi:
-            isin_val  = f"US{''.join(str(rng.randint(0,9)) for _ in range(10))}"
+            isin_val = f"US{''.join(str(rng.randint(0, 9)) for _ in range(10))}"
             sedol_val = rng.choice(_sedol_pool)
-            figi_val  = e.variant_value
+            figi_val = e.variant_value
             cusip_val = rng.choice(_cusip_pool)
         elif is_cusip:
-            isin_val  = f"US{e.variant_value}0" if len(e.variant_value) == 9 else f"US{''.join(str(rng.randint(0,9)) for _ in range(10))}"
+            isin_val = (
+                f"US{e.variant_value}0"
+                if len(e.variant_value) == 9
+                else f"US{''.join(str(rng.randint(0, 9)) for _ in range(10))}"
+            )
             sedol_val = rng.choice(_sedol_pool)
-            figi_val  = rng.choice(_figi_pool)
+            figi_val = rng.choice(_figi_pool)
             cusip_val = e.variant_value
         else:
-            isin_val  = f"US{''.join(str(rng.randint(0,9)) for _ in range(10))}"
+            isin_val = f"US{''.join(str(rng.randint(0, 9)) for _ in range(10))}"
             sedol_val = rng.choice(_sedol_pool)
-            figi_val  = rng.choice(_figi_pool)
+            figi_val = rng.choice(_figi_pool)
             cusip_val = rng.choice(_cusip_pool)
             # Embed the actual test value in the name / description field
             name = f'"{e.embedded_text[:40]}"' if e.embedded_text else name
@@ -1858,23 +2243,29 @@ def format_risk_report(
     """
     lang = _lang_key(language)
     today = datetime.date.today()
-    rpt_id = f"RISK-{today.year}-Q{(today.month - 1) // 3 + 1}-{rng.randint(100, 999):03d}"
+    rpt_id = (
+        f"RISK-{today.year}-Q{(today.month - 1) // 3 + 1}-{rng.randint(100, 999):03d}"
+    )
 
     if lang == "fr-CA":
         hdr_title = "RAPPORT SOMMAIRE DES RISQUES DE CONTREPARTIE"
         prepared_by = "Groupe Gestion des risques de marché"
         classification = "CONFIDENTIEL — DIFFUSION RESTREINTE"
         counterparties = [
-            "Barclays Bank PLC", "Deutsche Bank AG", "Société Générale SA",
-            "BNP Paribas SA", "HSBC Holdings PLC", "UBS Group AG",
-            "Crédit Agricole CIB", "Natixis SA",
+            "Barclays Bank PLC",
+            "Deutsche Bank AG",
+            "Société Générale SA",
+            "BNP Paribas SA",
+            "HSBC Holdings PLC",
+            "UBS Group AG",
+            "Crédit Agricole CIB",
+            "Natixis SA",
         ]
         ratings = ["AAA", "AA+", "AA", "AA-", "A+", "A", "A-", "BBB+"]
         currencies = ["CAD", "USD", "EUR"]
         exposure_lbl = "Exposition courante"
         limit_lbl = "Limite approuvée"
         utilization_lbl = "Utilisation (%)"
-        netting_lbl = "Accord de compensation ISDA"
         collateral_lbl = "Garantie postée"
         acct_lbl = "Compte de règlement"
         sec1 = "SECTION 1 : SOMMAIRE EXÉCUTIF"
@@ -1885,16 +2276,20 @@ def format_risk_report(
         prepared_by = "Market Risk Management Group"
         classification = "CONFIDENTIAL — RESTRICTED DISTRIBUTION"
         counterparties = [
-            "Barclays Bank PLC", "Deutsche Bank AG", "Societe Generale SA",
-            "BNP Paribas SA", "HSBC Holdings PLC", "UBS Group AG",
-            "Credit Agricole CIB", "Natixis SA",
+            "Barclays Bank PLC",
+            "Deutsche Bank AG",
+            "Societe Generale SA",
+            "BNP Paribas SA",
+            "HSBC Holdings PLC",
+            "UBS Group AG",
+            "Credit Agricole CIB",
+            "Natixis SA",
         ]
         ratings = ["AAA", "AA+", "AA", "AA-", "A+", "A", "A-", "BBB+"]
         currencies = ["CAD", "USD", "EUR"]
         exposure_lbl = "Current Exposure"
         limit_lbl = "Approved Credit Limit"
         utilization_lbl = "Utilization (%)"
-        netting_lbl = "ISDA Netting Agreement"
         collateral_lbl = "Posted Collateral"
         acct_lbl = "Settlement Account"
         sec1 = "SECTION 1: EXECUTIVE SUMMARY"
@@ -1927,10 +2322,15 @@ def format_risk_report(
 
     for i, e in enumerate(entries, 1):
         cat = e.category.value
-        is_lei  = "lei"   in cat
-        is_iban = "iban"  in cat
-        is_acct = cat in ("account_balance", "bank_ref", "loan_number",
-                          "income_amount", "financial_amount")
+        is_lei = "lei" in cat
+        is_iban = "iban" in cat
+        is_acct = cat in (
+            "account_balance",
+            "bank_ref",
+            "loan_number",
+            "income_amount",
+            "financial_amount",
+        )
 
         cpty = rng.choice(counterparties)
         rating = rng.choice(ratings)
@@ -1945,7 +2345,9 @@ def format_risk_report(
         if is_lei:
             lines.append(f"    LEI:               {e.variant_value}")
         else:
-            lines.append(f"    LEI:               {'549300' + str(rng.randint(10**14, 10**15 - 1))[:14]}")
+            lines.append(
+                f"    LEI:               {'549300' + str(rng.randint(10**14, 10**15 - 1))[:14]}"
+            )
             if not is_iban and not is_acct:
                 lines.append(f"    Ref:               {e.embedded_text[:60]}")
         lines.append(f"    Credit Rating:     {rating}")
@@ -1968,11 +2370,17 @@ def format_risk_report(
     lines.append(f"  {sec3}")
     lines.append("  " + "─" * 50)
     if lang == "fr-CA":
-        lines.append("  Tous les accords de compensation sont régis par le contrat-cadre ISDA 2002.")
-        lines.append("  Les garanties sont soumises à un processus de valorisation quotidien.")
+        lines.append(
+            "  Tous les accords de compensation sont régis par le contrat-cadre ISDA 2002."
+        )
+        lines.append(
+            "  Les garanties sont soumises à un processus de valorisation quotidien."
+        )
     else:
         lines.append("  All netting agreements governed by ISDA 2002 Master Agreement.")
-        lines.append("  Collateral subject to daily mark-to-market valuation and margin calls.")
+        lines.append(
+            "  Collateral subject to daily mark-to-market valuation and margin calls."
+        )
     lines.append("")
     return lines
 
@@ -2002,11 +2410,11 @@ _FORMATTERS = {
     # fallbacks never route back to generic for lsh_corpus.
     "lsh_corpus": format_lsh_variants,
     # Capital markets templates (v3.25.0)
-    "trade_confirmation":    format_trade_confirmation,
-    "swift_mt103":           format_swift_mt103,
+    "trade_confirmation": format_trade_confirmation,
+    "swift_mt103": format_swift_mt103,
     "settlement_instruction": format_settlement_instruction,
-    "bloomberg_export":      format_bloomberg_export,
-    "risk_report":           format_risk_report,
+    "bloomberg_export": format_bloomberg_export,
+    "risk_report": format_risk_report,
 }
 
 
@@ -2030,8 +2438,11 @@ def apply_template(
     rng = random.Random(seed)
     try:
         return formatter(
-            entries, rng,
-            noise_level=noise_level, density=density, language=language,
+            entries,
+            rng,
+            noise_level=noise_level,
+            density=density,
+            language=language,
         )
     except TypeError:
         # Formatter predates the language kwarg — call without it.

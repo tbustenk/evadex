@@ -13,6 +13,7 @@ reject expressions with ranges, steps, or lists (``1-5``, ``*/15``,
 ``1,15``). Users who need those can run the exported cron line through
 system cron directly.
 """
+
 from __future__ import annotations
 
 import shlex
@@ -69,11 +70,11 @@ def parse_cron(expr: str) -> dict:
         try:
             v = int(part)
         except ValueError:
-            raise ValueError(f"cron field {field!r} must be an integer or '*', got {part!r}")
-        if not (lo <= v <= hi):
             raise ValueError(
-                f"cron {field!r} value {v} out of range [{lo}, {hi}]"
+                f"cron field {field!r} must be an integer or '*', got {part!r}"
             )
+        if not (lo <= v <= hi):
+            raise ValueError(f"cron {field!r} value {v} out of range [{lo}, {hi}]")
         if field == "weekday":
             # cron: Sun=0 or 7, Mon=1, ..., Sat=6  →  Python: Mon=0, ..., Sun=6
             out[field] = {_cron_weekday_to_python(v)}
@@ -95,7 +96,11 @@ def cron_matches(expr: str, when: datetime) -> bool:
     operates in UTC to keep behaviour reproducible across machines.
     """
     spec = parse_cron(expr)
-    w = when.astimezone(timezone.utc) if when.tzinfo else when.replace(tzinfo=timezone.utc)
+    w = (
+        when.astimezone(timezone.utc)
+        if when.tzinfo
+        else when.replace(tzinfo=timezone.utc)
+    )
     return (
         w.minute in spec["minute"]
         and w.hour in spec["hour"]
@@ -105,7 +110,9 @@ def cron_matches(expr: str, when: datetime) -> bool:
     )
 
 
-def is_due(profile: Profile, now: Optional[datetime] = None, window_minutes: int = 5) -> bool:
+def is_due(
+    profile: Profile, now: Optional[datetime] = None, window_minutes: int = 5
+) -> bool:
     """Return True if *profile*'s schedule fires within *window_minutes* of *now*.
 
     A cron entry firing at ``06:00`` will match any ``run-due`` invocation
@@ -206,7 +213,9 @@ def export_windows_task(profile: Profile, evadex_command: Optional[str] = None) 
         )
 
     start = f"2026-01-01T{hour:02d}:{minute:02d}:00"
-    invoke = evadex_command or f'"{sys.executable}" -m evadex profile run {profile.name}'
+    invoke = (
+        evadex_command or f'"{sys.executable}" -m evadex profile run {profile.name}'
+    )
     description = profile.description or f"evadex profile: {profile.name}"
     return _TASK_SCHEDULER_XML.format(
         description=escape(description),
@@ -281,9 +290,7 @@ def export_schedule(profile: Profile, fmt: str) -> str:
         return export_cron(profile)
     if fmt in ("windows-task", "windows_task", "task-scheduler"):
         return export_windows_task(profile)
-    raise ValueError(
-        f"Unknown schedule format {fmt!r}. Valid: cron, windows-task"
-    )
+    raise ValueError(f"Unknown schedule format {fmt!r}. Valid: cron, windows-task")
 
 
 def write_schedule_to_profile(profile: Profile, cron: str) -> Profile:

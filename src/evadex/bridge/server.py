@@ -21,6 +21,7 @@ CORS
 Open by default so a file:// or localhost-served siphon-c2 page can call
 the bridge. Restrict via ``EVADEX_BRIDGE_CORS_ORIGINS`` (comma list).
 """
+
 from __future__ import annotations
 
 import os
@@ -51,9 +52,29 @@ from evadex.bridge import runs as runs_mod
 # subprocess argv. Anything outside the allowlist is rejected with
 # 400 before the subprocess ever launches.
 _ALLOWED_FORMATS = {
-    "csv", "json", "xlsx", "docx", "pdf", "eml", "txt", "html",
-    "xml", "yaml", "yml", "sqlite", "parquet", "zip", "zip_nested",
-    "7z", "tar", "png", "jpg", "multi_barcode_png", "mbox", "ics", "warc",
+    "csv",
+    "json",
+    "xlsx",
+    "docx",
+    "pdf",
+    "eml",
+    "txt",
+    "html",
+    "xml",
+    "yaml",
+    "yml",
+    "sqlite",
+    "parquet",
+    "zip",
+    "zip_nested",
+    "7z",
+    "tar",
+    "png",
+    "jpg",
+    "multi_barcode_png",
+    "mbox",
+    "ics",
+    "warc",
 }
 _ALLOWED_LANGUAGES = {"en", "fr-CA"}
 _ALLOWED_TIERS = {"northam", "banking", "core", "regional", "full"}
@@ -86,10 +107,21 @@ _SAFE_CATEGORY_CHARS = set(
 # "all" is a UI convenience that maps to "no filter" (pass nothing).
 _ALLOWED_TECHNIQUE_GROUPS = {
     "all",
-    "unicode_encoding", "unicode_whitespace", "delimiter", "splitting",
-    "encoding", "encoding_chains", "leetspeak", "regional_digits",
-    "structural", "morse_code", "soft_hyphen", "bidirectional",
-    "archive_evasion", "barcode_evasion", "context_injection",
+    "unicode_encoding",
+    "unicode_whitespace",
+    "delimiter",
+    "splitting",
+    "encoding",
+    "encoding_chains",
+    "leetspeak",
+    "regional_digits",
+    "structural",
+    "morse_code",
+    "soft_hyphen",
+    "bidirectional",
+    "archive_evasion",
+    "barcode_evasion",
+    "context_injection",
     "entropy_evasion",
 }
 # Profile names follow the same opaque-identifier rule as templates:
@@ -131,8 +163,9 @@ def _validate_template(name: str) -> str:
             allowed="alphanumerics, '_', '-', '.'",
         )
     if name.startswith(".") or ".." in name:
-        raise _bad_request("template must not contain '..' or start with '.'",
-                           template=name)
+        raise _bad_request(
+            "template must not contain '..' or start with '.'", template=name
+        )
     return name
 
 
@@ -153,7 +186,7 @@ def _validate_scanner_label(label: str) -> str:
             max_len=_SCANNER_LABEL_MAX_LEN,
         )
     # Disallow every C0/C1 control char (including \x00, \r, \n, \x1b).
-    if any((ord(ch) < 0x20 or ord(ch) == 0x7f) for ch in label):
+    if any((ord(ch) < 0x20 or ord(ch) == 0x7F) for ch in label):
         raise _bad_request(
             "scanner_label contains control characters",
         )
@@ -168,11 +201,11 @@ def _validate_category_item(item: object, *, field: str) -> str:
     category ids never contain ``..`` or path separators.
     """
     if not isinstance(item, str) or not item:
-        raise _bad_request(f"{field} entries must be non-empty strings",
-                           entry=item)
+        raise _bad_request(f"{field} entries must be non-empty strings", entry=item)
     if len(item) > _CATEGORY_NAME_MAX_LEN:
-        raise _bad_request(f"{field} entry too long",
-                           entry=item, max_len=_CATEGORY_NAME_MAX_LEN)
+        raise _bad_request(
+            f"{field} entry too long", entry=item, max_len=_CATEGORY_NAME_MAX_LEN
+        )
     if any(ch not in _SAFE_CATEGORY_CHARS for ch in item):
         raise _bad_request(
             f"{field} contains disallowed characters",
@@ -208,6 +241,7 @@ def _validate_profile_name(name: str) -> str:
 # Version string surfaced in the OpenAPI doc + /healthz payload.
 try:
     from importlib.metadata import version, PackageNotFoundError
+
     try:
         _BRIDGE_VERSION = version("evadex")
     except PackageNotFoundError:
@@ -248,7 +282,9 @@ def _sibling_dlpscan_rs_paths() -> tuple[str, ...]:
     """
     evadex_pkg = Path(__file__).resolve()
     try:
-        workspace = evadex_pkg.parents[4]  # src/evadex/bridge/server.py -> repo's parent
+        workspace = evadex_pkg.parents[
+            4
+        ]  # src/evadex/bridge/server.py -> repo's parent
     except IndexError:
         return ()
     release_dir = workspace / "dlpscan-rs" / "target" / "release"
@@ -368,11 +404,13 @@ def create_app() -> FastAPI:
                 if int(cl) > _MAX_BODY_BYTES:
                     return JSONResponse(
                         status_code=413,
-                        content={"detail": {
-                            "error":   "request body too large",
-                            "limit":   _MAX_BODY_BYTES,
-                            "got":     int(cl),
-                        }},
+                        content={
+                            "detail": {
+                                "error": "request body too large",
+                                "limit": _MAX_BODY_BYTES,
+                                "got": int(cl),
+                            }
+                        },
                     )
             except ValueError:
                 return JSONResponse(
@@ -386,9 +424,9 @@ def create_app() -> FastAPI:
     def healthz() -> dict:
         exe = _resolve_siphon_exe()
         return {
-            "ok":           True,
-            "version":      _BRIDGE_VERSION,
-            "siphon_exe":   exe,
+            "ok": True,
+            "version": _BRIDGE_VERSION,
+            "siphon_exe": exe,
             "siphon_found": exe is not None,
         }
 
@@ -413,17 +451,18 @@ def create_app() -> FastAPI:
         # defence-in-depth against downstream evadex flag abuse rather
         # than against shell injection.
         for field, allowed in (
-            ("tier",            _ALLOWED_TIERS),
-            ("evasion_mode",    _ALLOWED_EVASION_MODES),
-            ("tool",            _ALLOWED_TOOLS),
-            ("cmd_style",       _ALLOWED_CMD_STYLES),
+            ("tier", _ALLOWED_TIERS),
+            ("evasion_mode", _ALLOWED_EVASION_MODES),
+            ("tool", _ALLOWED_TOOLS),
+            ("cmd_style", _ALLOWED_CMD_STYLES),
             ("technique_group", _ALLOWED_TECHNIQUE_GROUPS),
         ):
             val = body.get(field)
             if val is not None and val not in allowed:
                 raise _bad_request(
                     f"unsupported {field}",
-                    **{field: val}, allowed=sorted(allowed),
+                    **{field: val},
+                    allowed=sorted(allowed),
                 )
         # technique_groups: multi-select variant of technique_group.
         # Each entry validated against the same allowlist.
@@ -435,7 +474,8 @@ def create_app() -> FastAPI:
                 if not isinstance(g, str) or g not in _ALLOWED_TECHNIQUE_GROUPS:
                     raise _bad_request(
                         "unsupported technique_groups entry",
-                        entry=g, allowed=sorted(_ALLOWED_TECHNIQUE_GROUPS),
+                        entry=g,
+                        allowed=sorted(_ALLOWED_TECHNIQUE_GROUPS),
                     )
         # strategy: single-value shorthand from the UI ("text" / "file" /
         # "both"). Expanded to the CLI's repeated --strategy flag below.
@@ -450,8 +490,10 @@ def create_app() -> FastAPI:
         if body.get("exe") is not None and not isinstance(body["exe"], str):
             raise _bad_request("exe must be a string or null")
         if body.get("scanner_label") is not None:
-            body = {**body, "scanner_label":
-                    _validate_scanner_label(body["scanner_label"])}
+            body = {
+                **body,
+                "scanner_label": _validate_scanner_label(body["scanner_label"]),
+            }
         if body.get("categories") is not None:
             if not isinstance(body["categories"], list):
                 raise _bad_request("categories must be a list or null")
@@ -466,13 +508,14 @@ def create_app() -> FastAPI:
                 if not isinstance(s, str) or s not in _ALLOWED_STRATEGIES:
                     raise _bad_request(
                         "unsupported strategies entry",
-                        entry=s, allowed=sorted(_ALLOWED_STRATEGIES),
+                        entry=s,
+                        allowed=sorted(_ALLOWED_STRATEGIES),
                     )
 
         # Numeric validation: bounded 0–1 ratios and an optional % gate.
         for field, lo, hi in (
-            ("min_confidence",     0.0, 1.0),
-            ("evasion_rate",       0.0, 100.0),  # accepts 0–1 or 0–100
+            ("min_confidence", 0.0, 1.0),
+            ("evasion_rate", 0.0, 100.0),  # accepts 0–1 or 0–100
             ("min_detection_rate", 0.0, 100.0),
         ):
             val = body.get(field)
@@ -540,8 +583,8 @@ def create_app() -> FastAPI:
         return JSONResponse(
             status_code=202,
             content={
-                "run_id":     record["run_id"],
-                "status":     record["status"],
+                "run_id": record["run_id"],
+                "status": record["status"],
                 "started_at": record["started_at"],
             },
         )
@@ -565,7 +608,9 @@ def create_app() -> FastAPI:
         # 409 for runs that are already terminal — cancel is a no-op and we
         # tell the caller explicitly rather than silently returning 200.
         if rec.get("status") in (
-            runs_mod.STATUS_COMPLETED, runs_mod.STATUS_FAILED, runs_mod.STATUS_CANCELLED
+            runs_mod.STATUS_COMPLETED,
+            runs_mod.STATUS_FAILED,
+            runs_mod.STATUS_CANCELLED,
         ):
             raise HTTPException(
                 status_code=409,
@@ -614,32 +659,38 @@ def create_app() -> FastAPI:
         for name in list_profiles():
             try:
                 p = load_profile(name)
-                profiles.append({
-                    "name":        p.name,
-                    "description": p.description,
-                    "source":      "user",
-                    "tier":        p.scan.get("tier"),
-                    "tool":        p.scan.get("tool"),
-                    "created":     p.created,
-                    "last_run":    p.last_run,
-                })
+                profiles.append(
+                    {
+                        "name": p.name,
+                        "description": p.description,
+                        "source": "user",
+                        "tier": p.scan.get("tier"),
+                        "tool": p.scan.get("tool"),
+                        "created": p.created,
+                        "last_run": p.last_run,
+                    }
+                )
             except ProfileError:
                 profiles.append({"name": name, "source": "user", "error": "unreadable"})
 
         for name in list_builtin_profiles():
             try:
                 p = load_builtin_profile(name)
-                profiles.append({
-                    "name":        p.name,
-                    "description": p.description,
-                    "source":      "builtin",
-                    "tier":        p.scan.get("tier"),
-                    "tool":        p.scan.get("tool"),
-                    "created":     p.created,
-                    "last_run":    p.last_run,
-                })
+                profiles.append(
+                    {
+                        "name": p.name,
+                        "description": p.description,
+                        "source": "builtin",
+                        "tier": p.scan.get("tier"),
+                        "tool": p.scan.get("tool"),
+                        "created": p.created,
+                        "last_run": p.last_run,
+                    }
+                )
             except ProfileError:
-                profiles.append({"name": name, "source": "builtin", "error": "unreadable"})
+                profiles.append(
+                    {"name": name, "source": "builtin", "error": "unreadable"}
+                )
 
         return {"profiles": profiles, "total": len(profiles)}
 
@@ -651,7 +702,8 @@ def create_app() -> FastAPI:
         # caller opened a file-read primitive — any authenticated client
         # could point us at /etc/passwd and let the parser try it.
         path = os.environ.get(
-            "EVADEX_BRIDGE_AUDIT_LOG", metrics_mod.DEFAULT_AUDIT_LOG,
+            "EVADEX_BRIDGE_AUDIT_LOG",
+            metrics_mod.DEFAULT_AUDIT_LOG,
         )
         data = metrics_mod.build_metrics(repo_root=_repo_root(), audit_log=path)
         # Surface scanner-binary status so the UI can show "siphon not
@@ -685,20 +737,23 @@ def create_app() -> FastAPI:
         if not isinstance(body, dict):
             raise _bad_request("request body must be a JSON object")
 
-        fmt = (body.get("format") or "csv")
+        fmt = body.get("format") or "csv"
         if not isinstance(fmt, str):
             raise _bad_request("format must be a string", format=fmt)
         fmt = fmt.lower()
         if fmt not in _ALLOWED_FORMATS:
             raise _bad_request(
-                "unsupported format", format=fmt,
+                "unsupported format",
+                format=fmt,
                 allowed=sorted(_ALLOWED_FORMATS),
             )
 
         tier = body.get("tier")
         if tier is not None and tier not in _ALLOWED_TIERS:
             raise _bad_request(
-                "unsupported tier", tier=tier, allowed=sorted(_ALLOWED_TIERS),
+                "unsupported tier",
+                tier=tier,
+                allowed=sorted(_ALLOWED_TIERS),
             )
 
         category = body.get("category")
@@ -719,7 +774,8 @@ def create_app() -> FastAPI:
                 evasion_rate = float(evasion_rate)
             except (TypeError, ValueError):
                 raise _bad_request(
-                    "evasion_rate must be numeric", evasion_rate=evasion_rate,
+                    "evasion_rate must be numeric",
+                    evasion_rate=evasion_rate,
                 )
             if evasion_rate > 1.0:
                 # C2 slider sends 0–100.
@@ -729,7 +785,8 @@ def create_app() -> FastAPI:
         language = body.get("language") or "en"
         if language not in _ALLOWED_LANGUAGES:
             raise _bad_request(
-                "unsupported language", language=language,
+                "unsupported language",
+                language=language,
                 allowed=sorted(_ALLOWED_LANGUAGES),
             )
 
@@ -747,23 +804,36 @@ def create_app() -> FastAPI:
         # success path hands cleanup to a BackgroundTask; the failure
         # paths must unlink explicitly so we don't leak on every 500.
         ext_map = {
-            "sqlite": "db", "multi_barcode_png": "png", "zip_nested": "zip",
+            "sqlite": "db",
+            "multi_barcode_png": "png",
+            "zip_nested": "zip",
         }
         ext = ext_map.get(fmt, fmt)
         tmp = tempfile.NamedTemporaryFile(
-            prefix="evadex-bridge-", suffix=f".{ext}", delete=False,
+            prefix="evadex-bridge-",
+            suffix=f".{ext}",
+            delete=False,
         )
         tmp.close()
         out_path = Path(tmp.name)
 
         argv: list[str] = [
-            sys.executable, "-m", "evadex", "generate",
-            "--format", fmt,
-            "--count", str(count),
-            "--evasion-rate", f"{evasion_rate:.3f}",
-            "--language", language,
-            "--template", template,
-            "--output", str(out_path),
+            sys.executable,
+            "-m",
+            "evadex",
+            "generate",
+            "--format",
+            fmt,
+            "--count",
+            str(count),
+            "--evasion-rate",
+            f"{evasion_rate:.3f}",
+            "--language",
+            language,
+            "--template",
+            template,
+            "--output",
+            str(out_path),
         ]
         if tier and not evadex_cats:
             argv += ["--tier", tier]
@@ -840,7 +910,9 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=404, detail=f"unknown run_id {run_id!r}")
 
         if run_record.get("status") != "completed":
-            raise _bad_request(f"run {run_id} is not completed (status: {run_record.get('status')})")
+            raise _bad_request(
+                f"run {run_id} is not completed (status: {run_record.get('status')})"
+            )
 
         # Find the scan output file in the results directory
         # Look for results/scans/scan_*.json or similar patterns
@@ -848,11 +920,7 @@ def create_app() -> FastAPI:
         scan_files = []
 
         # Check common scan output locations
-        scan_dirs = [
-            repo_root / "results" / "scans",
-            repo_root / "results",
-            repo_root
-        ]
+        scan_dirs = [repo_root / "results" / "scans", repo_root / "results", repo_root]
 
         for scan_dir in scan_dirs:
             if scan_dir.is_dir():
@@ -867,8 +935,8 @@ def create_app() -> FastAPI:
                 detail={
                     "error": "scan output file not found",
                     "run_id": run_id,
-                    "searched_dirs": [str(d) for d in scan_dirs if d.exists()]
-                }
+                    "searched_dirs": [str(d) for d in scan_dirs if d.exists()],
+                },
             )
 
         # Resolve and boundary-check: the glob result must stay inside repo_root
@@ -892,9 +960,13 @@ def create_app() -> FastAPI:
 
         # Build evadex report command
         argv = [
-            sys.executable, "-m", "evadex", "report",
+            sys.executable,
+            "-m",
+            "evadex",
+            "report",
             str(scan_file),
-            "--output", str(report_path)
+            "--output",
+            str(report_path),
         ]
 
         try:

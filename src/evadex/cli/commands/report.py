@@ -22,6 +22,7 @@ background, JetBrains Mono for tabular data, Inter for prose. The
 resulting report looks like a single deliverable whether it came from
 evadex or from the C2 dashboard.
 """
+
 from __future__ import annotations
 
 import base64
@@ -151,9 +152,7 @@ def _load_json(path: Path) -> dict:
         )
         raise SystemExit(1) from None
     except OSError as exc:
-        err_console.print(
-            f"[red]Cannot read '{path}': {exc.strerror}.[/red]"
-        )
+        err_console.print(f"[red]Cannot read '{path}': {exc.strerror}.[/red]")
         raise SystemExit(1) from None
 
 
@@ -363,9 +362,7 @@ def _falsepos_section(fp: dict) -> str:
     table = (
         "<table><thead><tr><th>Category</th>"
         "<th class='num'>Tested</th><th class='num'>Flagged</th>"
-        "<th>FP Rate</th></tr></thead><tbody>"
-        + "".join(rows)
-        + "</tbody></table>"
+        "<th>FP Rate</th></tr></thead><tbody>" + "".join(rows) + "</tbody></table>"
     )
     return cards + table
 
@@ -386,13 +383,15 @@ def _recommendations(scan: dict, fp: dict | None) -> str:
     weak_cats.sort(key=lambda t: t[1])
     if weak_cats:
         top = ", ".join(f"{c} ({p}%)" for c, p in weak_cats[:5])
-        recs.append((
-            "Prioritise detection rules for weak categories",
-            f"The following categories detected under 50 %: {top}. "
-            f"Adding pattern or keyword-proximity rules here will give "
-            f"the biggest coverage lift per engineering hour.",
-            "bad" if weak_cats[0][1] < 20 else "warn",
-        ))
+        recs.append(
+            (
+                "Prioritise detection rules for weak categories",
+                f"The following categories detected under 50 %: {top}. "
+                f"Adding pattern or keyword-proximity rules here will give "
+                f"the biggest coverage lift per engineering hour.",
+                "bad" if weak_cats[0][1] < 20 else "warn",
+            )
+        )
 
     # Technique-level. Apply a minimum-sample floor so single-sample
     # "100 % evasion" techniques (which are statistical noise under
@@ -410,44 +409,52 @@ def _recommendations(scan: dict, fp: dict | None) -> str:
     evading_tech.sort(key=lambda t: (-t[1], -t[2]))
     if evading_tech:
         top = ", ".join(f"{t} ({p}%, n={n})" for t, p, n in evading_tech[:5])
-        recs.append((
-            "Address the top evasion techniques",
-            f"These techniques bypassed detection ≥ 75 % of the time "
-            f"(minimum {_MIN_SAMPLES} samples): {top}. Most are solved "
-            f"by NFKC-normalising input before regex matching and by "
-            f"decoding nested encodings two layers deep.",
-            "warn",
-        ))
+        recs.append(
+            (
+                "Address the top evasion techniques",
+                f"These techniques bypassed detection ≥ 75 % of the time "
+                f"(minimum {_MIN_SAMPLES} samples): {top}. Most are solved "
+                f"by NFKC-normalising input before regex matching and by "
+                f"decoding nested encodings two layers deep.",
+                "warn",
+            )
+        )
 
     if detection >= 95 and not evading_tech:
-        recs.append((
-            "Maintain current baseline",
-            "Detection is strong across categories and techniques. "
-            "Re-run this report after scanner rule changes to confirm "
-            "no regressions.",
-            "good",
-        ))
+        recs.append(
+            (
+                "Maintain current baseline",
+                "Detection is strong across categories and techniques. "
+                "Re-run this report after scanner rule changes to confirm "
+                "no regressions.",
+                "good",
+            )
+        )
 
     if fp is not None:
         rate = fp.get("overall_false_positive_rate", 0.0)
         if rate >= 15:
-            recs.append((
-                "Reduce false-positive noise",
-                f"The scanner flagged {rate}% of random synthetic "
-                f"values. Tightening keyword-proximity thresholds or "
-                f"adding negative-lookahead anchors in the top-offending "
-                f"categories will reduce operational noise without "
-                f"hurting evasion detection.",
-                "warn" if rate < 25 else "bad",
-            ))
+            recs.append(
+                (
+                    "Reduce false-positive noise",
+                    f"The scanner flagged {rate}% of random synthetic "
+                    f"values. Tightening keyword-proximity thresholds or "
+                    f"adding negative-lookahead anchors in the top-offending "
+                    f"categories will reduce operational noise without "
+                    f"hurting evasion detection.",
+                    "warn" if rate < 25 else "bad",
+                )
+            )
 
     if not recs:
-        recs.append((
-            "Nothing critical",
-            "No material issues were identified. Schedule a re-run "
-            "whenever the scanner ruleset is updated.",
-            "good",
-        ))
+        recs.append(
+            (
+                "Nothing critical",
+                "No material issues were identified. Schedule a re-run "
+                "whenever the scanner ruleset is updated.",
+                "good",
+            )
+        )
 
     items = "".join(
         f'<li class="{cls}"><strong>{_escape(title)}</strong><br>{_escape(body)}</li>'
@@ -467,10 +474,7 @@ def _render_html(scan: dict, falsepos: dict | None, raw_combined: dict) -> str:
 
     fp_section = ""
     if falsepos is not None:
-        fp_section = (
-            '<h2>False Positive Rate</h2>'
-            + _falsepos_section(falsepos)
-        )
+        fp_section = "<h2>False Positive Rate</h2>" + _falsepos_section(falsepos)
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -539,7 +543,8 @@ window.__evadexRawJson = "{raw_b64}";
     type=click.Path(exists=True, dir_okay=False),
 )
 @click.option(
-    "--output", "-o",
+    "--output",
+    "-o",
     required=True,
     type=click.Path(),
     help="Output HTML file path.",
@@ -591,6 +596,5 @@ def report(inputs: tuple[str, ...], output: str) -> None:
     out_path.write_text(html, encoding="utf-8")
     size_kb = out_path.stat().st_size / 1024
     err_console.print(
-        f"[green]✓ Report written:[/green] {out_path} "
-        f"([dim]{size_kb:.1f} KB[/dim])"
+        f"[green]✓ Report written:[/green] {out_path} ([dim]{size_kb:.1f} KB[/dim])"
     )

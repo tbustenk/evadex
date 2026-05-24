@@ -17,27 +17,27 @@ class SplittingGenerator(BaseVariantGenerator):
         mid = len(value) // 2
 
         yield self._make_variant(
-            value[:mid] + '\n' + value[mid:],
+            value[:mid] + "\n" + value[mid:],
             "mid_line_break",
             "Line break injected at midpoint",
         )
         yield self._make_variant(
-            '<!---->'.join(value),
+            "<!---->".join(value),
             "html_comment_injection",
             "HTML comment injected between every character",
         )
         yield self._make_variant(
-            '/**/'.join(value),
+            "/**/".join(value),
             "css_comment_injection",
             "CSS comment injected between every character",
         )
         yield self._make_variant(
-            NOISE[:20] + ' ' + value,
+            NOISE[:20] + " " + value,
             "prefix_noise",
             "Noise text prepended",
         )
         yield self._make_variant(
-            value + ' ' + NOISE[:20],
+            value + " " + NOISE[:20],
             "suffix_noise",
             "Noise text appended",
         )
@@ -47,22 +47,22 @@ class SplittingGenerator(BaseVariantGenerator):
             "Value split across two JSON fields",
         )
         yield self._make_variant(
-            ' '.join(value),
+            " ".join(value),
             "whitespace_padding",
             "Space inserted between every character",
         )
         yield self._make_variant(
-            f'<data>{html.escape(value)}</data>',
+            f"<data>{html.escape(value)}</data>",
             "xml_tag_injection",
             "Value wrapped in XML data tag",
         )
         yield self._make_variant(
-            NOISE_FR_CA[:30] + ' ' + value,
+            NOISE_FR_CA[:30] + " " + value,
             "fr_ca_prefix_noise",
             "French Canadian noise text prepended",
         )
         yield self._make_variant(
-            value + ' ' + NOISE_FR_CA[:30],
+            value + " " + NOISE_FR_CA[:30],
             "fr_ca_suffix_noise",
             "French Canadian noise text appended",
         )

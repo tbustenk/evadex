@@ -2,6 +2,7 @@
 
 Presidio Analyzer default endpoint: http://localhost:5002
 """
+
 import httpx
 from typing import Optional
 from evadex.adapters.base import AdapterError

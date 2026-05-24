@@ -1,10 +1,11 @@
 """Synthetic generators for Canadian corporate identifiers.
 
-  Business Number (BN)      — 9 digits (issued by CRA)
-  GST/HST registration      — 9-digit BN + RT + 4 digits (e.g. 123456789RT0001)
-  Transit/routing number    — NNNNN-NNN (5-digit branch + 3-digit institution)
-  Bank account              — 7–12 random digits
+Business Number (BN)      — 9 digits (issued by CRA)
+GST/HST registration      — 9-digit BN + RT + 4 digits (e.g. 123456789RT0001)
+Transit/routing number    — NNNNN-NNN (5-digit branch + 3-digit institution)
+Bank account              — 7–12 random digits
 """
+
 from __future__ import annotations
 
 import random

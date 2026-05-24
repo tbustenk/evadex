@@ -5,6 +5,7 @@ True MSG binary format requires the compoundfiles or extract-msg library
 which adds complexity for minimal DLP-testing benefit — the textual content
 is identical and most DLP scanners extract text the same way.
 """
+
 from __future__ import annotations
 
 from evadex.generate.generator import GeneratedEntry

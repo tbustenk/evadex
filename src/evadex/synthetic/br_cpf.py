@@ -9,6 +9,7 @@ Two check digits, computed sequentially:
 * DV2: ``Σ digit[i] · (11 − i)`` for i in 0..9 (where digit[9] = DV1),
   mod 11. If <2, DV2 = 0; else DV2 = 11 − rem.
 """
+
 from __future__ import annotations
 
 import random

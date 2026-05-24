@@ -9,6 +9,7 @@ Phase 3 of the GAN-inspired design:
   Phase 2: fix suggestions + regression tests
   Phase 3: false positive measurement (this command)
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -66,14 +67,24 @@ async def _scan_values(
         async with sem:
             submit_text = wrap_with_context(cat_name, v) if wrap_context else v
             p = Payload(submit_text, dummy_cat, f"falsepos:{cat_name}")
-            var = Variant(submit_text, "falsepos", "falsepos_value", "False positive test value", strategy="text")
+            var = Variant(
+                submit_text,
+                "falsepos",
+                "falsepos_value",
+                "False positive test value",
+                strategy="text",
+            )
             try:
                 result = await adapter.submit(p, var)
             except Exception:
                 return v, False
             if not strict_category:
                 return v, result.detected
-            matches = result.raw_response.get("matches", []) if isinstance(result.raw_response, dict) else []
+            matches = (
+                result.raw_response.get("matches", [])
+                if isinstance(result.raw_response, dict)
+                else []
+            )
             flagged = any(is_match_relevant(cat_name, m) for m in matches)
             return v, flagged
 
@@ -81,50 +92,123 @@ async def _scan_values(
 
 
 @click.command("falsepos")
-@click.option("--tool", "-t", default="dlpscan-cli", show_default=True,
-              help="DLP adapter to use.")
-@click.option("--category", "categories", multiple=True, type=_CATEGORY_CHOICES,
-              help="Category to test. Repeat for multiple. Default: all supported.")
-@click.option("--count", default=100, show_default=True, type=int,
-              help="Number of false positive values to generate per category.")
-@click.option("--format", "-f", "fmt", type=click.Choice(["json", "table"]),
-              default="table", show_default=True,
-              help="Output format. 'table' prints a summary to stdout; "
-                   "'json' writes the full report.")
-@click.option("--output", "-o", default=None, metavar="PATH",
-              help="Write JSON report to file instead of stdout.")
-@click.option("--url", default="http://localhost:8080", show_default=True,
-              help="Base URL for HTTP-based adapters.")
-@click.option("--exe", "executable", default=None,
-              help="Path to scanner executable (dlpscan-cli / siphon-cli).")
-@click.option("--cmd-style", "cmd_style", default=None,
-              type=click.Choice(["python", "rust", "binary", "cargo"]),
-              help="Command format. dlpscan-cli: 'python' or 'rust'. "
-                   "siphon-cli: 'binary' or 'cargo'.")
-@click.option("--timeout", default=30.0, show_default=True, type=float,
-              help="Request timeout in seconds.")
-@click.option("--concurrency", default=5, show_default=True, type=int,
-              help="Max concurrent scanner requests.")
-@click.option("--seed", default=None, type=int,
-              help="RNG seed for reproducible false positive values.")
-@click.option("--require-context", "require_context", is_flag=True, default=False,
-              help="Pass --require-context to dlpscan-rs: only flag matches when surrounding "
-                   "keywords are present. Requires --cmd-style rust.")
-@click.option("--wrap-context", "wrap_context", is_flag=True, default=False,
-              help="Embed each invalid value in a realistic category-specific sentence before "
-                   "submitting. Simulates how sensitive data appears in real documents. "
-                   "Use with --require-context for the most realistic false positive measurement.")
-@click.option("--no-strict-category", "no_strict_category", is_flag=True, default=False,
-              help="Disable category-relevance filtering. By default a match only counts as "
-                   "an FP for the tested category when the scanner's sub_category is on the "
-                   "relevance list (e.g. 'USA SSN' for ssn). Pass --no-strict-category to "
-                   "revert to the legacy 'any match counts' semantics — useful when probing "
-                   "what the scanner actually fires on.")
-@click.option("--c2-url", "c2_url", default=None, envvar="EVADEX_C2_URL",
-              help="Siphon-C2 management-plane URL. The false-positive report is pushed "
-                   "to POST /v1/evadex/falsepos. Failures log a warning; never fail the run.")
-@click.option("--c2-key", "c2_key", default=None, envvar="EVADEX_C2_KEY",
-              help="API key sent as 'x-api-key' to Siphon-C2. Falls back to EVADEX_C2_KEY.")
+@click.option(
+    "--tool", "-t", default="dlpscan-cli", show_default=True, help="DLP adapter to use."
+)
+@click.option(
+    "--category",
+    "categories",
+    multiple=True,
+    type=_CATEGORY_CHOICES,
+    help="Category to test. Repeat for multiple. Default: all supported.",
+)
+@click.option(
+    "--count",
+    default=100,
+    show_default=True,
+    type=int,
+    help="Number of false positive values to generate per category.",
+)
+@click.option(
+    "--format",
+    "-f",
+    "fmt",
+    type=click.Choice(["json", "table"]),
+    default="table",
+    show_default=True,
+    help="Output format. 'table' prints a summary to stdout; "
+    "'json' writes the full report.",
+)
+@click.option(
+    "--output",
+    "-o",
+    default=None,
+    metavar="PATH",
+    help="Write JSON report to file instead of stdout.",
+)
+@click.option(
+    "--url",
+    default="http://localhost:8080",
+    show_default=True,
+    help="Base URL for HTTP-based adapters.",
+)
+@click.option(
+    "--exe",
+    "executable",
+    default=None,
+    help="Path to scanner executable (dlpscan-cli / siphon-cli).",
+)
+@click.option(
+    "--cmd-style",
+    "cmd_style",
+    default=None,
+    type=click.Choice(["python", "rust", "binary", "cargo"]),
+    help="Command format. dlpscan-cli: 'python' or 'rust'. "
+    "siphon-cli: 'binary' or 'cargo'.",
+)
+@click.option(
+    "--timeout",
+    default=30.0,
+    show_default=True,
+    type=float,
+    help="Request timeout in seconds.",
+)
+@click.option(
+    "--concurrency",
+    default=5,
+    show_default=True,
+    type=int,
+    help="Max concurrent scanner requests.",
+)
+@click.option(
+    "--seed",
+    default=None,
+    type=int,
+    help="RNG seed for reproducible false positive values.",
+)
+@click.option(
+    "--require-context",
+    "require_context",
+    is_flag=True,
+    default=False,
+    help="Pass --require-context to dlpscan-rs: only flag matches when surrounding "
+    "keywords are present. Requires --cmd-style rust.",
+)
+@click.option(
+    "--wrap-context",
+    "wrap_context",
+    is_flag=True,
+    default=False,
+    help="Embed each invalid value in a realistic category-specific sentence before "
+    "submitting. Simulates how sensitive data appears in real documents. "
+    "Use with --require-context for the most realistic false positive measurement.",
+)
+@click.option(
+    "--no-strict-category",
+    "no_strict_category",
+    is_flag=True,
+    default=False,
+    help="Disable category-relevance filtering. By default a match only counts as "
+    "an FP for the tested category when the scanner's sub_category is on the "
+    "relevance list (e.g. 'USA SSN' for ssn). Pass --no-strict-category to "
+    "revert to the legacy 'any match counts' semantics — useful when probing "
+    "what the scanner actually fires on.",
+)
+@click.option(
+    "--c2-url",
+    "c2_url",
+    default=None,
+    envvar="EVADEX_C2_URL",
+    help="Siphon-C2 management-plane URL. The false-positive report is pushed "
+    "to POST /v1/evadex/falsepos. Failures log a warning; never fail the run.",
+)
+@click.option(
+    "--c2-key",
+    "c2_key",
+    default=None,
+    envvar="EVADEX_C2_KEY",
+    help="API key sent as 'x-api-key' to Siphon-C2. Falls back to EVADEX_C2_KEY.",
+)
 def falsepos(
     tool: str,
     categories: tuple[str, ...],
@@ -210,7 +294,10 @@ def falsepos(
 
         scan_pairs = asyncio.run(
             _scan_values(
-                adapter, cat_name, values, concurrency,
+                adapter,
+                cat_name,
+                values,
+                concurrency,
                 wrap_context=wrap_context,
                 strict_category=not no_strict_category,
             )
@@ -259,10 +346,15 @@ def falsepos(
 
     # ── Archive: save timestamped copy and append to audit.jsonl ─────────────
     from evadex.archive import (
-        archive_falsepos, append_results_audit,
-        build_falsepos_audit_entry, get_commit_hash,
+        archive_falsepos,
+        append_results_audit,
+        build_falsepos_audit_entry,
+        get_commit_hash,
     )
-    _scanner_label = f"{tool}:{mode_label}" if mode_label != "baseline (no context)" else tool
+
+    _scanner_label = (
+        f"{tool}:{mode_label}" if mode_label != "baseline (no context)" else tool
+    )
     _archive_path = archive_falsepos(report, scanner_label=_scanner_label)
     _commit = get_commit_hash()
     _audit_entry = build_falsepos_audit_entry(
@@ -279,6 +371,7 @@ def falsepos(
 
     # ── Siphon-C2 push ────────────────────────────────────────────────────────
     from evadex.reporters.c2_reporter import push_falsepos_report, resolve_c2_config
+
     _c2_url, _c2_key = resolve_c2_config(c2_url, c2_key)
     if _c2_url:
         push_falsepos_report(_c2_url, _c2_key, report=report)

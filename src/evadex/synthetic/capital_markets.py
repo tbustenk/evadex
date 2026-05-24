@@ -7,6 +7,7 @@ All structured formats implement their published checksum algorithms so
 generated values are structurally valid — they pass pattern + check-digit
 tests that a DLP scanner would apply.
 """
+
 from __future__ import annotations
 
 import random
@@ -21,6 +22,7 @@ from evadex.synthetic.validators import luhn_check_digit
 
 # ── Shared helpers ─────────────────────────────────────────────────────────────
 
+
 def _char_value(ch: str) -> int:
     """Map a CUSIP/SEDOL/ISIN character to its numeric value."""
     ch = ch.upper()
@@ -33,6 +35,7 @@ def _char_value(ch: str) -> int:
 
 # ── CUSIP check digit (ANSI X9.6) ─────────────────────────────────────────────
 
+
 def _cusip_check(chars: str) -> str:
     """Return the CUSIP check digit for an 8-character issuer+issue string.
 
@@ -43,7 +46,7 @@ def _cusip_check(chars: str) -> str:
     total = 0
     for i, ch in enumerate(chars[:8]):
         v = _char_value(ch)
-        if i % 2 == 1:          # even position (1-indexed) → double
+        if i % 2 == 1:  # even position (1-indexed) → double
             v *= 2
         total += v // 10 + v % 10
     return str((10 - total % 10) % 10)
@@ -51,14 +54,14 @@ def _cusip_check(chars: str) -> str:
 
 # Well-known issuer codes (first 6 chars of CUSIP) for common equity.
 _CUSIP_ISSUERS = [
-    "037833",   # Apple Inc
-    "46625H",   # JPMorgan Chase
-    "78008T",   # Royal Bank of Canada
-    "38141G",   # Goldman Sachs
-    "17275R",   # Citigroup
-    "742718",   # Procter & Gamble
-    "023135",   # Amazon
-    "594918",   # Microsoft
+    "037833",  # Apple Inc
+    "46625H",  # JPMorgan Chase
+    "78008T",  # Royal Bank of Canada
+    "38141G",  # Goldman Sachs
+    "17275R",  # Citigroup
+    "742718",  # Procter & Gamble
+    "023135",  # Amazon
+    "594918",  # Microsoft
 ]
 
 
@@ -126,8 +129,7 @@ def _isin_check(prefix_11: str) -> str:
     concatenates them, then applies the Luhn algorithm.
     """
     digits = "".join(
-        str(_char_value(ch)) if ch.isalpha() else ch
-        for ch in prefix_11.upper()
+        str(_char_value(ch)) if ch.isalpha() else ch for ch in prefix_11.upper()
     )
     return str(luhn_check_digit([int(d) for d in digits]))
 
@@ -135,8 +137,9 @@ def _isin_check(prefix_11: str) -> str:
 def _gen_isin(rng: random.Random) -> str:
     country = rng.choice(_ISIN_COUNTRIES)
     # 9-char NSIN: mix of digits (for US/CA/AU equity CUSIPs) and alphanumeric
-    nsin = "".join(rng.choice(string.digits + "ABCDEFGHJKLMNPQRSTVWXYZ")
-                   for _ in range(9))
+    nsin = "".join(
+        rng.choice(string.digits + "ABCDEFGHJKLMNPQRSTVWXYZ") for _ in range(9)
+    )
     prefix = country + nsin
     return prefix + _isin_check(prefix)
 
@@ -151,8 +154,7 @@ _FIGI_BODY_CHARS = "BCDFGHJKLMNPQRSTVWXYZ0123456789"
 def _figi_check(body_11: str) -> str:
     """Return the FIGI check digit for the 11-character BBG+body prefix."""
     digits = "".join(
-        str(_char_value(ch)) if ch.isalpha() else ch
-        for ch in body_11.upper()
+        str(_char_value(ch)) if ch.isalpha() else ch for ch in body_11.upper()
     )
     return str(luhn_check_digit([int(d) for d in digits]))
 
@@ -195,11 +197,32 @@ def _gen_lei(rng: random.Random) -> str:
 # Common equity tickers across major exchanges.  Dollar-prefixed form is used
 # in social/messaging contexts; bare form appears in structured data.
 _TICKER_SEEDS = [
-    "$AAPL", "$MSFT", "$AMZN", "$GOOGL", "$META", "$NVDA", "$TSLA",
-    "$JPM", "$BAC", "$WFC", "$GS", "$MS", "$C",
-    "$BRK.A", "$BRK.B",
-    "AAPL", "MSFT", "JPM", "AMZN", "RY.TO", "TD.TO", "BNS.TO",
-    "BP.L", "HSBA.L", "LLOY.L", "VOD.L",
+    "$AAPL",
+    "$MSFT",
+    "$AMZN",
+    "$GOOGL",
+    "$META",
+    "$NVDA",
+    "$TSLA",
+    "$JPM",
+    "$BAC",
+    "$WFC",
+    "$GS",
+    "$MS",
+    "$C",
+    "$BRK.A",
+    "$BRK.B",
+    "AAPL",
+    "MSFT",
+    "JPM",
+    "AMZN",
+    "RY.TO",
+    "TD.TO",
+    "BNS.TO",
+    "BP.L",
+    "HSBA.L",
+    "LLOY.L",
+    "VOD.L",
 ]
 
 
@@ -211,26 +234,26 @@ def _gen_ticker(rng: random.Random) -> str:
 
 # RIC = ticker + "." + exchange suffix.
 _RIC_MAP = [
-    ("AAPL", "O"),   # Nasdaq
+    ("AAPL", "O"),  # Nasdaq
     ("MSFT", "O"),
     ("AMZN", "O"),
     ("NVDA", "O"),
     ("TSLA", "O"),
-    ("JPM",  "N"),   # NYSE
-    ("BAC",  "N"),
-    ("GS",   "N"),
-    ("MS",   "N"),
-    ("C",    "N"),
-    ("RY",   "TO"),  # Toronto
-    ("TD",   "TO"),
-    ("BNS",  "TO"),
-    ("BP",   "L"),   # London
+    ("JPM", "N"),  # NYSE
+    ("BAC", "N"),
+    ("GS", "N"),
+    ("MS", "N"),
+    ("C", "N"),
+    ("RY", "TO"),  # Toronto
+    ("TD", "TO"),
+    ("BNS", "TO"),
+    ("BP", "L"),  # London
     ("HSBA", "L"),
-    ("VOD",  "L"),
-    ("ADS",  "DE"),  # Frankfurt Xetra
-    ("BMW",  "DE"),
-    ("SAN",  "MC"),  # Madrid
-    ("BNP",  "PA"),  # Paris
+    ("VOD", "L"),
+    ("ADS", "DE"),  # Frankfurt Xetra
+    ("BMW", "DE"),
+    ("SAN", "MC"),  # Madrid
+    ("BNP", "PA"),  # Paris
 ]
 
 
@@ -285,6 +308,7 @@ def _gen_mifid(rng: random.Random) -> str:
 
 
 # ── Synthetic generator classes ────────────────────────────────────────────────
+
 
 @register_synthetic(PayloadCategory.CUSIP_NUM)
 class CUSIPSyntheticGenerator(BaseSyntheticGenerator):

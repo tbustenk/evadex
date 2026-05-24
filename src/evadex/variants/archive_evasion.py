@@ -28,6 +28,7 @@ Techniques
     different container formats stacked. Tests cross-format extractor
     chaining.
 """
+
 from __future__ import annotations
 
 from typing import Iterator

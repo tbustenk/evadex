@@ -6,6 +6,7 @@ def register_generator(name: str):
     def decorator(cls):
         _GENERATORS[name] = cls
         return cls
+
     return decorator
 
 
@@ -13,6 +14,7 @@ def register_adapter(name: str):
     def decorator(cls):
         _ADAPTERS[name] = cls
         return cls
+
     return decorator
 
 
@@ -33,26 +35,28 @@ def all_generators():
 
 
 def load_builtins():
-    # Import all variant modules so their @register_generator decorators fire
-    import evadex.variants.unicode_encoding
-    import evadex.variants.delimiter
-    import evadex.variants.splitting
-    import evadex.variants.leetspeak
-    import evadex.variants.regional_digits
-    import evadex.variants.structural
-    import evadex.variants.encoding
-    import evadex.variants.encoding_chains
-    import evadex.variants.context_injection
-    import evadex.variants.unicode_whitespace
-    import evadex.variants.bidirectional
-    import evadex.variants.soft_hyphen
-    import evadex.variants.morse_code
-    import evadex.variants.entropy_evasion
-    import evadex.variants.barcode_evasion
-    import evadex.variants.archive_evasion
-    # Import adapters
-    import evadex.adapters.dlpscan.adapter
-    import evadex.adapters.dlpscan_cli.adapter
-    import evadex.adapters.presidio.adapter
-    import evadex.adapters.siphon.adapter
-    import evadex.adapters.siphon_cli.adapter
+    # The imports below are intentional side-effect imports: each module
+    # registers itself via @register_generator / @register_adapter when
+    # imported. Do NOT remove the noqa markers — ruff/pyflakes will flag
+    # them as unused otherwise.
+    import evadex.variants.unicode_encoding  # noqa: F401
+    import evadex.variants.delimiter  # noqa: F401
+    import evadex.variants.splitting  # noqa: F401
+    import evadex.variants.leetspeak  # noqa: F401
+    import evadex.variants.regional_digits  # noqa: F401
+    import evadex.variants.structural  # noqa: F401
+    import evadex.variants.encoding  # noqa: F401
+    import evadex.variants.encoding_chains  # noqa: F401
+    import evadex.variants.context_injection  # noqa: F401
+    import evadex.variants.unicode_whitespace  # noqa: F401
+    import evadex.variants.bidirectional  # noqa: F401
+    import evadex.variants.soft_hyphen  # noqa: F401
+    import evadex.variants.morse_code  # noqa: F401
+    import evadex.variants.entropy_evasion  # noqa: F401
+    import evadex.variants.barcode_evasion  # noqa: F401
+    import evadex.variants.archive_evasion  # noqa: F401
+    import evadex.adapters.dlpscan.adapter  # noqa: F401
+    import evadex.adapters.dlpscan_cli.adapter  # noqa: F401
+    import evadex.adapters.presidio.adapter  # noqa: F401
+    import evadex.adapters.siphon.adapter  # noqa: F401
+    import evadex.adapters.siphon_cli.adapter  # noqa: F401

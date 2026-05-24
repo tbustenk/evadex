@@ -22,6 +22,7 @@ require_context : pass ``--require-context`` to the scanner
 min_confidence  : confidence floor (``--min-confidence``)
 categories      : restrict scanning to these categories (``--categories``)
 """
+
 from __future__ import annotations
 
 import random

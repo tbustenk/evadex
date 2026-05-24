@@ -1,4 +1,5 @@
 """Structured feedback report: techniques, fix suggestions, and regression test code."""
+
 from __future__ import annotations
 
 import json
@@ -15,15 +16,17 @@ def generate_feedback_report(
     scanner_label: str = "",
 ) -> dict:
     """Build a JSON-serialisable feedback report dict."""
-    total    = len(results)
+    total = len(results)
     evasions = [r for r in results if r.severity == SeverityLevel.FAIL]
 
     # Aggregate per-technique: count + up to 3 example variant values
-    tech_stats: dict[str, dict] = defaultdict(lambda: {
-        "count": 0,
-        "generator": "",
-        "example_variants": [],
-    })
+    tech_stats: dict[str, dict] = defaultdict(
+        lambda: {
+            "count": 0,
+            "generator": "",
+            "example_variants": [],
+        }
+    )
     for r in evasions:
         tech = r.variant.technique
         stats = tech_stats[tech]

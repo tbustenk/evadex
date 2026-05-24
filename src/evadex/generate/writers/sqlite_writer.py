@@ -26,6 +26,7 @@ comptes       (id, id_client, iban, code_swift, solde, date_ouverture)
 
 Uses Python's stdlib ``sqlite3`` module — no extra install required.
 """
+
 from __future__ import annotations
 
 import os
@@ -83,13 +84,13 @@ _EN_SCHEMA = {
 
 _EN_TABLE_MAP = {
     # (table, column) for each category — matches schema above
-    PayloadCategory.EMAIL:        ("customers", "email"),
-    PayloadCategory.PHONE:        ("customers", "phone"),
-    PayloadCategory.SIN:          ("customers", "sin"),
-    PayloadCategory.SSN:          ("customers", "sin"),
-    PayloadCategory.CREDIT_CARD:  ("transactions", "card_number"),
-    PayloadCategory.IBAN:         ("accounts", "iban"),
-    PayloadCategory.SWIFT_BIC:    ("accounts", "swift_bic"),
+    PayloadCategory.EMAIL: ("customers", "email"),
+    PayloadCategory.PHONE: ("customers", "phone"),
+    PayloadCategory.SIN: ("customers", "sin"),
+    PayloadCategory.SSN: ("customers", "sin"),
+    PayloadCategory.CREDIT_CARD: ("transactions", "card_number"),
+    PayloadCategory.IBAN: ("accounts", "iban"),
+    PayloadCategory.SWIFT_BIC: ("accounts", "swift_bic"),
     # Everything else → customers.notes so it's still on-disk and scannable.
 }
 
@@ -131,20 +132,22 @@ _FR_SCHEMA = {
 }
 
 _FR_TABLE_MAP = {
-    PayloadCategory.EMAIL:        ("clients", "courriel"),
-    PayloadCategory.PHONE:        ("clients", "telephone"),
-    PayloadCategory.SIN:          ("clients", "numero_assurance_sociale"),
-    PayloadCategory.SSN:          ("clients", "numero_assurance_sociale"),
-    PayloadCategory.CREDIT_CARD:  ("transactions", "numero_carte"),
-    PayloadCategory.IBAN:         ("comptes", "iban"),
-    PayloadCategory.SWIFT_BIC:    ("comptes", "code_swift"),
+    PayloadCategory.EMAIL: ("clients", "courriel"),
+    PayloadCategory.PHONE: ("clients", "telephone"),
+    PayloadCategory.SIN: ("clients", "numero_assurance_sociale"),
+    PayloadCategory.SSN: ("clients", "numero_assurance_sociale"),
+    PayloadCategory.CREDIT_CARD: ("transactions", "numero_carte"),
+    PayloadCategory.IBAN: ("comptes", "iban"),
+    PayloadCategory.SWIFT_BIC: ("comptes", "code_swift"),
 }
 
 
 # ── Writer ─────────────────────────────────────────────────────────────────
 
+
 def write_sqlite(entries: list[GeneratedEntry], path: str) -> None:
     from evadex.generate.writers import _active_seed
+
     seed = _active_seed
     rng = random.Random(seed if seed is not None else 0)
     language = normalize_language(_active_language())
@@ -178,12 +181,18 @@ def write_sqlite(entries: list[GeneratedEntry], path: str) -> None:
             if target is None:
                 # Route unmapped categories to customers.notes so nothing is dropped.
                 _update_notes(
-                    cur, customers_table, i, entry, language,
+                    cur,
+                    customers_table,
+                    i,
+                    entry,
+                    language,
                 )
                 continue
             table, column = target
             if table == customers_table:
-                _update_customer_column(cur, customers_table, i, column, entry.variant_value)
+                _update_customer_column(
+                    cur, customers_table, i, column, entry.variant_value
+                )
             elif table == "transactions":
                 _insert_transaction(cur, txn_id, i, column, entry, rng, language)
                 txn_id += 1
@@ -223,16 +232,18 @@ def _insert_customers(
     BATCH = 1000
     batch: list[tuple] = []
     for cid in ids:
-        batch.append((
-            cid,
-            fake_name(rng, language),
-            f"user{cid}@example.com",
-            f"+1-555-{rng.randint(100, 999):03d}-{rng.randint(1000, 9999):04d}",
-            f"{rng.randint(100, 999):03d} {rng.randint(100, 999):03d} {rng.randint(100, 999):03d}",
-            fake_date(rng),
-            fake_address(rng, language),
-            "",
-        ))
+        batch.append(
+            (
+                cid,
+                fake_name(rng, language),
+                f"user{cid}@example.com",
+                f"+1-555-{rng.randint(100, 999):03d}-{rng.randint(1000, 9999):04d}",
+                f"{rng.randint(100, 999):03d} {rng.randint(100, 999):03d} {rng.randint(100, 999):03d}",
+                fake_date(rng),
+                fake_address(rng, language),
+                "",
+            )
+        )
         if len(batch) >= BATCH:
             cur.executemany(sql, batch)
             batch.clear()
@@ -260,8 +271,13 @@ def _update_notes(
 
 
 def _insert_transaction(
-    cur: sqlite3.Cursor, txn_id: int, customer_id: int, column: str,
-    entry: GeneratedEntry, rng: random.Random, language: str,
+    cur: sqlite3.Cursor,
+    txn_id: int,
+    customer_id: int,
+    column: str,
+    entry: GeneratedEntry,
+    rng: random.Random,
+    language: str,
 ) -> None:
     # Only `card_number` / `numero_carte` is a sensitive column here; the
     # remaining columns get fake amounts + timestamps.
@@ -277,16 +293,28 @@ def _insert_transaction(
         )
     card_val = entry.variant_value if column in ("card_number", "numero_carte") else ""
     technique = entry.technique or "plain"
-    cur.execute(sql, (
-        txn_id, customer_id, card_val, fake_amount(rng),
-        fake_timestamp(rng),
-        f"category={entry.category.value} technique={technique}",
-    ))
+    cur.execute(
+        sql,
+        (
+            txn_id,
+            customer_id,
+            card_val,
+            fake_amount(rng),
+            fake_timestamp(rng),
+            f"category={entry.category.value} technique={technique}",
+        ),
+    )
 
 
 def _insert_account(
-    cur: sqlite3.Cursor, table: str, acct_id: int, customer_id: int, column: str,
-    entry: GeneratedEntry, rng: random.Random, language: str,
+    cur: sqlite3.Cursor,
+    table: str,
+    acct_id: int,
+    customer_id: int,
+    column: str,
+    entry: GeneratedEntry,
+    rng: random.Random,
+    language: str,
 ) -> None:
     if table == "comptes":
         sql = (
@@ -302,15 +330,23 @@ def _insert_account(
         iban_col, swift_col = "iban", "swift_bic"
     iban_val = entry.variant_value if column == iban_col else ""
     swift_val = entry.variant_value if column == swift_col else "TESTCAXX"
-    cur.execute(sql, (
-        acct_id, customer_id, iban_val, swift_val,
-        round(rng.uniform(0, 100000), 2), fake_date(rng, 2018, 2026),
-    ))
+    cur.execute(
+        sql,
+        (
+            acct_id,
+            customer_id,
+            iban_val,
+            swift_val,
+            round(rng.uniform(0, 100000), 2),
+            fake_date(rng, 2018, 2026),
+        ),
+    )
 
 
 def _active_language() -> str:
     try:
         from evadex.generate.writers import _active_language as lang
+
         return lang
     except Exception:
         return "en"

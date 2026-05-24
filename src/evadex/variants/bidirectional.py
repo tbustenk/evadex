@@ -7,13 +7,13 @@ from evadex.variants.base import BaseVariantGenerator
 # These affect how text is rendered (display order) without changing storage order.
 # Scanners that normalise or render text before pattern-matching may see a reversed
 # or reordered value; scanners that match raw bytes/codepoints are unaffected.
-RLO = '\u202E'  # Right-to-left override  — following text rendered RTL
-LRO = '\u202D'  # Left-to-right override  — following text rendered LTR
-RLE = '\u202B'  # Right-to-left embedding
-PDF = '\u202C'  # Pop directional formatting (terminates RLO/LRO/RLE/LRE)
-RLI = '\u2067'  # Right-to-left isolate   (Unicode 6.3+ bidi algorithm)
-PDI = '\u2069'  # Pop directional isolate
-ALM = '\u061C'  # Arabic letter mark      — invisible, shifts bidi algorithm
+RLO = "\u202e"  # Right-to-left override  — following text rendered RTL
+LRO = "\u202d"  # Left-to-right override  — following text rendered LTR
+RLE = "\u202b"  # Right-to-left embedding
+PDF = "\u202c"  # Pop directional formatting (terminates RLO/LRO/RLE/LRE)
+RLI = "\u2067"  # Right-to-left isolate   (Unicode 6.3+ bidi algorithm)
+PDI = "\u2069"  # Pop directional isolate
+ALM = "\u061c"  # Arabic letter mark      — invisible, shifts bidi algorithm
 
 
 @register_generator("bidirectional")

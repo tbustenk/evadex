@@ -114,7 +114,7 @@ Run `evadex init` to create `evadex.yaml` in the current directory:
 ```yaml
 tool: siphon-cli
 exe: /path/to/siphon
-tier: banking
+tier: northam
 concurrency: 32
 ```
 

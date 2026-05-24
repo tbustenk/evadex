@@ -13,6 +13,7 @@ from typing import Optional
 
 try:
     from importlib.metadata import version, PackageNotFoundError
+
     try:
         _VERSION = version("evadex")
     except PackageNotFoundError:
@@ -53,24 +54,24 @@ def append_audit_entry(
     evasion modes consume this field.
     """
     entry = {
-        "timestamp":         datetime.now(timezone.utc).isoformat(),
-        "evadex_version":    _VERSION,
-        "operator":          _operator(),
-        "scanner_label":     scanner_label,
-        "tool":              tool,
-        "strategies":        strategies,
-        "categories":        categories,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "evadex_version": _VERSION,
+        "operator": _operator(),
+        "scanner_label": scanner_label,
+        "tool": tool,
+        "strategies": strategies,
+        "categories": categories,
         "include_heuristic": include_heuristic,
-        "total":             total,
-        "pass":              passes,
-        "fail":              fails,
-        "error":             errors,
-        "pass_rate":         pass_rate,
-        "output_file":       output_file,
-        "baseline_saved":    baseline_saved,
-        "compare_baseline":  compare_baseline,
+        "total": total,
+        "pass": passes,
+        "fail": fails,
+        "error": errors,
+        "pass_rate": pass_rate,
+        "output_file": output_file,
+        "baseline_saved": baseline_saved,
+        "compare_baseline": compare_baseline,
         "min_detection_rate": min_detection_rate,
-        "exit_code":         exit_code,
+        "exit_code": exit_code,
         "technique_success_rates": technique_success_rates or {},
     }
     try:

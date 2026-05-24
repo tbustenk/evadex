@@ -2,6 +2,7 @@
 
 Each generated IBAN has a valid ISO 13616 mod-97 checksum.
 """
+
 from __future__ import annotations
 
 import random

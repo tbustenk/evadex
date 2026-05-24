@@ -19,6 +19,7 @@ min_confidence : float
 require_context : bool
     Require keyword context for a match (mirrors ``--require-context`` on the CLI).
 """
+
 from evadex.adapters.base import BaseAdapter, AdapterError
 from evadex.adapters.dlpscan.file_builder import FileBuilder
 from evadex.adapters.siphon.client import SiphonClient
@@ -127,7 +128,12 @@ class SiphonAdapter(BaseAdapter):
         conf = best.get("confidence")
         if isinstance(conf, (int, float)):
             out["confidence"] = float(conf)
-        for field in ("bin_brand", "bin_country", "entropy_classification", "validator"):
+        for field in (
+            "bin_brand",
+            "bin_country",
+            "entropy_classification",
+            "validator",
+        ):
             val = best.get(field)
             if isinstance(val, str) and val:
                 out[field] = val

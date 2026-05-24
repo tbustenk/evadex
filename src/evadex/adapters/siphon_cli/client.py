@@ -12,6 +12,7 @@ Supported invocation styles
 ``binary`` (default): ``siphon scan-text --format json``
 ``cargo``:           ``cargo run --release --bin siphon -- scan-text --format json``
 """
+
 from __future__ import annotations
 
 import asyncio

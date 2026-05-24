@@ -5,6 +5,7 @@ describing what to add to the scanner's normalisation pipeline to close the gap.
 
 Technique names are taken directly from the generator classes in evadex/variants/.
 """
+
 from __future__ import annotations
 
 from typing import NamedTuple

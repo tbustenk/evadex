@@ -10,6 +10,7 @@ record at the head, then one ``response`` record per entry. Each
 record block is preceded by ``WARC/1.1`` plus headers, an empty
 line, the block, and trailing ``\\r\\n\\r\\n``.
 """
+
 from __future__ import annotations
 
 import datetime
@@ -42,13 +43,13 @@ def _http_response(idx: int, entry: GeneratedEntry) -> bytes:
     + body, ready to live inside a WARC ``response`` block."""
     body = (
         "<!DOCTYPE html>\n"
-        "<html lang=\"en\">\n"
+        '<html lang="en">\n'
         "<head><title>Internal Banking Record</title></head>\n"
         "<body>\n"
         f"  <h1>Record #{idx}</h1>\n"
         f"  <p>Category: {entry.category.value}</p>\n"
-        f"  <p class=\"sensitive\">{entry.variant_value}</p>\n"
-        f"  <p class=\"context\">{entry.embedded_text}</p>\n"
+        f'  <p class="sensitive">{entry.variant_value}</p>\n'
+        f'  <p class="context">{entry.embedded_text}</p>\n'
         "  <footer>CONFIDENTIAL — Internal use only.</footer>\n"
         "</body>\n"
         "</html>\n"
@@ -121,8 +122,7 @@ def _warcinfo(base_dt: datetime.datetime) -> bytes:
 
 def write_warc(entries: list[GeneratedEntry], path: str) -> None:
     rng = random.Random(42)
-    base_dt = datetime.datetime(2026, 4, 17, 12, 0, 0,
-                                tzinfo=datetime.timezone.utc)
+    base_dt = datetime.datetime(2026, 4, 17, 12, 0, 0, tzinfo=datetime.timezone.utc)
 
     with open(path, "wb") as fh:
         fh.write(_warcinfo(base_dt))

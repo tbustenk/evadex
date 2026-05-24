@@ -13,6 +13,7 @@ contexts (bare / gated / assignment) and reports which evadex entropy
 category is caught under which mode. It's the quickest way to validate a
 scanner configuration before running a full ``evadex scan``.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -161,7 +162,9 @@ def _summarise(results: list[dict]) -> dict:
     for r in results:
         ctx = r["context"]
         cat = r["category"]
-        bucket = summary.setdefault(cat, {c: {"tested": 0, "detected": 0} for c in CONTEXTS})
+        bucket = summary.setdefault(
+            cat, {c: {"tested": 0, "detected": 0} for c in CONTEXTS}
+        )
         bucket[ctx]["tested"] += 1
         if r["detected"]:
             bucket[ctx]["detected"] += 1
@@ -197,7 +200,9 @@ def _render_evasion_table(evasion_results: list[dict]) -> Optional[Table]:
     tech_stats: dict = {}
     for r in evasion_results:
         t = r["technique"]
-        s = tech_stats.setdefault(t, {"tested": 0, "defeated": 0, "transform": r["transform_name"]})
+        s = tech_stats.setdefault(
+            t, {"tested": 0, "defeated": 0, "transform": r["transform_name"]}
+        )
         s["tested"] += 1
         if not r["detected"]:
             s["defeated"] += 1
@@ -216,27 +221,63 @@ def _render_evasion_table(evasion_results: list[dict]) -> Optional[Table]:
 
 
 @click.command("entropy")
-@click.option("--tool", "-t", default="siphon", show_default=True,
-              help="DLP adapter to probe.")
-@click.option("--url", default="http://localhost:8000", show_default=True,
-              help="Base URL for HTTP-based adapters.")
-@click.option("--api-key", default=None, envvar="EVADEX_API_KEY",
-              help="API key (falls back to EVADEX_API_KEY).")
-@click.option("--mode", "mode", type=click.Choice(MODE_CHOICES), default=None,
-              help="Siphon entropy mode the adapter is configured for. "
-                   "When set, only contexts that mode is expected to catch "
-                   "are submitted and a per-mode coverage score is reported.")
-@click.option("--timeout", default=30.0, show_default=True, type=float,
-              help="Request timeout in seconds.")
-@click.option("--concurrency", default=5, show_default=True, type=int,
-              help="Max concurrent scanner requests.")
-@click.option("--include-evasion/--no-evasion", default=True, show_default=True,
-              help="Run entropy_evasion variants and report which techniques "
-                   "defeat the scanner's entropy detection.")
-@click.option("--format", "-f", "fmt", type=click.Choice(["table", "json"]),
-              default="table", show_default=True, help="Output format.")
-@click.option("--output", "-o", default=None, metavar="PATH",
-              help="Write JSON report to file.")
+@click.option(
+    "--tool", "-t", default="siphon", show_default=True, help="DLP adapter to probe."
+)
+@click.option(
+    "--url",
+    default="http://localhost:8000",
+    show_default=True,
+    help="Base URL for HTTP-based adapters.",
+)
+@click.option(
+    "--api-key",
+    default=None,
+    envvar="EVADEX_API_KEY",
+    help="API key (falls back to EVADEX_API_KEY).",
+)
+@click.option(
+    "--mode",
+    "mode",
+    type=click.Choice(MODE_CHOICES),
+    default=None,
+    help="Siphon entropy mode the adapter is configured for. "
+    "When set, only contexts that mode is expected to catch "
+    "are submitted and a per-mode coverage score is reported.",
+)
+@click.option(
+    "--timeout",
+    default=30.0,
+    show_default=True,
+    type=float,
+    help="Request timeout in seconds.",
+)
+@click.option(
+    "--concurrency",
+    default=5,
+    show_default=True,
+    type=int,
+    help="Max concurrent scanner requests.",
+)
+@click.option(
+    "--include-evasion/--no-evasion",
+    default=True,
+    show_default=True,
+    help="Run entropy_evasion variants and report which techniques "
+    "defeat the scanner's entropy detection.",
+)
+@click.option(
+    "--format",
+    "-f",
+    "fmt",
+    type=click.Choice(["table", "json"]),
+    default="table",
+    show_default=True,
+    help="Output format.",
+)
+@click.option(
+    "--output", "-o", default=None, metavar="PATH", help="Write JSON report to file."
+)
 def entropy(
     tool: str,
     url: str,
@@ -290,17 +331,18 @@ def entropy(
     probe_results = asyncio.run(_probe_payloads(adapter, payloads, concurrency))
     evasion_results = (
         asyncio.run(_probe_evasions(adapter, payloads, concurrency))
-        if include_evasion else []
+        if include_evasion
+        else []
     )
 
     summary = _summarise(probe_results)
 
     # Expected-detection map: which contexts SHOULD be caught per mode.
     expected_by_mode = {
-        "off":        set(),
-        "gated":      {"gated"},
+        "off": set(),
+        "gated": {"gated"},
         "assignment": {"assignment"},
-        "all":        set(CONTEXTS),
+        "all": set(CONTEXTS),
     }
     mode_assessment: dict = {}
     if mode:
@@ -332,7 +374,11 @@ def entropy(
         err_console.print(evasion_table)
     if mode_assessment:
         ma = mode_assessment
-        colour = "green" if ma["coverage_pct"] >= 90 else ("yellow" if ma["coverage_pct"] >= 50 else "red")
+        colour = (
+            "green"
+            if ma["coverage_pct"] >= 90
+            else ("yellow" if ma["coverage_pct"] >= 50 else "red")
+        )
         err_console.print(
             f"\n[{colour}]mode={ma['mode']}: "
             f"{ma['detected_expected']}/{ma['total_expected']} "

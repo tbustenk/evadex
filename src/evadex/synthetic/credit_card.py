@@ -1,4 +1,5 @@
 """Synthetic credit card number generator (Luhn-valid)."""
+
 from __future__ import annotations
 
 import random
@@ -11,10 +12,15 @@ from evadex.synthetic.validators import luhn_check_digit
 
 # (prefix, total_length) for Visa, Mastercard, Amex, Discover
 _PREFIXES: list[tuple[str, int]] = [
-    ("4", 16),               # Visa
-    ("51", 16), ("52", 16), ("53", 16), ("54", 16), ("55", 16),  # Mastercard
-    ("34", 15), ("37", 15),  # Amex
-    ("6011", 16),            # Discover
+    ("4", 16),  # Visa
+    ("51", 16),
+    ("52", 16),
+    ("53", 16),
+    ("54", 16),
+    ("55", 16),  # Mastercard
+    ("34", 15),
+    ("37", 15),  # Amex
+    ("6011", 16),  # Discover
 ]
 
 

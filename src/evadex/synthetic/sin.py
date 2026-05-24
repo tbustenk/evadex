@@ -4,6 +4,7 @@ SINs are 9-digit numbers that pass the Luhn algorithm.
 The first digit is 1-7 (residents) or 9 (temporary workers).
 First digit 0 and 8 are not assigned.
 """
+
 from __future__ import annotations
 
 import random

@@ -11,19 +11,49 @@ VALID_STRATEGIES = {"text", "docx", "pdf", "xlsx"}
 VALID_FORMATS = {"json", "html"}
 VALID_CMD_STYLES = {"python", "rust", "binary", "cargo"}
 VALID_CATEGORIES = {
-    "credit_card", "ssn", "sin", "iban", "swift_bic", "aba_routing",
-    "bitcoin", "ethereum", "us_passport", "au_tfn", "de_tax_id", "fr_insee",
-    "email", "phone", "aws_key", "jwt", "github_token", "stripe_key",
-    "slack_token", "classification", "unknown",
+    "credit_card",
+    "ssn",
+    "sin",
+    "iban",
+    "swift_bic",
+    "aba_routing",
+    "bitcoin",
+    "ethereum",
+    "us_passport",
+    "au_tfn",
+    "de_tax_id",
+    "fr_insee",
+    "email",
+    "phone",
+    "aws_key",
+    "jwt",
+    "github_token",
+    "stripe_key",
+    "slack_token",
+    "classification",
+    "unknown",
 }
 VALID_TIERS = {"northam", "banking", "core", "regional", "full"}
 KNOWN_KEYS = {
-    "tool", "strategy", "min_detection_rate", "scanner_label", "exe",
-    "cmd_style", "categories", "include_heuristic", "concurrency",
-    "timeout", "output", "format", "audit_log", "require_context",
-    "wrap_context", "tier",
+    "tool",
+    "strategy",
+    "min_detection_rate",
+    "scanner_label",
+    "exe",
+    "cmd_style",
+    "categories",
+    "include_heuristic",
+    "concurrency",
+    "timeout",
+    "output",
+    "format",
+    "audit_log",
+    "require_context",
+    "wrap_context",
+    "tier",
     # Siphon-C2 management-plane integration
-    "c2_url", "c2_key",
+    "c2_url",
+    "c2_key",
     # Smart evasion selection (v3.13.0+)
     "evasion_mode",
     # HTTP bridge server settings (v3.16.1+)
@@ -355,7 +385,9 @@ def load_config(path: "str | Path") -> EvadexConfig:
                     f"Valid: {', '.join(sorted(BRIDGE_KEYS))}"
                 )
             port = val.get("port")
-            if port is not None and (not isinstance(port, int) or not (1 <= port <= 65535)):
+            if port is not None and (
+                not isinstance(port, int) or not (1 <= port <= 65535)
+            ):
                 raise click.UsageError(
                     f"Config 'bridge.port' must be an int 1-65535, got: {port!r}"
                 )

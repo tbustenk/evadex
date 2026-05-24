@@ -10,6 +10,7 @@ Authentication
 Siphon authenticates with an API key sent via the ``x-api-key`` header.
 Supply it via ``--api-key`` or the ``EVADEX_API_KEY`` environment variable.
 """
+
 from typing import Optional
 
 import httpx
@@ -127,9 +128,7 @@ class SiphonClient:
             )
         if resp.status_code == 429:
             retry = resp.headers.get("retry-after", "?")
-            raise AdapterError(
-                f"Siphon rate limit exceeded (429, retry-after={retry})"
-            )
+            raise AdapterError(f"Siphon rate limit exceeded (429, retry-after={retry})")
         if resp.status_code >= 500:
             raise AdapterError(
                 f"Siphon server error {resp.status_code}: "
@@ -143,9 +142,7 @@ class SiphonClient:
                 detail = resp.json().get("detail", "")
             except Exception:
                 detail = resp.text[:200]
-            raise AdapterError(
-                f"Siphon HTTP {e.response.status_code}: {detail}"
-            ) from e
+            raise AdapterError(f"Siphon HTTP {e.response.status_code}: {detail}") from e
 
     async def close(self) -> None:
         if self._client is not None:
@@ -195,9 +192,7 @@ def _extract_xlsx(data: bytes) -> str:
         import io
         import openpyxl
     except ImportError as e:
-        raise AdapterError(
-            "openpyxl is required to scan XLSX files with Siphon"
-        ) from e
+        raise AdapterError("openpyxl is required to scan XLSX files with Siphon") from e
     wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
     parts: list = []
     for sheet in wb.worksheets:

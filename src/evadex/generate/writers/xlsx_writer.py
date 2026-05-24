@@ -5,6 +5,7 @@ Structure:
   - One sheet per category (columns: #, Embedded Text, Plain Value, Variant Value,
     Technique, Generator, Has Keywords)
 """
+
 from __future__ import annotations
 
 import datetime
@@ -25,25 +26,25 @@ _EVASION_FILL = PatternFill("solid", fgColor="FFF2CC")
 
 _SECTION_TITLES: dict[PayloadCategory, str] = {
     PayloadCategory.CREDIT_CARD: "Credit Cards",
-    PayloadCategory.SSN:         "SSN",
-    PayloadCategory.SIN:         "SIN",
-    PayloadCategory.IBAN:        "IBAN",
-    PayloadCategory.SWIFT_BIC:   "SWIFT-BIC",
+    PayloadCategory.SSN: "SSN",
+    PayloadCategory.SIN: "SIN",
+    PayloadCategory.IBAN: "IBAN",
+    PayloadCategory.SWIFT_BIC: "SWIFT-BIC",
     PayloadCategory.ABA_ROUTING: "ABA Routing",
-    PayloadCategory.BITCOIN:     "Bitcoin",
-    PayloadCategory.ETHEREUM:    "Ethereum",
+    PayloadCategory.BITCOIN: "Bitcoin",
+    PayloadCategory.ETHEREUM: "Ethereum",
     PayloadCategory.US_PASSPORT: "US Passport",
-    PayloadCategory.AU_TFN:      "AU TFN",
-    PayloadCategory.DE_TAX_ID:   "DE Tax ID",
-    PayloadCategory.FR_INSEE:    "FR INSEE",
-    PayloadCategory.AWS_KEY:     "AWS Key",
-    PayloadCategory.GITHUB_TOKEN:"GitHub Token",
-    PayloadCategory.STRIPE_KEY:  "Stripe Key",
+    PayloadCategory.AU_TFN: "AU TFN",
+    PayloadCategory.DE_TAX_ID: "DE Tax ID",
+    PayloadCategory.FR_INSEE: "FR INSEE",
+    PayloadCategory.AWS_KEY: "AWS Key",
+    PayloadCategory.GITHUB_TOKEN: "GitHub Token",
+    PayloadCategory.STRIPE_KEY: "Stripe Key",
     PayloadCategory.SLACK_TOKEN: "Slack Token",
-    PayloadCategory.JWT:         "JWT",
+    PayloadCategory.JWT: "JWT",
     PayloadCategory.CLASSIFICATION: "Classification",
-    PayloadCategory.EMAIL:       "Email",
-    PayloadCategory.PHONE:       "Phone",
+    PayloadCategory.EMAIL: "Email",
+    PayloadCategory.PHONE: "Phone",
 }
 
 
@@ -57,14 +58,14 @@ def _style_header_row(ws, cols: int) -> None:
         cell = ws.cell(row=1, column=col)
         cell.font = _HDR_FONT
         cell.fill = _HDR_FILL
-        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.alignment = Alignment(
+            horizontal="center", vertical="center", wrap_text=True
+        )
 
 
 def _auto_width(ws, min_w: int = 12, max_w: int = 60) -> None:
     for col_cells in ws.columns:
-        length = max(
-            len(str(c.value or "")) for c in col_cells
-        )
+        length = max(len(str(c.value or "")) for c in col_cells)
         ws.column_dimensions[get_column_letter(col_cells[0].column)].width = min(
             max(length + 2, min_w), max_w
         )
@@ -90,8 +91,10 @@ def _build_summary(ws, by_cat: dict, total: int, today: str) -> None:
     ws["B3"] = total
 
     evasion_count = sum(
-        1 for cat_entries in by_cat.values()
-        for e in cat_entries if e.technique is not None
+        1
+        for cat_entries in by_cat.values()
+        for e in cat_entries
+        if e.technique is not None
     )
     ws["A4"] = "Evasion variants"
     ws["B4"] = evasion_count
@@ -129,8 +132,13 @@ def write_xlsx(entries: list[GeneratedEntry], path: str) -> None:
     _build_summary(default_sheet, by_cat, len(entries), today)
 
     headers = [
-        "#", "Embedded Text", "Plain Value",
-        "Variant Value", "Technique", "Generator", "Has Keywords",
+        "#",
+        "Embedded Text",
+        "Plain Value",
+        "Variant Value",
+        "Technique",
+        "Generator",
+        "Has Keywords",
     ]
 
     for cat in sorted(by_cat.keys(), key=lambda c: c.value):
@@ -143,8 +151,10 @@ def write_xlsx(entries: list[GeneratedEntry], path: str) -> None:
         ws.freeze_panes = "A2"
 
         for row_idx, e in enumerate(cat_entries, 2):
-            fill = _EVASION_FILL if e.technique else (
-                _ALT_FILL if row_idx % 2 == 0 else None
+            fill = (
+                _EVASION_FILL
+                if e.technique
+                else (_ALT_FILL if row_idx % 2 == 0 else None)
             )
             cells = [
                 (1, row_idx - 1),

@@ -1,4 +1,5 @@
 """Plain-text writer for evadex generate."""
+
 from __future__ import annotations
 
 import datetime
@@ -9,39 +10,44 @@ from evadex.core.result import PayloadCategory
 
 _SECTION_TITLES: dict[PayloadCategory, str] = {
     PayloadCategory.CREDIT_CARD: "Credit Card Numbers",
-    PayloadCategory.SSN:         "Social Security Numbers",
-    PayloadCategory.SIN:         "Canadian Social Insurance Numbers",
-    PayloadCategory.IBAN:        "International Bank Account Numbers (IBAN)",
-    PayloadCategory.SWIFT_BIC:   "SWIFT / BIC Codes",
+    PayloadCategory.SSN: "Social Security Numbers",
+    PayloadCategory.SIN: "Canadian Social Insurance Numbers",
+    PayloadCategory.IBAN: "International Bank Account Numbers (IBAN)",
+    PayloadCategory.SWIFT_BIC: "SWIFT / BIC Codes",
     PayloadCategory.ABA_ROUTING: "ABA Routing Numbers",
-    PayloadCategory.BITCOIN:     "Bitcoin Addresses",
-    PayloadCategory.ETHEREUM:    "Ethereum Addresses",
+    PayloadCategory.BITCOIN: "Bitcoin Addresses",
+    PayloadCategory.ETHEREUM: "Ethereum Addresses",
     PayloadCategory.US_PASSPORT: "US Passport Numbers",
-    PayloadCategory.AU_TFN:      "Australian Tax File Numbers",
-    PayloadCategory.DE_TAX_ID:   "German Tax Identification Numbers",
-    PayloadCategory.FR_INSEE:    "French INSEE / NIR Numbers",
-    PayloadCategory.AWS_KEY:     "AWS Access Keys",
-    PayloadCategory.GITHUB_TOKEN:"GitHub Tokens",
-    PayloadCategory.STRIPE_KEY:  "Stripe API Keys",
+    PayloadCategory.AU_TFN: "Australian Tax File Numbers",
+    PayloadCategory.DE_TAX_ID: "German Tax Identification Numbers",
+    PayloadCategory.FR_INSEE: "French INSEE / NIR Numbers",
+    PayloadCategory.AWS_KEY: "AWS Access Keys",
+    PayloadCategory.GITHUB_TOKEN: "GitHub Tokens",
+    PayloadCategory.STRIPE_KEY: "Stripe API Keys",
     PayloadCategory.SLACK_TOKEN: "Slack Tokens",
-    PayloadCategory.JWT:         "JSON Web Tokens",
+    PayloadCategory.JWT: "JSON Web Tokens",
     PayloadCategory.CLASSIFICATION: "Classification Labels",
-    PayloadCategory.EMAIL:       "Email Addresses",
-    PayloadCategory.PHONE:       "Phone Numbers",
+    PayloadCategory.EMAIL: "Email Addresses",
+    PayloadCategory.PHONE: "Phone Numbers",
 }
 
 
 def write_txt(entries: list[GeneratedEntry], path: str) -> None:
     from evadex.generate.writers import (
-        _active_template, _active_noise_level, _active_density, _active_seed,
+        _active_template,
+        _active_noise_level,
+        _active_density,
+        _active_seed,
         _active_language,
     )
 
     # If a non-generic template is active, use the template system
     if _active_template != "generic":
         from evadex.generate.templates import apply_template
+
         lines = apply_template(
-            _active_template, entries,
+            _active_template,
+            entries,
             seed=_active_seed,
             noise_level=_active_noise_level,
             density=_active_density,

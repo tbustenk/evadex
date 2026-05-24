@@ -8,13 +8,13 @@ from evadex.variants.base import BaseVariantGenerator
 # used by the delimiter generator. These can bypass regex patterns that only
 # check for ASCII \s or specific ASCII separators.
 UNICODE_SPACES = [
-    ('\u00A0', 'nbsp',              'non-breaking space (U+00A0)'),
-    ('\u2002', 'en_space',          'en-space (U+2002)'),
-    ('\u2003', 'em_space',          'em-space (U+2003)'),
-    ('\u2009', 'thin_space',        'thin space (U+2009)'),
-    ('\u2007', 'figure_space',      'figure space (U+2007) — same width as a digit'),
-    ('\u202F', 'narrow_nbsp',       'narrow no-break space (U+202F)'),
-    ('\u3000', 'ideographic_space', 'ideographic space (U+3000)'),
+    ("\u00a0", "nbsp", "non-breaking space (U+00A0)"),
+    ("\u2002", "en_space", "en-space (U+2002)"),
+    ("\u2003", "em_space", "em-space (U+2003)"),
+    ("\u2009", "thin_space", "thin space (U+2009)"),
+    ("\u2007", "figure_space", "figure space (U+2007) — same width as a digit"),
+    ("\u202f", "narrow_nbsp", "narrow no-break space (U+202F)"),
+    ("\u3000", "ideographic_space", "ideographic space (U+3000)"),
 ]
 
 
@@ -175,8 +175,8 @@ class UnicodeWhitespaceGenerator(BaseVariantGenerator):
     }
 
     def generate(self, value: str) -> Iterator[Variant]:
-        raw = re.sub(r'[^A-Za-z0-9]', '', value)
-        groups = [raw[i:i+4] for i in range(0, len(raw), 4)]
+        raw = re.sub(r"[^A-Za-z0-9]", "", value)
+        groups = [raw[i : i + 4] for i in range(0, len(raw), 4)]
 
         for char, tech_suffix, description in UNICODE_SPACES:
             result = char.join(groups)
@@ -193,8 +193,8 @@ class UnicodeWhitespaceGenerator(BaseVariantGenerator):
             for i, g in enumerate(groups):
                 parts.append(g)
                 if i < len(groups) - 1:
-                    parts.append('\u00A0' if i % 2 == 0 else '\u2009')
-            result = ''.join(parts)
+                    parts.append("\u00a0" if i % 2 == 0 else "\u2009")
+            result = "".join(parts)
             if result != value:
                 yield self._make_variant(
                     result,

@@ -8,6 +8,7 @@ Jaccard arithmetic exactly here so evadex can predict what Siphon
 *should* report, then compare against what the scanner actually
 returns.
 """
+
 from evadex.lsh.document_generator import (
     BASE_DOCUMENTS,
     distorted_variant,

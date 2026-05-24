@@ -12,6 +12,7 @@ Validity rules per BZSt spec:
   common form.)
 * digit[10] is the ISO 7064 MOD 11,10 check digit over digits 0..9.
 """
+
 from __future__ import annotations
 
 import random

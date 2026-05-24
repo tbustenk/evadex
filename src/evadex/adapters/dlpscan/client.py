@@ -4,8 +4,10 @@ from evadex.adapters.base import AdapterError
 
 
 class DlpscanClient:
-    def __init__(self, base_url: str, api_key: Optional[str] = None, timeout: float = 30.0):
-        self.base_url = base_url.rstrip('/')
+    def __init__(
+        self, base_url: str, api_key: Optional[str] = None, timeout: float = 30.0
+    ):
+        self.base_url = base_url.rstrip("/")
         headers = {"Content-Type": "application/json"}
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
@@ -23,7 +25,9 @@ class DlpscanClient:
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None:
-            self._client = httpx.AsyncClient(headers=self._headers, timeout=self._timeout)
+            self._client = httpx.AsyncClient(
+                headers=self._headers, timeout=self._timeout
+            )
         return self._client
 
     async def post_text(self, text: str) -> dict:
@@ -39,7 +43,9 @@ class DlpscanClient:
             resp.raise_for_status()
             return resp.json()
         except httpx.HTTPStatusError as e:
-            raise AdapterError(f"HTTP {e.response.status_code}: {e.response.text}") from e
+            raise AdapterError(
+                f"HTTP {e.response.status_code}: {e.response.text}"
+            ) from e
         except httpx.RequestError as e:
             raise AdapterError(f"Request failed: {e}") from e
 
@@ -55,7 +61,9 @@ class DlpscanClient:
             resp.raise_for_status()
             return resp.json()
         except httpx.HTTPStatusError as e:
-            raise AdapterError(f"HTTP {e.response.status_code}: {e.response.text}") from e
+            raise AdapterError(
+                f"HTTP {e.response.status_code}: {e.response.text}"
+            ) from e
         except httpx.RequestError as e:
             raise AdapterError(f"Request failed: {e}") from e
 

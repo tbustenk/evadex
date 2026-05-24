@@ -6,6 +6,7 @@ evasions, and recent history. This module turns the append-only
 ``results/audit.jsonl`` (plus the archive files it points at) into that
 shape without mutating any of the underlying data.
 """
+
 from __future__ import annotations
 
 import json
@@ -125,8 +126,11 @@ def _by_category_breakdown(archive: Optional[dict]) -> dict[str, dict]:
         recall = round(100.0 * tp / (tp + fn), 1) if (tp + fn) else 0.0
         precision = round(100.0 * tp / (tp + fp), 1) if (tp + fp) else 0.0
         out[name] = {
-            "tp": int(tp), "fn": int(fn), "fp": int(fp),
-            "recall": recall, "precision": precision,
+            "tp": int(tp),
+            "fn": int(fn),
+            "fp": int(fp),
+            "recall": recall,
+            "precision": precision,
         }
     return out
 
@@ -168,12 +172,14 @@ def _top_evasions(entry: dict, archive: Optional[dict], limit: int = 5) -> list[
             denom = passes + fails
             if denom <= 0:
                 continue
-            items.append({
-                "technique": name,
-                "success_rate": round(100.0 * passes / denom, 1),
-                "pass": passes,
-                "fail": fails,
-            })
+            items.append(
+                {
+                    "technique": name,
+                    "success_rate": round(100.0 * passes / denom, 1),
+                    "pass": passes,
+                    "fail": fails,
+                }
+            )
     items.sort(key=lambda r: r["success_rate"], reverse=True)
     return items[:limit]
 
@@ -203,7 +209,9 @@ def _confidence_distribution(archive: Optional[dict]) -> dict:
     return {"high": high, "medium": medium, "low": low}
 
 
-def _coverage(archive: Optional[dict], fallback_total: int = 557) -> tuple[float, int, int]:
+def _coverage(
+    archive: Optional[dict], fallback_total: int = 557
+) -> tuple[float, int, int]:
     """Return ``(coverage_pct, tested, total)``.
 
     ``tested`` = number of fine categories present in the latest scan.
@@ -270,7 +278,8 @@ def _dedupe_scans(scans: list[dict]) -> list[dict]:
 
 
 def _matching_fp_entries(
-    falsepos: list[dict], latest_scan: Optional[dict],
+    falsepos: list[dict],
+    latest_scan: Optional[dict],
 ) -> list[dict]:
     """Return falsepos entries that pair with *latest_scan*.
 
@@ -295,7 +304,8 @@ def _matching_fp_entries(
 
 
 def _latest_matching_fp(
-    falsepos: list[dict], latest_scan: Optional[dict],
+    falsepos: list[dict],
+    latest_scan: Optional[dict],
 ) -> Optional[dict]:
     matches = _matching_fp_entries(falsepos, latest_scan)
     return matches[-1] if matches else None
@@ -321,7 +331,7 @@ def build_metrics(
     falsepos = _falsepos_entries(entries)
 
     # Trend + history pull from scan entries, newest last.
-    recent_scans = scans[-max(HISTORY_LIMIT, TREND_LIMIT):]
+    recent_scans = scans[-max(HISTORY_LIMIT, TREND_LIMIT) :]
     detection_trend = [
         _detection_rate_of(e) or 0.0 for e in recent_scans[-TREND_LIMIT:]
     ]
@@ -362,9 +372,16 @@ def build_metrics(
     # Ensure every coarse bucket appears in the response (empty zeros)
     # so the frontend table renders a stable set of rows.
     for b in all_buckets():
-        by_category.setdefault(b, {
-            "tp": 0, "fn": 0, "fp": 0, "recall": 0.0, "precision": 0.0,
-        })
+        by_category.setdefault(
+            b,
+            {
+                "tp": 0,
+                "fn": 0,
+                "fp": 0,
+                "recall": 0.0,
+                "precision": 0.0,
+            },
+        )
 
     # Fold in FP counts from the latest falsepos archive, best-effort.
     if latest_fp:
@@ -384,13 +401,15 @@ def build_metrics(
 
     history = []
     for i, e in enumerate(scans[-HISTORY_LIMIT:][::-1]):
-        history.append({
-            "run_id": _run_id_for(e, i),
-            "when": _safe_str(e.get("timestamp")),
-            "profile": _safe_str(e.get("scanner_label") or e.get("tool") or ""),
-            "scanner": _safe_str(e.get("tool") or ""),
-            "detection_rate": _detection_rate_of(e) or 0.0,
-        })
+        history.append(
+            {
+                "run_id": _run_id_for(e, i),
+                "when": _safe_str(e.get("timestamp")),
+                "profile": _safe_str(e.get("scanner_label") or e.get("tool") or ""),
+                "scanner": _safe_str(e.get("tool") or ""),
+                "detection_rate": _detection_rate_of(e) or 0.0,
+            }
+        )
 
     return {
         "detection_rate": detection_rate or 0.0,

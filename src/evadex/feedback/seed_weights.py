@@ -26,6 +26,7 @@ technique names are also listed under ``TECHNIQUE_SEED_WEIGHTS`` for
 documentation and for use by modes that key on ``variant.technique``
 directly (see evadex.cli.commands.list_techniques --verbose).
 """
+
 from __future__ import annotations
 
 from typing import Iterable
@@ -40,43 +41,36 @@ SEED_WEIGHTS: dict[str, float] = {
     # detectors that do not NFKC-normalise. Homoglyphs in particular
     # are almost invisible to vendor DLP products that only check
     # whitespace/punctuation.
-    "unicode_encoding":     0.82,
-    "unicode_whitespace":   0.85,
-    "bidirectional":        0.76,
-    "soft_hyphen":          0.68,
-
+    "unicode_encoding": 0.82,
+    "unicode_whitespace": 0.85,
+    "bidirectional": 0.76,
+    "soft_hyphen": 0.68,
     # Multi-layer encoding — scanners rarely decode two layers deep.
-    "encoding":             0.70,
-    "encoding_chains":      0.78,
-
+    "encoding": 0.70,
+    "encoding_chains": 0.78,
     # Structural + splitting — defeats fixed-regex patterns but loses
     # to anchored patterns that tolerate delimiters.
-    "delimiter":            0.55,
-    "splitting":            0.60,
-    "structural":           0.58,
-
+    "delimiter": 0.55,
+    "splitting": 0.60,
+    "structural": 0.58,
     # Substitution — well-known, so many scanners have leetspeak maps
     # baked in. Still useful against simpler regex detectors.
-    "leetspeak":            0.50,
-    "regional_digits":      0.65,
-
+    "leetspeak": 0.50,
+    "regional_digits": 0.65,
     # Morse / semaphore-style — unusual enough that most scanners
     # have no signature. High weight.
-    "morse_code":           0.65,
-
+    "morse_code": 0.65,
     # Context injection — wraps plain values in plausible business
     # prose. Effective against entropy/volume filters but not against
     # pattern matchers (the plain value is still there).
-    "context_injection":    0.40,
-
+    "context_injection": 0.40,
     # Entropy-targeted evasion — flattens entropy so secret scanners
     # miss the variant. Narrow but very effective within its niche.
-    "entropy_evasion":      0.75,
-
+    "entropy_evasion": 0.75,
     # Archive/barcode transport — bypasses everything that doesn't
     # crack the container. Depends entirely on scanner config.
-    "archive_evasion":      0.80,
-    "barcode_evasion":      0.88,
+    "archive_evasion": 0.80,
+    "barcode_evasion": 0.88,
 }
 
 
@@ -85,54 +79,48 @@ SEED_WEIGHTS: dict[str, float] = {
 # these are the individual variant outputs (``variant.technique``).
 TECHNIQUE_SEED_WEIGHTS: dict[str, float] = {
     # Unicode whitespace family
-    "unicode_nbsp":               0.85,
-    "unicode_en_space":           0.83,
-    "unicode_em_space":           0.82,
-    "unicode_thin_space":         0.84,
-    "unicode_figure_space":       0.80,
-    "unicode_narrow_nbsp":        0.84,
-    "unicode_ideographic_space":  0.79,
-    "unicode_mixed_spaces":       0.82,
-    "zero_width_space":           0.85,
-    "zero_width_joiner":          0.83,
-    "zero_width_non_joiner":      0.83,
-
+    "unicode_nbsp": 0.85,
+    "unicode_en_space": 0.83,
+    "unicode_em_space": 0.82,
+    "unicode_thin_space": 0.84,
+    "unicode_figure_space": 0.80,
+    "unicode_narrow_nbsp": 0.84,
+    "unicode_ideographic_space": 0.79,
+    "unicode_mixed_spaces": 0.82,
+    "zero_width_space": 0.85,
+    "zero_width_joiner": 0.83,
+    "zero_width_non_joiner": 0.83,
     # Unicode encoding / homoglyphs
-    "homoglyph_substitution":     0.82,
-    "fullwidth_digits":           0.74,
-    "mathematical_bold_digits":   0.71,
+    "homoglyph_substitution": 0.82,
+    "fullwidth_digits": 0.74,
+    "mathematical_bold_digits": 0.71,
     "mathematical_script_digits": 0.71,
-    "circled_digits":             0.66,
-
+    "circled_digits": 0.66,
     # Bidirectional / soft hyphen
-    "rlo_override":               0.76,
-    "bidi_wrap":                  0.74,
-    "soft_hyphen_group":          0.68,
-
+    "rlo_override": 0.76,
+    "bidi_wrap": 0.74,
+    "soft_hyphen_group": 0.68,
     # Encoding chains
-    "base64_of_rot13":            0.78,
-    "rot13_of_base64":            0.74,
-    "html_entity_hex":            0.71,
-    "html_entity_decimal":        0.69,
-    "url_double_encode":          0.72,
-    "base64":                     0.58,
-    "rot13":                      0.42,
-
+    "base64_of_rot13": 0.78,
+    "rot13_of_base64": 0.74,
+    "html_entity_hex": 0.71,
+    "html_entity_decimal": 0.69,
+    "url_double_encode": 0.72,
+    "base64": 0.58,
+    "rot13": 0.42,
     # Structural / splitting
-    "every_other_char_space":     0.57,
-    "reversed":                   0.48,
-    "zero_padded":                0.46,
-
+    "every_other_char_space": 0.57,
+    "reversed": 0.48,
+    "zero_padded": 0.46,
     # Substitution
-    "leet_substitution":          0.50,
-    "regional_arabic_indic":      0.68,
-    "regional_devanagari":        0.65,
-    "regional_thai":              0.65,
-
+    "leet_substitution": 0.50,
+    "regional_arabic_indic": 0.68,
+    "regional_devanagari": 0.65,
+    "regional_thai": 0.65,
     # Morse
-    "morse_dot_dash":             0.62,
-    "morse_space_sep":            0.65,
-    "morse_slash_sep":            0.60,
+    "morse_dot_dash": 0.62,
+    "morse_space_sep": 0.65,
+    "morse_slash_sep": 0.60,
 }
 
 

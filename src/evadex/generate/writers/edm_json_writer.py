@@ -16,6 +16,7 @@ Consumers can split the list per category and POST each slice to
 the output flat makes that trivial and also lets the file double as
 an evadex ``edm_corpus.json``.
 """
+
 from __future__ import annotations
 
 import json

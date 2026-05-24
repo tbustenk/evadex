@@ -8,6 +8,7 @@ Each generator produces structurally valid values for:
   PEI                   — 6 digits
   Newfoundland (NL)     — L-NNNNNNNNN (1 letter + 9 digits)
 """
+
 from __future__ import annotations
 
 import random

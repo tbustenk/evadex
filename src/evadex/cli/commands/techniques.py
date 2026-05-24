@@ -1,4 +1,5 @@
 """evadex techniques — show per-technique success rates from the audit log."""
+
 from __future__ import annotations
 
 import sys
@@ -31,33 +32,47 @@ def _trend_arrow(delta: Optional[float]) -> str:
 
 @click.command(name="techniques")
 @click.option(
-    "--audit-log", default="results/audit.jsonl",
+    "--audit-log",
+    default="results/audit.jsonl",
     show_default=True,
     help="Path to the audit log (audit.jsonl) to read history from.",
 )
 @click.option(
-    "--last", "last_n", default=10, type=int, show_default=True,
+    "--last",
+    "last_n",
+    default=10,
+    type=int,
+    show_default=True,
     help="Aggregate only the most recent N audit entries.",
 )
 @click.option(
-    "--top", type=int, default=None,
+    "--top",
+    type=int,
+    default=None,
     help="Show only the top N techniques by latest success rate.",
 )
 @click.option(
-    "--category", default=None,
+    "--category",
+    default=None,
     help="Substring match on technique *name* — not the PII payload "
-         "category. Technique names embed their family ('unicode_zwsp', "
-         "'encoding_base64', 'morse_space_sep'); a value like 'unicode' "
-         "filters to all unicode-family techniques. Run "
-         "`evadex list-techniques` for the full name list.",
+    "category. Technique names embed their family ('unicode_zwsp', "
+    "'encoding_base64', 'morse_space_sep'); a value like 'unicode' "
+    "filters to all unicode-family techniques. Run "
+    "`evadex list-techniques` for the full name list.",
 )
 @click.option(
-    "--min-runs", type=int, default=1, show_default=True,
+    "--min-runs",
+    type=int,
+    default=1,
+    show_default=True,
     help="Only show techniques with at least N data points.",
 )
 def techniques(
-    audit_log: str, last_n: int, top: Optional[int],
-    category: Optional[str], min_runs: int,
+    audit_log: str,
+    last_n: int,
+    top: Optional[int],
+    category: Optional[str],
+    min_runs: int,
 ) -> None:
     """Show per-technique scanner-detection success rates from history.
 
@@ -103,7 +118,7 @@ def techniques(
 
     table = Table(
         title=f"Technique scanner-detection rates  "
-              f"(last {last_n} runs, {len(rows)} techniques)"
+        f"(last {last_n} runs, {len(rows)} techniques)"
     )
     table.add_column("Technique", style="cyan", no_wrap=True)
     table.add_column("Latest", justify="right")

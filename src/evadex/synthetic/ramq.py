@@ -10,6 +10,7 @@ RAMQ health card format (12 alphanumeric characters, displayed with spaces):
 
 Display format: ``ABCD YYMM DDSS`` (two spaces separating groups of 4).
 """
+
 from __future__ import annotations
 
 import random
@@ -46,7 +47,7 @@ def _generate_one(rng: random.Random) -> str:
     # Randomly assign sex: male (01-12) or female (51-62)
     month = rng.randint(1, 12)
     if rng.random() < 0.5:
-        month += 50   # female
+        month += 50  # female
     day = rng.randint(1, 28)
     seq = rng.randint(1, 99)
     # Format: ABCD YYMM DDSS

@@ -118,4 +118,6 @@ class ContextInjectionGenerator(BaseVariantGenerator):
 
     def generate(self, value: str) -> Iterator[Variant]:
         for template, technique, desc in TEMPLATES:
-            yield self._make_variant(template.replace("{value}", value), technique, desc)
+            yield self._make_variant(
+                template.replace("{value}", value), technique, desc
+            )

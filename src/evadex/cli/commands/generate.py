@@ -1,4 +1,5 @@
 """evadex generate command — create test documents filled with synthetic sensitive data."""
+
 from __future__ import annotations
 
 import sys
@@ -13,18 +14,35 @@ from evadex.payloads.tiers import get_tier_categories, VALID_TIERS
 err_console = Console(stderr=True)
 
 _ALL_FORMATS = [
-    "xlsx", "docx", "pdf", "csv", "txt", "eml", "msg",
-    "json", "xml", "sql", "log",
+    "xlsx",
+    "docx",
+    "pdf",
+    "csv",
+    "txt",
+    "eml",
+    "msg",
+    "json",
+    "xml",
+    "sql",
+    "log",
     # Barcode/QR image formats — require `pip install evadex[barcodes]`.
-    "png", "jpg", "multi_barcode_png",
+    "png",
+    "jpg",
+    "multi_barcode_png",
     # Siphon EDM bulk-registration format.
     "edm_json",
     # Data-format extractors — `parquet` requires `pip install evadex[data-formats]`
     # (pyarrow); `sqlite` uses stdlib only.
-    "parquet", "sqlite",
+    "parquet",
+    "sqlite",
     # Archive and message-format extractors — `7z` requires
     # `pip install evadex[archives]` (py7zr); the rest use stdlib only.
-    "zip", "zip_nested", "7z", "mbox", "ics", "warc",
+    "zip",
+    "zip_nested",
+    "7z",
+    "mbox",
+    "ics",
+    "warc",
 ]
 _FORMAT_CHOICES = click.Choice(_ALL_FORMATS, case_sensitive=False)
 _BARCODE_TYPE_CHOICES = click.Choice(
@@ -37,15 +55,31 @@ _CATEGORY_CHOICES = click.Choice(
 )
 _TIER_CHOICES = click.Choice(sorted(VALID_TIERS), case_sensitive=False)
 _TEMPLATE_CHOICES = click.Choice(
-    ["generic", "invoice", "statement", "banking-statement", "banking_statement",
-     "hr_record", "audit_report",
-     "source_code", "config_file", "chat_log", "medical_record",
-     "env_file", "secrets_file", "code_with_secrets",
-     "lsh_variants", "lsh_corpus",
-     "email_thread",
-     # Capital markets templates (v3.25.0)
-     "trade_confirmation", "swift_mt103", "settlement_instruction",
-     "bloomberg_export", "risk_report"],
+    [
+        "generic",
+        "invoice",
+        "statement",
+        "banking-statement",
+        "banking_statement",
+        "hr_record",
+        "audit_report",
+        "source_code",
+        "config_file",
+        "chat_log",
+        "medical_record",
+        "env_file",
+        "secrets_file",
+        "code_with_secrets",
+        "lsh_variants",
+        "lsh_corpus",
+        "email_thread",
+        # Capital markets templates (v3.25.0)
+        "trade_confirmation",
+        "swift_mt103",
+        "settlement_instruction",
+        "bloomberg_export",
+        "risk_report",
+    ],
     case_sensitive=False,
 )
 
@@ -92,13 +126,15 @@ def _parse_key_float_pair(value: str) -> tuple[str, float]:
 
 @click.command("generate")
 @click.option(
-    "--format", "fmt",
+    "--format",
+    "fmt",
     default=None,
     type=_FORMAT_CHOICES,
     help="Output file format (single format). Use --formats for multiple.",
 )
 @click.option(
-    "--formats", "batch_formats",
+    "--formats",
+    "batch_formats",
     default=None,
     metavar="FMT,FMT,...",
     help=(
@@ -109,7 +145,8 @@ def _parse_key_float_pair(value: str) -> tuple[str, float]:
     ),
 )
 @click.option(
-    "--tier", "tier",
+    "--tier",
+    "tier",
     default=None,
     type=_TIER_CHOICES,
     help=(
@@ -118,7 +155,8 @@ def _parse_key_float_pair(value: str) -> tuple[str, float]:
     ),
 )
 @click.option(
-    "--category", "categories",
+    "--category",
+    "categories",
     multiple=True,
     type=_CATEGORY_CHOICES,
     metavar="CATEGORY",
@@ -149,7 +187,8 @@ def _parse_key_float_pair(value: str) -> tuple[str, float]:
     help="Proportion of values wrapped in keyword context sentences (0.0–1.0).",
 )
 @click.option(
-    "--technique", "techniques",
+    "--technique",
+    "techniques",
     multiple=True,
     metavar="TECHNIQUE",
     help=(
@@ -158,7 +197,8 @@ def _parse_key_float_pair(value: str) -> tuple[str, float]:
     ),
 )
 @click.option(
-    "--random", "random_mode",
+    "--random",
+    "random_mode",
     is_flag=True,
     default=False,
     help="Randomise categories, evasion rate, and keyword rate.",
@@ -256,8 +296,9 @@ def _parse_key_float_pair(value: str) -> tuple[str, float]:
 )
 @click.option(
     "--evasion-mode",
-    type=click.Choice(["random", "weighted", "adversarial", "exhaustive"],
-                      case_sensitive=False),
+    type=click.Choice(
+        ["random", "weighted", "adversarial", "exhaustive"], case_sensitive=False
+    ),
     default="random",
     show_default=True,
     help=(
@@ -313,7 +354,9 @@ def _parse_key_float_pair(value: str) -> tuple[str, float]:
 @click.option(
     "--lsh-variants",
     "lsh_variants",
-    default=5, show_default=True, type=int,
+    default=5,
+    show_default=True,
+    type=int,
     help=(
         "Used only with --template lsh_corpus. Produces N near-duplicate "
         "variants per base document at descending similarity levels "
@@ -327,7 +370,8 @@ def _parse_key_float_pair(value: str) -> tuple[str, float]:
 @click.option(
     "--lsh-distortions",
     "lsh_distortions",
-    default=None, metavar="FLOAT,FLOAT,...",
+    default=None,
+    metavar="FLOAT,FLOAT,...",
     help=(
         "Optional comma-separated list of distortion rates (0.0–1.0) to "
         "override the default LSH ladder. Example: --lsh-distortions "
@@ -397,10 +441,14 @@ def generate(
     if not fmt and not batch_formats and output is None:
         err_console.print("[bold]evadex generate[/bold] — interactive mode")
         err_console.print()
-        _fmt_raw = click.prompt(
-            "  What format? (xlsx/docx/pdf/csv)",
-            default="xlsx",
-        ).strip().lower()
+        _fmt_raw = (
+            click.prompt(
+                "  What format? (xlsx/docx/pdf/csv)",
+                default="xlsx",
+            )
+            .strip()
+            .lower()
+        )
         fmt = _fmt_raw if _fmt_raw in _ALL_FORMATS else "xlsx"
         _count_raw = click.prompt("  How many records?", default="100")
         try:
@@ -454,8 +502,7 @@ def generate(
         total_prop = sum(parsed_technique_mix.values())
         if abs(total_prop - 1.0) > 0.01:
             raise click.UsageError(
-                f"--technique-mix proportions must sum to 1.0 "
-                f"(got {total_prop:.3f})"
+                f"--technique-mix proportions must sum to 1.0 (got {total_prop:.3f})"
             )
 
     parsed_evasion_per_category: dict[str, float] | None = None
@@ -524,8 +571,10 @@ def generate(
     em = evasion_mode.lower()
     if em in ("weighted", "adversarial"):
         from evadex.feedback.technique_history import (
-            has_history, load_technique_history,
+            has_history,
+            load_technique_history,
         )
+
         if has_history(audit_log):
             stats = load_technique_history(audit_log)
             technique_history = {t: s.average_success for t, s in stats.items()}
@@ -562,7 +611,9 @@ def generate(
 
     entries = generate_entries(config)
     if not entries:
-        err_console.print("[yellow]No payloads matched the requested categories — nothing generated.[/yellow]")
+        err_console.print(
+            "[yellow]No payloads matched the requested categories — nothing generated.[/yellow]"
+        )
         sys.exit(1)
 
     evasion_count = sum(1 for e in entries if e.technique is not None)
@@ -574,6 +625,7 @@ def generate(
 
     # ── Write output for each format ──────────────────────────────────────────
     from evadex.generate.writers import get_writer, set_writer_config
+
     set_writer_config(
         template=template,
         noise_level=noise_level,
@@ -613,25 +665,23 @@ def generate(
         # operator sees it immediately.
         if lsh_distortions:
             try:
-                distortions = [float(x.strip()) for x in lsh_distortions.split(",")
-                               if x.strip()]
+                distortions = [
+                    float(x.strip()) for x in lsh_distortions.split(",") if x.strip()
+                ]
             except ValueError as exc:
                 raise click.UsageError(
-                    f"--lsh-distortions must be a comma list of floats "
-                    f"(0.0–1.0): {exc}"
+                    f"--lsh-distortions must be a comma list of floats (0.0–1.0): {exc}"
                 )
             if not distortions or any(not (0.0 <= d <= 1.0) for d in distortions):
                 raise click.UsageError(
                     "--lsh-distortions entries must be in [0.0, 1.0]."
                 )
         else:
-            distortions = _LSH_DEFAULT_DISTORTIONS[:max(1, lsh_variants)]
+            distortions = _LSH_DEFAULT_DISTORTIONS[: max(1, lsh_variants)]
             # If caller asked for more variants than the default ladder
             # provides, extrapolate linearly up to 0.5 distortion.
             while len(distortions) < max(1, lsh_variants):
-                distortions.append(
-                    min(0.5, distortions[-1] + 0.1)
-                )
+                distortions.append(min(0.5, distortions[-1] + 0.1))
 
         # Output must be a directory. If the caller passed a file path,
         # treat it as the directory name (create it).
@@ -665,9 +715,7 @@ def generate(
                 else:
                     variant_text = distorted_variant(base_text, rate, lsh_rng)
                 if sensitive:
-                    variant_text = (
-                        f"{variant_text} Reference identifier: {sensitive}."
-                    )
+                    variant_text = f"{variant_text} Reference identifier: {sensitive}."
                 empirical = jaccard_similarity(base_text, variant_text)
 
                 for write_fmt in formats:
@@ -680,6 +728,7 @@ def generate(
                     # format. We reuse a single entry's metadata but
                     # swap its embedded text for the variant prose.
                     import dataclasses
+
                     variant_entry = dataclasses.replace(
                         entries[b % len(entries)],
                         embedded_text=variant_text,
@@ -697,28 +746,34 @@ def generate(
                         err_console.print(f"[red]{exc}[/red]")
                         sys.exit(1)
 
-                    manifest.append({
-                        "file":        fname,
-                        "base":        base_id,
-                        "base_index":  b,
-                        "variant":     v_idx,
-                        "distortion":  round(rate, 4),
-                        "jaccard":     round(empirical, 4),
-                        "format":      write_fmt,
-                    })
+                    manifest.append(
+                        {
+                            "file": fname,
+                            "base": base_id,
+                            "base_index": b,
+                            "variant": v_idx,
+                            "distortion": round(rate, 4),
+                            "jaccard": round(empirical, 4),
+                            "format": write_fmt,
+                        }
+                    )
 
         # Manifest makes the corpus self-describing — the scanner
         # can be evaluated against the manifest's jaccard column to
         # compute precision/recall at each similarity threshold.
         import json as _json
+
         manifest_path = out_dir / "manifest.json"
         manifest_path.write_text(
-            _json.dumps({
-                "base_documents": base_ids,
-                "variants":       len(distortions),
-                "distortions":    distortions,
-                "entries":        manifest,
-            }, indent=2),
+            _json.dumps(
+                {
+                    "base_documents": base_ids,
+                    "variants": len(distortions),
+                    "distortions": distortions,
+                    "entries": manifest,
+                },
+                indent=2,
+            ),
             encoding="utf-8",
         )
         err_console.print(

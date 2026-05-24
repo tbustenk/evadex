@@ -41,8 +41,12 @@ class Engine:
             results.append(r)
         return results
 
-    async def run_async(self, payloads: list[Payload]) -> AsyncGenerator[ScanResult, None]:
-        generators = self.generators if self.generators is not None else all_generators()
+    async def run_async(
+        self, payloads: list[Payload]
+    ) -> AsyncGenerator[ScanResult, None]:
+        generators = (
+            self.generators if self.generators is not None else all_generators()
+        )
         sem = asyncio.Semaphore(self.concurrency)
 
         await self.adapter.setup()
@@ -50,7 +54,9 @@ class Engine:
         completed = 0
         total_submitted = 0
 
-        async def _submit_one(payload: Payload, variant: Variant, strategy: str) -> ScanResult:
+        async def _submit_one(
+            payload: Payload, variant: Variant, strategy: str
+        ) -> ScanResult:
             v = Variant(
                 value=variant.value,
                 generator=variant.generator,
@@ -82,14 +88,22 @@ class Engine:
                 # variants to be built. Peak memory proportional to concurrency.
                 for payload in payloads:
                     for gen in generators:
-                        if hasattr(gen, 'applicable_categories') and gen.applicable_categories is not None:
+                        if (
+                            hasattr(gen, "applicable_categories")
+                            and gen.applicable_categories is not None
+                        ):
                             if payload.category not in gen.applicable_categories:
                                 continue
                         for variant in gen.generate(payload.value):
-                            if self.technique_filter is not None and variant.technique not in self.technique_filter:
+                            if (
+                                self.technique_filter is not None
+                                and variant.technique not in self.technique_filter
+                            ):
                                 continue
                             for strategy in self.strategies:
-                                task = asyncio.create_task(_submit_one(payload, variant, strategy))
+                                task = asyncio.create_task(
+                                    _submit_one(payload, variant, strategy)
+                                )
                                 pending.add(task)
                                 total_submitted += 1
                                 # Drain any tasks that already completed while we were generating
@@ -100,7 +114,9 @@ class Engine:
                                     result = t.result()
                                     if self.on_result:
                                         try:
-                                            self.on_result(result, completed, total_submitted)
+                                            self.on_result(
+                                                result, completed, total_submitted
+                                            )
                                         except Exception:
                                             pass
                                     yield result
@@ -111,11 +127,17 @@ class Engine:
                 all_work: list[tuple] = []
                 for payload in payloads:
                     for gen in generators:
-                        if hasattr(gen, 'applicable_categories') and gen.applicable_categories is not None:
+                        if (
+                            hasattr(gen, "applicable_categories")
+                            and gen.applicable_categories is not None
+                        ):
                             if payload.category not in gen.applicable_categories:
                                 continue
                         for variant in gen.generate(payload.value):
-                            if self.technique_filter is not None and variant.technique not in self.technique_filter:
+                            if (
+                                self.technique_filter is not None
+                                and variant.technique not in self.technique_filter
+                            ):
                                 continue
                             for strategy in self.strategies:
                                 all_work.append((payload, variant, strategy))
@@ -126,7 +148,9 @@ class Engine:
 
             # Drain remaining in-flight tasks (shared by both modes)
             while pending:
-                done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+                done, pending = await asyncio.wait(
+                    pending, return_when=asyncio.FIRST_COMPLETED
+                )
                 for t in done:
                     completed += 1
                     result = t.result()

@@ -1,4 +1,5 @@
 """Base class for synthetic value generators."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

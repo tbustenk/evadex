@@ -9,6 +9,7 @@ State is held in a single process-local dict. Restarting the bridge
 forgets queued/running state but the audit log (which is what
 :mod:`evadex.bridge.metrics` reads) is unaffected.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -21,17 +22,16 @@ from datetime import datetime, timezone
 from typing import Optional
 
 
-
 # Use the uvicorn error logger so argv + run-failure lines show up in
 # the bridge's terminal alongside request logs.
 log = logging.getLogger("uvicorn.error")
 
 
 # Run status values the C2 frontend understands.
-STATUS_QUEUED    = "queued"
-STATUS_RUNNING   = "running"
+STATUS_QUEUED = "queued"
+STATUS_RUNNING = "running"
 STATUS_COMPLETED = "completed"
-STATUS_FAILED    = "failed"
+STATUS_FAILED = "failed"
 STATUS_CANCELLED = "cancelled"
 
 
@@ -51,8 +51,11 @@ _CANCEL_GRACE_S = 5.0
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace(
-        "+00:00", "Z"
+    return (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
     )
 
 
@@ -242,9 +245,13 @@ def list_runs() -> list[dict]:
     )
 
 
-async def _drain_stream(stream: asyncio.StreamReader, buf: list[bytes],
-                        *, on_line: Optional[callable] = None,
-                        max_bytes: int = 4096) -> None:
+async def _drain_stream(
+    stream: asyncio.StreamReader,
+    buf: list[bytes],
+    *,
+    on_line: Optional[callable] = None,
+    max_bytes: int = 4096,
+) -> None:
     """Accumulate tail bytes and fire *on_line* for each complete line.
 
     Kept tail-only (4 KiB by default) so a chatty subprocess can't
@@ -291,22 +298,28 @@ def _on_progress_line(rec: dict, text: str) -> None:
     # Handle individual test results for live output
     if "test_result" in payload:
         result = payload["test_result"]
-        if isinstance(result, dict) and all(k in result for k in ["category", "technique", "value", "matched"]):
+        if isinstance(result, dict) and all(
+            k in result for k in ["category", "technique", "value", "matched"]
+        ):
             # Initialize recent_results if not present
             if "recent_results" not in rec:
                 rec["recent_results"] = []
 
             # Add new result and maintain last 20 items
             raw_conf = result.get("confidence")
-            rec["recent_results"].append({
-                "category": str(result["category"]),
-                "technique": str(result["technique"]),
-                "value": str(result["value"])[:100],
-                "matched": bool(result["matched"]),
-                # Coerce to float or None — never let a subprocess-injected
-                # dict/list land in the public run view.
-                "confidence": float(raw_conf) if isinstance(raw_conf, (int, float)) else None,
-            })
+            rec["recent_results"].append(
+                {
+                    "category": str(result["category"]),
+                    "technique": str(result["technique"]),
+                    "value": str(result["value"])[:100],
+                    "matched": bool(result["matched"]),
+                    # Coerce to float or None — never let a subprocess-injected
+                    # dict/list land in the public run view.
+                    "confidence": float(raw_conf)
+                    if isinstance(raw_conf, (int, float))
+                    else None,
+                }
+            )
 
             # Keep only last 20 results
             if len(rec["recent_results"]) > 20:
@@ -347,12 +360,11 @@ async def _execute(run_id: str, argv: list[str], cwd: Optional[str]) -> None:
 
         stdout_buf: list[bytes] = []
         stderr_buf: list[bytes] = []
-        stdout_task = asyncio.create_task(
-            _drain_stream(proc.stdout, stdout_buf)
-        )
+        stdout_task = asyncio.create_task(_drain_stream(proc.stdout, stdout_buf))
         stderr_task = asyncio.create_task(
             _drain_stream(
-                proc.stderr, stderr_buf,
+                proc.stderr,
+                stderr_buf,
                 on_line=lambda t, r=rec: _on_progress_line(r, t),
             )
         )
@@ -378,7 +390,8 @@ async def _execute(run_id: str, argv: list[str], cwd: Optional[str]) -> None:
         if rec["status"] == STATUS_FAILED:
             log.warning(
                 "[bridge/run %s] exit=%s stderr=%r",
-                run_id, returncode,
+                run_id,
+                returncode,
                 rec["stderr_tail"].strip().splitlines()[-1:] or "",
             )
     except Exception as exc:
@@ -449,20 +462,20 @@ def launch(body: dict, cwd: Optional[str] = None) -> dict:
     run_id = _allocate_run_id()
     argv = _build_scan_argv(body)
     record = {
-        "status":       STATUS_QUEUED,
-        "started_at":   _now(),
-        "finished_at":  None,
-        "argv":         argv,
-        "request":      body,
-        "exit_code":    None,
-        "stdout_tail":  "",
-        "stderr_tail":  "",
+        "status": STATUS_QUEUED,
+        "started_at": _now(),
+        "finished_at": None,
+        "argv": argv,
+        "request": body,
+        "exit_code": None,
+        "stdout_tail": "",
+        "stderr_tail": "",
         # Progress fields populated by --progress-json stderr ticks.
-        "progress":     0.0,
-        "tested":       0,
-        "total":        0,
-        "detected":     0,
-        "elapsed_s":    0.0,
+        "progress": 0.0,
+        "tested": 0,
+        "total": 0,
+        "detected": 0,
+        "elapsed_s": 0.0,
         # Live test results for frontend display
         "recent_results": [],
     }

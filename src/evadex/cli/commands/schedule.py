@@ -9,6 +9,7 @@ choice. ``schedule run-due`` walks all profiles and runs any whose cron is
 firing right now, which is the hook you'd wire into a single system-level
 cron entry that polls every minute.
 """
+
 from __future__ import annotations
 
 import sys
@@ -51,8 +52,12 @@ def schedule() -> None:
 
 @schedule.command("add")
 @click.argument("name")
-@click.option("--cron", "cron_expr", required=True,
-              help="5-field cron expression, e.g. '0 6 * * *' for 06:00 UTC daily.")
+@click.option(
+    "--cron",
+    "cron_expr",
+    required=True,
+    help="5-field cron expression, e.g. '0 6 * * *' for 06:00 UTC daily.",
+)
 def schedule_add(name: str, cron_expr: str) -> None:
     """Attach a cron expression to profile *name*.
 
@@ -112,7 +117,9 @@ def schedule_list() -> None:
         if not cron:
             continue
         table.add_row(
-            name, cron, p.last_run or "-",
+            name,
+            cron,
+            p.last_run or "-",
             "built-in" if p.builtin else "user",
         )
 
@@ -143,7 +150,9 @@ def schedule_remove(name: str) -> None:
         )
         sys.exit(1)
     if not (profile.schedule or {}).get("cron"):
-        err_console.print(f"[dim]Profile '{name}' had no schedule; nothing to do.[/dim]")
+        err_console.print(
+            f"[dim]Profile '{name}' had no schedule; nothing to do.[/dim]"
+        )
         return
     profile.schedule = {
         k: v for k, v in (profile.schedule or {}).items() if k != "cron"
@@ -157,11 +166,20 @@ def schedule_remove(name: str) -> None:
 
 @schedule.command("export")
 @click.argument("name")
-@click.option("--format", "fmt", type=click.Choice(["cron", "windows-task"]),
-              default="cron", show_default=True,
-              help="Output format.")
-@click.option("--output", "-o", default=None,
-              help="Write to this path instead of stdout (Task Scheduler XML is usually saved to a file).")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["cron", "windows-task"]),
+    default="cron",
+    show_default=True,
+    help="Output format.",
+)
+@click.option(
+    "--output",
+    "-o",
+    default=None,
+    help="Write to this path instead of stdout (Task Scheduler XML is usually saved to a file).",
+)
 def schedule_export(name: str, fmt: str, output: Optional[str]) -> None:
     """Emit a cron line or Task Scheduler XML for the profile's schedule."""
     try:
@@ -190,8 +208,12 @@ def schedule_export(name: str, fmt: str, output: Optional[str]) -> None:
 
 
 @schedule.command("run-due")
-@click.option("--window-minutes", default=5, show_default=True,
-              help="Treat schedules firing within the last N minutes as still due.")
+@click.option(
+    "--window-minutes",
+    default=5,
+    show_default=True,
+    help="Treat schedules firing within the last N minutes as still due.",
+)
 @click.option("--dry-run", is_flag=True, default=False)
 def schedule_run_due(window_minutes: int, dry_run: bool) -> None:
     """Run every profile whose schedule fires right now.
@@ -216,15 +238,14 @@ def schedule_run_due(window_minutes: int, dry_run: bool) -> None:
         err_console.print(f"[dim]No profiles due at {now.isoformat()}.[/dim]")
         return
 
-    err_console.print(
-        f"[bold cyan]Due now:[/bold cyan] {', '.join(due)}"
-    )
+    err_console.print(f"[bold cyan]Due now:[/bold cyan] {', '.join(due)}")
     if dry_run:
         return
 
     # Invoke ``evadex profile run <names>`` via subprocess so the actual
     # run lives in a child process and this command can exit quickly.
     import subprocess
+
     cmd = [sys.executable, "-m", "evadex", "profile", "run"] + due
     err_console.print(f"[dim]$ {' '.join(cmd)}[/dim]")
     rc = subprocess.call(cmd)

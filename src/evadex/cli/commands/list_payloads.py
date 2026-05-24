@@ -8,13 +8,22 @@ console = Console()
 
 
 @click.command("list-payloads")
-@click.option("--type", "filter_type", type=click.Choice(["structured", "heuristic"]),
-              default=None, help="Filter by structured or heuristic type")
+@click.option(
+    "--type",
+    "filter_type",
+    type=click.Choice(["structured", "heuristic"]),
+    default=None,
+    help="Filter by structured or heuristic type",
+)
 def list_payloads(filter_type):
     """List all built-in test payloads."""
     payloads = BUILTIN_PAYLOADS
     if filter_type:
-        target = CategoryType.STRUCTURED if filter_type == "structured" else CategoryType.HEURISTIC
+        target = (
+            CategoryType.STRUCTURED
+            if filter_type == "structured"
+            else CategoryType.HEURISTIC
+        )
         payloads = [p for p in payloads if CATEGORY_TYPES.get(p.category) == target]
 
     table = Table(show_header=True, header_style="bold dim", border_style="dim")

@@ -22,6 +22,7 @@ Design constraints
    timeout. Evadex is CLI-invoked and already completed the scan; we
    don't need async fan-out here.
 """
+
 from __future__ import annotations
 
 import os
@@ -49,6 +50,7 @@ PATH_HEALTH = "/health"
 
 try:
     from importlib.metadata import version, PackageNotFoundError
+
     try:
         _VERSION = version("evadex")
     except PackageNotFoundError:
@@ -124,6 +126,7 @@ class C2Client:
 
 # ── Public helpers ──────────────────────────────────────────────────────────
 
+
 def resolve_c2_config(
     c2_url: Optional[str],
     c2_key: Optional[str],
@@ -172,8 +175,10 @@ def push_scan_results(
         "categories": categories,
         "strategies": strategies,
         "counts": {
-            "total": total, "pass": passes,
-            "fail": fails, "error": errors,
+            "total": total,
+            "pass": passes,
+            "fail": fails,
+            "error": errors,
         },
         "pass_rate": pass_rate,
         "by_category": by_category or {},
@@ -245,6 +250,7 @@ def push_history_batch(
 
 
 # ── Internal ────────────────────────────────────────────────────────────────
+
 
 def _push_silently(
     c2_url: str,

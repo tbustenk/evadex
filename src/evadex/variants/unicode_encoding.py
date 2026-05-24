@@ -6,25 +6,25 @@ from evadex.variants.base import BaseVariantGenerator
 
 
 HOMOGLYPHS = {
-    '0': '\u039F',   # Greek capital omicron
-    '1': '\u0406',   # Cyrillic I
-    '2': '\u01A7',   # Latin capital letter tone two (Ƨ) — visually resembles 2
-    '3': '\u01B7',   # Latin letter ezh (Ʒ)
-    '5': '\u01BC',   # Latin letter five (Ƽ)
-    '6': '\u0431',   # Cyrillic be (б)
-    '8': '\u0222',   # Latin letter OU (Ȣ)
-    'A': '\u0410',   # Cyrillic A
-    'B': '\u0412',   # Cyrillic Ve (В)
-    'C': '\u0421',   # Cyrillic Es (С)
-    'E': '\u0415',   # Cyrillic Ie (Е)
-    'H': '\u041D',   # Cyrillic En (Н)
-    'I': '\u0406',   # Cyrillic I (І)
-    'K': '\u041A',   # Cyrillic Ka (К)
-    'M': '\u041C',   # Cyrillic Em (М)
-    'O': '\u041E',   # Cyrillic O (О)
-    'P': '\u0420',   # Cyrillic Er (Р)
-    'T': '\u0422',   # Cyrillic Te (Т)
-    'X': '\u0425',   # Cyrillic Kha (Х)
+    "0": "\u039f",  # Greek capital omicron
+    "1": "\u0406",  # Cyrillic I
+    "2": "\u01a7",  # Latin capital letter tone two (Ƨ) — visually resembles 2
+    "3": "\u01b7",  # Latin letter ezh (Ʒ)
+    "5": "\u01bc",  # Latin letter five (Ƽ)
+    "6": "\u0431",  # Cyrillic be (б)
+    "8": "\u0222",  # Latin letter OU (Ȣ)
+    "A": "\u0410",  # Cyrillic A
+    "B": "\u0412",  # Cyrillic Ve (В)
+    "C": "\u0421",  # Cyrillic Es (С)
+    "E": "\u0415",  # Cyrillic Ie (Е)
+    "H": "\u041d",  # Cyrillic En (Н)
+    "I": "\u0406",  # Cyrillic I (І)
+    "K": "\u041a",  # Cyrillic Ka (К)
+    "M": "\u041c",  # Cyrillic Em (М)
+    "O": "\u041e",  # Cyrillic O (О)
+    "P": "\u0420",  # Cyrillic Er (Р)
+    "T": "\u0422",  # Cyrillic Te (Т)
+    "X": "\u0425",  # Cyrillic Kha (Х)
 }
 
 FULLWIDTH_DIGITS = {str(i): chr(0xFF10 + i) for i in range(10)}
@@ -44,9 +44,9 @@ class UnicodeEncodingGenerator(BaseVariantGenerator):
 
     def _zero_width_injection(self, value: str) -> Iterator[Variant]:
         for char, abbr, name in [
-            ('\u200B', 'zwsp', 'ZWSP'),
-            ('\u200C', 'zwnj', 'ZWNJ'),
-            ('\u200D', 'zwj',  'ZWJ'),
+            ("\u200b", "zwsp", "ZWSP"),
+            ("\u200c", "zwnj", "ZWNJ"),
+            ("\u200d", "zwj", "ZWJ"),
         ]:
             result = char.join(value)
             yield self._make_variant(
@@ -56,7 +56,7 @@ class UnicodeEncodingGenerator(BaseVariantGenerator):
             )
 
     def _fullwidth_digits(self, value: str) -> Iterator[Variant]:
-        result = ''.join(FULLWIDTH_DIGITS.get(c, c) for c in value)
+        result = "".join(FULLWIDTH_DIGITS.get(c, c) for c in value)
         if result != value:
             yield self._make_variant(
                 result,
@@ -65,7 +65,7 @@ class UnicodeEncodingGenerator(BaseVariantGenerator):
             )
 
     def _homoglyph_substitution(self, value: str) -> Iterator[Variant]:
-        result = ''.join(HOMOGLYPHS.get(c, HOMOGLYPHS.get(c.upper(), c)) for c in value)
+        result = "".join(HOMOGLYPHS.get(c, HOMOGLYPHS.get(c.upper(), c)) for c in value)
         if result != value:
             yield self._make_variant(
                 result,
@@ -74,7 +74,7 @@ class UnicodeEncodingGenerator(BaseVariantGenerator):
             )
 
     def _normalization(self, value: str) -> Iterator[Variant]:
-        for form in ('NFD', 'NFC', 'NFKC', 'NFKD'):
+        for form in ("NFD", "NFC", "NFKC", "NFKD"):
             result = unicodedata.normalize(form, value)
             if result != value:
                 yield self._make_variant(
@@ -84,26 +84,35 @@ class UnicodeEncodingGenerator(BaseVariantGenerator):
                 )
 
     def _html_entities(self, value: str) -> Iterator[Variant]:
-        decimal = ''.join(f'&#{ord(c)};' for c in value)
-        yield self._make_variant(decimal, "html_entity_decimal", "HTML decimal entities for every character")
-        hexent = ''.join(f'&#x{ord(c):x};' for c in value)
-        yield self._make_variant(hexent, "html_entity_hex", "HTML hex entities for every character")
+        decimal = "".join(f"&#{ord(c)};" for c in value)
+        yield self._make_variant(
+            decimal, "html_entity_decimal", "HTML decimal entities for every character"
+        )
+        hexent = "".join(f"&#x{ord(c):x};" for c in value)
+        yield self._make_variant(
+            hexent, "html_entity_hex", "HTML hex entities for every character"
+        )
 
     def _url_encoding(self, value: str) -> Iterator[Variant]:
         # Encode UTF-8 bytes so non-ASCII chars produce valid %XX%XX sequences
         def pct(c: str) -> str:
-            return ''.join(f'%{b:02X}' for b in c.encode('utf-8'))
+            return "".join(f"%{b:02X}" for b in c.encode("utf-8"))
 
-        full = ''.join(pct(c) for c in value)
-        yield self._make_variant(full, "url_percent_encoding_full", "All characters percent-encoded")
+        full = "".join(pct(c) for c in value)
+        yield self._make_variant(
+            full, "url_percent_encoding_full", "All characters percent-encoded"
+        )
 
-        partial = ''.join(pct(c) if c.isdigit() else c for c in value)
+        partial = "".join(pct(c) if c.isdigit() else c for c in value)
         if partial != value:
-            yield self._make_variant(partial, "url_percent_encoding_digits", "Only digits percent-encoded")
+            yield self._make_variant(
+                partial, "url_percent_encoding_digits", "Only digits percent-encoded"
+            )
 
-        mixed = ''.join(
-            pct(c) if i % 2 == 0 and c.isalnum() else c
-            for i, c in enumerate(value)
+        mixed = "".join(
+            pct(c) if i % 2 == 0 and c.isalnum() else c for i, c in enumerate(value)
         )
         if mixed != value and mixed != partial:
-            yield self._make_variant(mixed, "url_percent_encoding_mixed", "Alternating percent-encoding")
+            yield self._make_variant(
+                mixed, "url_percent_encoding_mixed", "Alternating percent-encoding"
+            )

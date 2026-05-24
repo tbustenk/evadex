@@ -9,11 +9,11 @@ from evadex.variants.base import BaseVariantGenerator
 # invisible in most display contexts. Some DLP scanners strip it during
 # normalisation (correct behaviour); others pass it through to regex matching,
 # causing patterns like \d{16} or \d{4}-\d{4}-... to fail.
-SHY = '\u00AD'
+SHY = "\u00ad"
 
 # U+2060 WORD JOINER — invisible, inhibits line breaks. Complements SHY as a
 # second invisible separator that scanners may treat differently.
-WJ = '\u2060'
+WJ = "\u2060"
 
 
 @register_generator("soft_hyphen")
@@ -183,8 +183,8 @@ class SoftHyphenGenerator(BaseVariantGenerator):
 
     def _at_group_boundaries(self, value: str) -> Iterator[Variant]:
         """Insert SHY at every 4-character alphanumeric group boundary."""
-        raw = re.sub(r'[^A-Za-z0-9]', '', value)
-        groups = [raw[i:i+4] for i in range(0, len(raw), 4)]
+        raw = re.sub(r"[^A-Za-z0-9]", "", value)
+        groups = [raw[i : i + 4] for i in range(0, len(raw), 4)]
 
         result = SHY.join(groups)
         if result != value:
@@ -195,7 +195,7 @@ class SoftHyphenGenerator(BaseVariantGenerator):
             )
 
         # Also at every 2-char boundary (tighter injection)
-        groups2 = [raw[i:i+2] for i in range(0, len(raw), 2)]
+        groups2 = [raw[i : i + 2] for i in range(0, len(raw), 2)]
         result2 = SHY.join(groups2)
         if result2 != value and result2 != result:
             yield self._make_variant(
@@ -215,8 +215,8 @@ class SoftHyphenGenerator(BaseVariantGenerator):
 
     def _word_joiner_variants(self, value: str) -> Iterator[Variant]:
         """Same boundary patterns using word joiner (U+2060) instead of soft hyphen."""
-        raw = re.sub(r'[^A-Za-z0-9]', '', value)
-        groups = [raw[i:i+4] for i in range(0, len(raw), 4)]
+        raw = re.sub(r"[^A-Za-z0-9]", "", value)
+        groups = [raw[i : i + 4] for i in range(0, len(raw), 4)]
 
         result = WJ.join(groups)
         if result != value:
@@ -241,7 +241,7 @@ class SoftHyphenGenerator(BaseVariantGenerator):
             parts.append(c)
             if i < len(chars) - 1:
                 parts.append(SHY if i % 2 == 0 else WJ)
-        result = ''.join(parts)
+        result = "".join(parts)
         yield self._make_variant(
             result,
             "mixed_shy_wj",

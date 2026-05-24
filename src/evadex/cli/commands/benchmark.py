@@ -24,6 +24,7 @@ Design notes
   ``min(cpu_count * 2, 32)`` clamped by peak memory, and the xlsx
   count ceiling backs off quadratically from the observed time.
 """
+
 from __future__ import annotations
 
 import json
@@ -65,6 +66,7 @@ def _peak_memory_mb() -> float | None:
     """Peak RSS of the current process, in MB. ``None`` if unavailable."""
     try:
         import resource  # POSIX only
+
         ru = resource.getrusage(resource.RUSAGE_SELF)
         # Linux reports ru_maxrss in kilobytes; macOS reports bytes.
         maxrss = ru.ru_maxrss
@@ -75,6 +77,7 @@ def _peak_memory_mb() -> float | None:
         pass
     try:
         import psutil
+
         return psutil.Process().memory_info().rss / (1024 * 1024)
     except Exception:
         return None
@@ -89,6 +92,7 @@ def _child_peak_memory() -> float | None:
     bound for a single-process benchmark."""
     try:
         import resource
+
         ru = resource.getrusage(resource.RUSAGE_CHILDREN)
         maxrss = ru.ru_maxrss
         if sys.platform == "darwin":
@@ -98,7 +102,9 @@ def _child_peak_memory() -> float | None:
         return None
 
 
-def _run_generate_once(fmt: str, tier: str, count: int, out_dir: Path) -> tuple[float, float | None]:
+def _run_generate_once(
+    fmt: str, tier: str, count: int, out_dir: Path
+) -> tuple[float, float | None]:
     """Run one ``evadex generate`` in a subprocess. Returns (seconds, peak_mb).
 
     Running in a subprocess keeps memory numbers honest: every run
@@ -109,12 +115,20 @@ def _run_generate_once(fmt: str, tier: str, count: int, out_dir: Path) -> tuple[
     ext = ext_map.get(fmt, fmt)
     out = out_dir / f"bench_{fmt}.{ext}"
     cmd = [
-        sys.executable, "-m", "evadex", "generate",
-        "--format", fmt,
-        "--tier", tier,
-        "--count", str(count),
-        "--output", str(out),
-        "--seed", "1",
+        sys.executable,
+        "-m",
+        "evadex",
+        "generate",
+        "--format",
+        fmt,
+        "--tier",
+        tier,
+        "--count",
+        str(count),
+        "--output",
+        str(out),
+        "--seed",
+        "1",
     ]
     start = time.perf_counter()
     proc = subprocess.run(
@@ -214,7 +228,8 @@ def _recommended_xlsx_ceiling(xlsx_avg_seconds: float) -> int:
 
 @click.command("benchmark")
 @click.option(
-    "--tier", "tier",
+    "--tier",
+    "tier",
     default="banking",
     show_default=True,
     type=_TIER_CHOICES,
@@ -247,7 +262,8 @@ def _recommended_xlsx_ceiling(xlsx_avg_seconds: float) -> int:
     help="Skip the siphon-cli scan pass (useful when siphon isn't installed).",
 )
 @click.option(
-    "--json", "emit_json",
+    "--json",
+    "emit_json",
     is_flag=True,
     default=False,
     help="Emit results as JSON instead of a human-readable table.",
@@ -296,7 +312,7 @@ def benchmark(
                     stats.peak_mb = peak
                 if not emit_json:
                     err_console.print(
-                        f"  [dim]{fmt} run {i+1}/{runs}: {_fmt_time(elapsed)}[/dim]"
+                        f"  [dim]{fmt} run {i + 1}/{runs}: {_fmt_time(elapsed)}[/dim]"
                     )
 
         # Prepare a corpus to scan (one file per format, using the last
@@ -316,7 +332,7 @@ def benchmark(
                 siphon_stats.times.append(elapsed)
                 if not emit_json:
                     err_console.print(
-                        f"  [dim]scan run {i+1}/{runs}: {_fmt_time(elapsed)} "
+                        f"  [dim]scan run {i + 1}/{runs}: {_fmt_time(elapsed)} "
                         f"({findings} findings)[/dim]"
                     )
             if siphon_stats.times:
@@ -370,7 +386,9 @@ def benchmark(
     for fmt in fmt_list:
         s = results[fmt]
         if not s.times:
-            err_console.print(f"  {fmt:<5} ({count} records)   [yellow]unavailable[/yellow]")
+            err_console.print(
+                f"  {fmt:<5} ({count} records)   [yellow]unavailable[/yellow]"
+            )
             continue
         err_console.print(
             f"  {fmt:<5} ({count} records)   {_fmt_time_pair(s.avg(), s.stdev())}"
@@ -410,6 +428,10 @@ def benchmark(
     err_console.print("[bold]Recommended settings for this machine:[/bold]")
     err_console.print(f"  --concurrency {rec_concurrency}")
     if xlsx_avg > 0:
-        err_console.print(f"  --count max {rec_xlsx_ceiling} for xlsx, unlimited for csv")
+        err_console.print(
+            f"  --count max {rec_xlsx_ceiling} for xlsx, unlimited for csv"
+        )
     else:
-        err_console.print("  --count max [dim]unmeasured[/dim] for xlsx, unlimited for csv")
+        err_console.print(
+            "  --count max [dim]unmeasured[/dim] for xlsx, unlimited for csv"
+        )

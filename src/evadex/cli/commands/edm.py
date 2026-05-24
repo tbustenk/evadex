@@ -30,6 +30,7 @@ delete. True cleanup requires clearing the server's EDM state file
 dedicated category namespace so any residual hashes remain
 clearly-labelled test data.
 """
+
 from __future__ import annotations
 
 import csv
@@ -69,17 +70,17 @@ SIPHON_EDM_HASH_WARN_THRESHOLD = 50_000
 #: still match. Homoglyphs (Cyrillic/Greek look-alikes) should NOT
 #: match because NFKC keeps distinct Unicode scripts separate.
 EVASION_TRANSFORMS: dict[str, "callable"] = {
-    "exact":          lambda v: v,
-    "uppercase":      lambda v: v.upper(),
-    "lowercase":      lambda v: v.lower(),
-    "dashes":         lambda v: _insert_every(v, 4, "-"),
-    "spaces":         lambda v: _insert_every(v, 4, " "),
-    "dots":           lambda v: _insert_every(v, 4, "."),
-    "slashes":        lambda v: _insert_every(v, 4, "/"),
-    "nbsp_spaces":    lambda v: _insert_every(v, 4, "\u00a0"),  # non-breaking space
-    "homoglyph_0":    lambda v: v.replace("0", "\u041e"),  # Cyrillic O
-    "homoglyph_o":    lambda v: v.replace("o", "\u043e"),  # Cyrillic small o
-    "zero_width":     lambda v: _insert_every(v, 4, "\u200b"),  # zero-width space
+    "exact": lambda v: v,
+    "uppercase": lambda v: v.upper(),
+    "lowercase": lambda v: v.lower(),
+    "dashes": lambda v: _insert_every(v, 4, "-"),
+    "spaces": lambda v: _insert_every(v, 4, " "),
+    "dots": lambda v: _insert_every(v, 4, "."),
+    "slashes": lambda v: _insert_every(v, 4, "/"),
+    "nbsp_spaces": lambda v: _insert_every(v, 4, "\u00a0"),  # non-breaking space
+    "homoglyph_0": lambda v: v.replace("0", "\u041e"),  # Cyrillic O
+    "homoglyph_o": lambda v: v.replace("o", "\u043e"),  # Cyrillic small o
+    "zero_width": lambda v: _insert_every(v, 4, "\u200b"),  # zero-width space
 }
 
 
@@ -91,6 +92,7 @@ def _insert_every(value: str, n: int, sep: str) -> str:
 
 
 # ── Siphon EDM HTTP client ──────────────────────────────────────────────────
+
 
 class SiphonEDMClient:
     """Narrow client for the two EDM endpoints + /v1/scan verification.
@@ -153,6 +155,7 @@ def _is_edm_match(scan_response: dict) -> bool:
 
 
 # ── Corpus generation ──────────────────────────────────────────────────────
+
 
 def _category_allowlist(
     categories: tuple[str, ...],
@@ -217,6 +220,7 @@ def _write_corpus(
 
 # ── Registration + verification pipeline ────────────────────────────────────
 
+
 def _register_payloads(
     client: SiphonEDMClient,
     payloads: list[Payload],
@@ -264,20 +268,24 @@ def _verify_payloads(
         try:
             resp = client.scan(p.value)
             detected = _is_edm_match(resp)
-            results.append({
-                "category": p.category.value,
-                "label": p.label,
-                "value": p.value,
-                "edm_detected": detected,
-            })
+            results.append(
+                {
+                    "category": p.category.value,
+                    "label": p.label,
+                    "value": p.value,
+                    "edm_detected": detected,
+                }
+            )
         except httpx.HTTPError as exc:
-            results.append({
-                "category": p.category.value,
-                "label": p.label,
-                "value": p.value,
-                "edm_detected": False,
-                "error": str(exc),
-            })
+            results.append(
+                {
+                    "category": p.category.value,
+                    "label": p.label,
+                    "value": p.value,
+                    "edm_detected": False,
+                    "error": str(exc),
+                }
+            )
     return results
 
 
@@ -292,8 +300,7 @@ def _run_evasion(
     counts so the final table shows which normalisations EDM absorbs.
     """
     stats: dict = {
-        name: {"tested": 0, "detected": 0, "failures": []}
-        for name in transforms
+        name: {"tested": 0, "detected": 0, "failures": []} for name in transforms
     }
     for p in payloads:
         for name, fn in transforms.items():
@@ -310,14 +317,17 @@ def _run_evasion(
             if hit:
                 stats[name]["detected"] += 1
             else:
-                stats[name]["failures"].append({
-                    "category": p.category.value,
-                    "value": text,
-                })
+                stats[name]["failures"].append(
+                    {
+                        "category": p.category.value,
+                        "value": text,
+                    }
+                )
     return stats
 
 
 # ── Tabular rendering ───────────────────────────────────────────────────────
+
 
 def _render_verification_table(verification: list[dict]) -> Table:
     table = Table(title="EDM exact-value detection")
@@ -343,9 +353,11 @@ def _render_evasion_table(stats: dict) -> Table:
         hit = s["detected"]
         pct = 100.0 * hit / total if total else 0.0
         note = (
-            "[green]yes[/green]" if pct >= 99 else
-            "[yellow]partial[/yellow]" if pct >= 20 else
-            "[red]no[/red]"
+            "[green]yes[/green]"
+            if pct >= 99
+            else "[yellow]partial[/yellow]"
+            if pct >= 20
+            else "[red]no[/red]"
         )
         table.add_row(name, f"{hit}/{total} ({pct:.0f}%)", note)
     return table
@@ -353,42 +365,110 @@ def _render_evasion_table(stats: dict) -> Table:
 
 # ── Click command ──────────────────────────────────────────────────────────
 
+
 @click.command("edm")
-@click.option("--tool", "-t", default="siphon", show_default=True,
-              help="DLP adapter to probe (siphon is the only one with an EDM engine).")
-@click.option("--url", default="http://localhost:8000", show_default=True,
-              help="Base URL for the Siphon HTTP API.")
-@click.option("--api-key", default=None, envvar="EVADEX_API_KEY",
-              help="Siphon API key (sent as x-api-key). Registration requires Admin role.")
-@click.option("--timeout", default=30.0, show_default=True, type=float,
-              help="HTTP timeout in seconds.")
-@click.option("--category", "categories", multiple=True, metavar="CATEGORY",
-              help="Restrict registration to these payload categories. Repeat for multiple.")
-@click.option("--include-heuristic", is_flag=True, default=False,
-              help="Include heuristic categories (AWS key, JWT, etc.).")
-@click.option("--limit", type=int, default=None, metavar="N",
-              help="Register at most N values. Useful for quick smoke tests.")
-@click.option("--test-evasion/--no-test-evasion", default=True, show_default=True,
-              help="After verification, probe EDM's normalisation with a set of "
-                   "transforms (case, delimiters, whitespace, homoglyphs).")
-@click.option("--generate-corpus", is_flag=True, default=False,
-              help="Skip the server entirely. Just write an EDM import file "
-                   "(--corpus-format) to --output.")
-@click.option("--corpus-format", default="json", show_default=True,
-              type=click.Choice(["json", "csv"]),
-              help="Format for --generate-corpus output.")
-@click.option("--count", type=int, default=None,
-              help="Alias for --limit when using --generate-corpus.")
-@click.option("--output", "-o", default=None, metavar="PATH",
-              help="Output path. With --generate-corpus: corpus file. "
-                   "Otherwise: JSON report of the test run.")
-@click.option("--c2-url", "c2_url", default=None, envvar="EVADEX_C2_URL",
-              help="Siphon-C2 URL. Pushes the EDM test results to "
-                   "POST /v1/evadex/edm. Failures log a warning; never fail the run.")
-@click.option("--c2-key", "c2_key", default=None, envvar="EVADEX_C2_KEY",
-              help="API key sent as 'x-api-key' to Siphon-C2.")
-@click.option("--dry-run", is_flag=True, default=False,
-              help="Do not contact the Siphon server — print the plan only.")
+@click.option(
+    "--tool",
+    "-t",
+    default="siphon",
+    show_default=True,
+    help="DLP adapter to probe (siphon is the only one with an EDM engine).",
+)
+@click.option(
+    "--url",
+    default="http://localhost:8000",
+    show_default=True,
+    help="Base URL for the Siphon HTTP API.",
+)
+@click.option(
+    "--api-key",
+    default=None,
+    envvar="EVADEX_API_KEY",
+    help="Siphon API key (sent as x-api-key). Registration requires Admin role.",
+)
+@click.option(
+    "--timeout",
+    default=30.0,
+    show_default=True,
+    type=float,
+    help="HTTP timeout in seconds.",
+)
+@click.option(
+    "--category",
+    "categories",
+    multiple=True,
+    metavar="CATEGORY",
+    help="Restrict registration to these payload categories. Repeat for multiple.",
+)
+@click.option(
+    "--include-heuristic",
+    is_flag=True,
+    default=False,
+    help="Include heuristic categories (AWS key, JWT, etc.).",
+)
+@click.option(
+    "--limit",
+    type=int,
+    default=None,
+    metavar="N",
+    help="Register at most N values. Useful for quick smoke tests.",
+)
+@click.option(
+    "--test-evasion/--no-test-evasion",
+    default=True,
+    show_default=True,
+    help="After verification, probe EDM's normalisation with a set of "
+    "transforms (case, delimiters, whitespace, homoglyphs).",
+)
+@click.option(
+    "--generate-corpus",
+    is_flag=True,
+    default=False,
+    help="Skip the server entirely. Just write an EDM import file "
+    "(--corpus-format) to --output.",
+)
+@click.option(
+    "--corpus-format",
+    default="json",
+    show_default=True,
+    type=click.Choice(["json", "csv"]),
+    help="Format for --generate-corpus output.",
+)
+@click.option(
+    "--count",
+    type=int,
+    default=None,
+    help="Alias for --limit when using --generate-corpus.",
+)
+@click.option(
+    "--output",
+    "-o",
+    default=None,
+    metavar="PATH",
+    help="Output path. With --generate-corpus: corpus file. "
+    "Otherwise: JSON report of the test run.",
+)
+@click.option(
+    "--c2-url",
+    "c2_url",
+    default=None,
+    envvar="EVADEX_C2_URL",
+    help="Siphon-C2 URL. Pushes the EDM test results to "
+    "POST /v1/evadex/edm. Failures log a warning; never fail the run.",
+)
+@click.option(
+    "--c2-key",
+    "c2_key",
+    default=None,
+    envvar="EVADEX_C2_KEY",
+    help="API key sent as 'x-api-key' to Siphon-C2.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Do not contact the Siphon server — print the plan only.",
+)
 def edm(
     tool: str,
     url: str,
@@ -537,6 +617,7 @@ def edm(
         push_history_batch,  # re-use batch endpoint for EDM payload
         resolve_c2_config,
     )
+
     _c2_url, _c2_key = resolve_c2_config(c2_url, c2_key)
     if _c2_url:
         # Wrap the EDM report as a single-entry history batch tagged type=edm.

@@ -1,5 +1,58 @@
 # Changelog
 
+## [3.25.4] — 2026-05-24
+
+### Changed
+
+- **Ruff format pass across `src/`** — 122 files reformatted under the project's default style. No behavior changes.
+- **`# noqa: F401` guards on every side-effect import** in `src/evadex/core/registry.py::load_builtins()`. `ruff check --fix` had silently deleted all 21 plugin-loader imports in an earlier pass, breaking the entire generator/adapter registry; only `test_adapter_registered` caught the regression. The noqa markers make future autofix runs safe.
+- **Dead-code removal** — unused locals `direction_label` and `netting_lbl` (both EN + FR-CA branches) deleted from `src/evadex/generate/templates.py`. Missing `Callable` import added to `src/evadex/falsepos/generators.py:11`.
+- **Registered `slow` pytest marker** in `pyproject.toml` to clear `PytestUnknownMarkWarning` on `tests/unit/core/test_streaming_engine.py:140`.
+
+### Fixed
+
+- Lint backlog: ruff check now passes cleanly on `src/`; format check produces no diff.
+
+### Verified
+
+- 999/999 unit tests pass.
+- `evadex doctor` and the CLI surface load correctly with the restored registry.
+
+## [3.25.3] — 2026-05-22
+
+### Added
+
+- **`PayloadCategory.FIX_CL_ORD_ID`** plus two representative payloads (FIX 4.4 ClOrdID values, tag 11). Documents siphon's capital-markets gap — no FIX tag-11 rule currently exists, so 0% detection is expected and now tracked alongside other capital-markets identifiers.
+
+### Changed
+
+- `docs/REFERENCE.md` updated to reflect `northam` as the default tier, replacing stale banking-tier defaults in every flag table and example. Payload total updated to **595**.
+
+## [3.25.2] — 2026-05-22
+
+### Fixed
+
+- **Bridge `_ALLOWED_TIERS` missing `northam`** — `POST /v1/evadex/run` and `POST /v1/evadex/generate` were rejecting `tier: "northam"` with HTTP 400 even though `northam` is the evadex default tier (already in `VALID_TIERS` and the scan CLI default). Added `northam` to `_ALLOWED_TIERS` in `src/evadex/bridge/server.py`.
+- **`GET /v1/evadex/profiles` returned 404** — endpoint was missing entirely, breaking the Siphon-C2 profile dropdown on mount. Added the endpoint; returns merged user + built-in profiles with `name`, `description`, `tier`, `tool`, `source`, `created`, `last_run`.
+
+### Verified
+
+- 117/117 bridge unit tests pass.
+- End-to-end smoke: `/healthz`, `/categories`, `/metrics`, `/profiles`, `/run` (northam+fast), `/generate` (xlsx + northam), `/report`.
+
+## [3.24.4] — 2026-04-27
+
+### Changed
+
+- **`pyproject.toml` version bump** 3.24.2 → 3.24.3 (had been missed in the prior commit).
+- **Removed Python 3.10 classifier** from `pyproject.toml` — `requires-python = ">=3.11"` was already enforced; classifier was stale.
+- **README requirements line** corrected from Python 3.10+ → Python 3.11+.
+- **Backfilled CHANGELOG entries** for 3.23.3, 3.24.0, 3.24.1, 3.24.2, 3.24.3 that had drifted off the file.
+
+### Verified
+
+- 1178/1178 tests pass after `pip install -e .` refresh to update `evadex.dist-info` (which `evadex doctor` reads for the displayed version).
+
 ## [3.25.1] — 2026-04-28
 
 ### Added

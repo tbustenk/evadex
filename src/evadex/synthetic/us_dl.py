@@ -11,6 +11,7 @@ No checksum validation is performed. Most state DL formats are
 shape-only; the few that include checksums (e.g. Wisconsin) use
 proprietary algorithms outside DLP scanner scope.
 """
+
 from __future__ import annotations
 
 import random
@@ -30,57 +31,57 @@ from evadex.synthetic.registry import register_synthetic
 # Spaces and hyphens are preserved verbatim. To add a state, add one
 # row here and add a corresponding seed payload in builtins.py.
 _STATE_FORMATS: list[tuple[str, str]] = [
-    ("Alabama",         "DDDDDDD"),                # 7 digits
-    ("Alaska",          "DDDDDDD"),
-    ("Arizona",         "LDDDDDDDD"),              # letter + 8 digits
-    ("Arkansas",        "DDDDDDDD"),               # 8 digits
-    ("California",      "LDDDDDDD"),               # letter + 7 digits
-    ("Colorado",        "DDDDDDDDD"),              # 9 digits
-    ("Connecticut",     "DDDDDDDDD"),
-    ("DC",              "DDDDDDD"),
-    ("Delaware",        "DDDDDDD"),
-    ("Florida",         "LDDDDDDDDDDDD"),          # letter + 12 digits
-    ("Georgia",         "DDDDDDDD"),
-    ("Hawaii",          "LDDDDDDDD"),
-    ("Idaho",           "LLDDDDDDL"),              # 2 letters + 6 digits + letter
-    ("Illinois",        "LDDDDDDDDDDD"),           # letter + 11 digits
-    ("Indiana",         "DDDDDDDDDD"),             # 10 digits
-    ("Iowa",            "DDDLLDDDD"),              # 3D + 2L + 4D
-    ("Kansas",          "LDDDDDDDD"),
-    ("Kentucky",        "LDDDDDDDD"),
-    ("Louisiana",       "DDDDDDDDD"),
-    ("Maine",           "DDDDDDD"),
-    ("Maryland",        "LDDDDDDDDDDDD"),
-    ("Massachusetts",   "LDDDDDDDD"),
-    ("Michigan",        "LDDDDDDDDDDDD"),
-    ("Minnesota",       "LDDDDDDDDDDDD"),
-    ("Mississippi",     "DDDDDDDDD"),
-    ("Missouri",        "LDDDDDDDD"),
-    ("Montana",         "DDDDDDDDDDDDD"),          # 13 digits
-    ("Nebraska",        "LDDDDDDDD"),
-    ("Nevada",          "DDDDDDDDDD"),
-    ("New Hampshire",   "DDLLLDDDDD"),             # 2D + 3L + 5D
-    ("New Jersey",      "LDDDDDDDDDDDDDD"),        # letter + 14 digits
-    ("New Mexico",      "DDDDDDDDD"),
-    ("New York",        "DDDDDDDDD"),
-    ("North Carolina",  "DDDDDDDDD"),
-    ("North Dakota",    "LLLDDDDDD"),              # 3 letters + 6 digits
-    ("Ohio",            "LLDDDDDD"),               # 2 letters + 6 digits
-    ("Oklahoma",        "LDDDDDDDDD"),
-    ("Oregon",          "DDDDDDDD"),
-    ("Pennsylvania",    "DDDDDDDD"),
-    ("Rhode Island",    "LDDDDDD"),
-    ("South Carolina",  "DDDDDDDD"),
-    ("South Dakota",    "DDDDDDDD"),
-    ("Tennessee",       "DDDDDDDD"),
-    ("Texas",           "DDDDDDDD"),
-    ("Utah",            "DDDDDDDD"),
-    ("Vermont",         "DDDDDDDD"),
-    ("Virginia",        "LDDDDDDDDD"),
-    ("Washington",      "LLLLLXXXXX"),             # 5 letters + 5 alphanumeric
-    ("West Virginia",   "LDDDDDD"),
-    ("Wisconsin",       "LDDDDDDDDDDDDD"),         # letter + 13 digits
-    ("Wyoming",         "DDDDDDDDD"),
+    ("Alabama", "DDDDDDD"),  # 7 digits
+    ("Alaska", "DDDDDDD"),
+    ("Arizona", "LDDDDDDDD"),  # letter + 8 digits
+    ("Arkansas", "DDDDDDDD"),  # 8 digits
+    ("California", "LDDDDDDD"),  # letter + 7 digits
+    ("Colorado", "DDDDDDDDD"),  # 9 digits
+    ("Connecticut", "DDDDDDDDD"),
+    ("DC", "DDDDDDD"),
+    ("Delaware", "DDDDDDD"),
+    ("Florida", "LDDDDDDDDDDDD"),  # letter + 12 digits
+    ("Georgia", "DDDDDDDD"),
+    ("Hawaii", "LDDDDDDDD"),
+    ("Idaho", "LLDDDDDDL"),  # 2 letters + 6 digits + letter
+    ("Illinois", "LDDDDDDDDDDD"),  # letter + 11 digits
+    ("Indiana", "DDDDDDDDDD"),  # 10 digits
+    ("Iowa", "DDDLLDDDD"),  # 3D + 2L + 4D
+    ("Kansas", "LDDDDDDDD"),
+    ("Kentucky", "LDDDDDDDD"),
+    ("Louisiana", "DDDDDDDDD"),
+    ("Maine", "DDDDDDD"),
+    ("Maryland", "LDDDDDDDDDDDD"),
+    ("Massachusetts", "LDDDDDDDD"),
+    ("Michigan", "LDDDDDDDDDDDD"),
+    ("Minnesota", "LDDDDDDDDDDDD"),
+    ("Mississippi", "DDDDDDDDD"),
+    ("Missouri", "LDDDDDDDD"),
+    ("Montana", "DDDDDDDDDDDDD"),  # 13 digits
+    ("Nebraska", "LDDDDDDDD"),
+    ("Nevada", "DDDDDDDDDD"),
+    ("New Hampshire", "DDLLLDDDDD"),  # 2D + 3L + 5D
+    ("New Jersey", "LDDDDDDDDDDDDDD"),  # letter + 14 digits
+    ("New Mexico", "DDDDDDDDD"),
+    ("New York", "DDDDDDDDD"),
+    ("North Carolina", "DDDDDDDDD"),
+    ("North Dakota", "LLLDDDDDD"),  # 3 letters + 6 digits
+    ("Ohio", "LLDDDDDD"),  # 2 letters + 6 digits
+    ("Oklahoma", "LDDDDDDDDD"),
+    ("Oregon", "DDDDDDDD"),
+    ("Pennsylvania", "DDDDDDDD"),
+    ("Rhode Island", "LDDDDDD"),
+    ("South Carolina", "DDDDDDDD"),
+    ("South Dakota", "DDDDDDDD"),
+    ("Tennessee", "DDDDDDDD"),
+    ("Texas", "DDDDDDDD"),
+    ("Utah", "DDDDDDDD"),
+    ("Vermont", "DDDDDDDD"),
+    ("Virginia", "LDDDDDDDDD"),
+    ("Washington", "LLLLLXXXXX"),  # 5 letters + 5 alphanumeric
+    ("West Virginia", "LDDDDDD"),
+    ("Wisconsin", "LDDDDDDDDDDDDD"),  # letter + 13 digits
+    ("Wyoming", "DDDDDDDDD"),
 ]
 
 assert len(_STATE_FORMATS) == 51, "Expected 50 states + DC"

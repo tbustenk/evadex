@@ -7,6 +7,7 @@ Validity rules enforced (Social Security Administration spec):
  * Group (BB): cannot be ``00``
  * Serial (CCCC): cannot be ``0000``
 """
+
 from __future__ import annotations
 
 import random

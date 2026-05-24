@@ -36,6 +36,7 @@ sections: we accept any key that ``evadex scan`` / ``evadex falsepos``
 understands and let those commands surface their own errors. The profile
 layer only validates structural concerns (required keys, correct types).
 """
+
 from __future__ import annotations
 
 import re
@@ -53,17 +54,45 @@ _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 # plus ``variant_group``, ``evasion_mode``, ``input``, ``concurrency``,
 # ``feedback_report``, ``audit_log`` which are scan-only flags.
 VALID_SCAN_KEYS = {
-    "tool", "strategy", "min_detection_rate", "scanner_label", "exe",
-    "cmd_style", "categories", "include_heuristic", "concurrency",
-    "timeout", "output", "format", "audit_log", "require_context",
-    "wrap_context", "tier", "evasion_mode",
-    "variant_groups", "input", "feedback_report", "url", "api_key",
+    "tool",
+    "strategy",
+    "min_detection_rate",
+    "scanner_label",
+    "exe",
+    "cmd_style",
+    "categories",
+    "include_heuristic",
+    "concurrency",
+    "timeout",
+    "output",
+    "format",
+    "audit_log",
+    "require_context",
+    "wrap_context",
+    "tier",
+    "evasion_mode",
+    "variant_groups",
+    "input",
+    "feedback_report",
+    "url",
+    "api_key",
 }
 
 VALID_FALSEPOS_KEYS = {
-    "enabled", "categories", "count", "concurrency", "seed",
-    "require_context", "wrap_context", "format", "output",
-    "tool", "exe", "cmd_style", "url", "timeout",
+    "enabled",
+    "categories",
+    "count",
+    "concurrency",
+    "seed",
+    "require_context",
+    "wrap_context",
+    "format",
+    "output",
+    "tool",
+    "exe",
+    "cmd_style",
+    "url",
+    "timeout",
 }
 
 VALID_C2_KEYS = {"url", "key"}
@@ -91,7 +120,9 @@ class Profile:
     c2: dict = field(default_factory=dict)
     schedule: dict = field(default_factory=dict)
     output: dict = field(default_factory=dict)
-    source_path: Optional[str] = None  # Path on disk (None for built-ins loaded from memory)
+    source_path: Optional[str] = (
+        None  # Path on disk (None for built-ins loaded from memory)
+    )
     builtin: bool = False
 
     def to_dict(self) -> dict:
@@ -125,16 +156,15 @@ def validate_name(name: Any) -> str:
     return name
 
 
-def parse_profile(raw: dict, source_path: Optional[str] = None,
-                  builtin: bool = False) -> Profile:
+def parse_profile(
+    raw: dict, source_path: Optional[str] = None, builtin: bool = False
+) -> Profile:
     """Validate and parse a raw YAML dict into a Profile.
 
     Raises :class:`ProfileError` on any structural problem.
     """
     if not isinstance(raw, dict):
-        raise ProfileError(
-            f"Profile must be a YAML mapping, got: {type(raw).__name__}"
-        )
+        raise ProfileError(f"Profile must be a YAML mapping, got: {type(raw).__name__}")
 
     if "name" not in raw:
         raise ProfileError("Profile is missing required 'name' field")
@@ -160,8 +190,15 @@ def parse_profile(raw: dict, source_path: Optional[str] = None,
         return val
 
     unknown_top = set(raw.keys()) - {
-        "name", "description", "created", "last_run",
-        "scan", "falsepos", "c2", "schedule", "output",
+        "name",
+        "description",
+        "created",
+        "last_run",
+        "scan",
+        "falsepos",
+        "c2",
+        "schedule",
+        "output",
     }
     if unknown_top:
         raise ProfileError(
@@ -217,6 +254,7 @@ def expand_env(value: Any, env: Optional[dict] = None) -> Any:
     after expansion.
     """
     import os
+
     env = env if env is not None else dict(os.environ)
 
     def _sub(s: str) -> str:

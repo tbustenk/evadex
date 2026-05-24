@@ -11,6 +11,7 @@ Layout::
 Check-digit weights follow the Services Australia spec
 (weights for d1..d8 = 1, 3, 7, 9, 1, 3, 7, 9; check = sum mod 10).
 """
+
 from __future__ import annotations
 
 import random

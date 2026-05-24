@@ -22,6 +22,7 @@ in ``crates/siphon-core/src/extractors.rs`` are designed to walk.
 * Caps to stay under: 100 MB input file, 500 MB total uncompressed,
   100 MB per entry, 10 000 entries, 100:1 compression ratio.
 """
+
 from __future__ import annotations
 
 import io
@@ -72,9 +73,7 @@ def _split_entries(
 
 def _render_csv(entries: list[GeneratedEntry]) -> str:
     """One CSV file's worth of payload data. Header + rows."""
-    lines = [
-        "customer_id,category,sensitive_value,evasion_technique,context"
-    ]
+    lines = ["customer_id,category,sensitive_value,evasion_technique,context"]
     for i, e in enumerate(entries, 1):
         # Quote any value containing commas or quotes — the DLP scanner
         # needs valid CSV to walk row-by-row.
@@ -97,13 +96,15 @@ def _render_json(entries: list[GeneratedEntry]) -> str:
     """Structured JSON dump — array of records."""
     records = []
     for i, e in enumerate(entries, 1):
-        records.append({
-            "id": i,
-            "category": e.category.value,
-            "value": e.variant_value,
-            "context": e.embedded_text,
-            "technique": e.technique,
-        })
+        records.append(
+            {
+                "id": i,
+                "category": e.category.value,
+                "value": e.variant_value,
+                "context": e.embedded_text,
+                "technique": e.technique,
+            }
+        )
     return json.dumps(records, indent=2, ensure_ascii=False) + "\n"
 
 
@@ -132,6 +133,7 @@ def _build_inner_files(
 
 
 # ── ZIP ────────────────────────────────────────────────────────────────────
+
 
 def write_zip(entries: list[GeneratedEntry], path: str) -> None:
     """Plain ZIP archive containing 4–12 inner files (csv/txt/json) with
@@ -188,17 +190,22 @@ def write_zip_nested(entries: list[GeneratedEntry], path: str) -> None:
         return buf.getvalue()
 
     level3 = _zip_bytes(inner_files)
-    level2 = _zip_bytes([
-        ("level2_index.txt",
-         b"Contents indexed for compliance review.\n"
-         b"See level3.zip for the payload corpus.\n"),
-        ("level3.zip", level3),
-    ])
-    level1 = _zip_bytes([
-        ("level1_notes.txt",
-         b"Compliance notes attached. Inner archive sealed.\n"),
-        ("level2.zip", level2),
-    ])
+    level2 = _zip_bytes(
+        [
+            (
+                "level2_index.txt",
+                b"Contents indexed for compliance review.\n"
+                b"See level3.zip for the payload corpus.\n",
+            ),
+            ("level3.zip", level3),
+        ]
+    )
+    level1 = _zip_bytes(
+        [
+            ("level1_notes.txt", b"Compliance notes attached. Inner archive sealed.\n"),
+            ("level2.zip", level2),
+        ]
+    )
     with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as z:
         z.writestr(
             "outer_README.txt",
@@ -210,6 +217,7 @@ def write_zip_nested(entries: list[GeneratedEntry], path: str) -> None:
 
 
 # ── 7z ─────────────────────────────────────────────────────────────────────
+
 
 def write_7z(entries: list[GeneratedEntry], path: str) -> None:
     """7-Zip archive with the same inner-file structure as ``write_zip``

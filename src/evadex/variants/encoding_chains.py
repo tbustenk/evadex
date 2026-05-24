@@ -4,6 +4,7 @@ These defeat scanners that only decode one layer. Each technique applies two or
 three transformations in order, producing a value that requires multi-stage
 decoding to recover the original.
 """
+
 from __future__ import annotations
 
 import base64

@@ -11,6 +11,7 @@ Subcommands:
 * ``export``  — write a profile to an arbitrary path (for sharing)
 * ``import``  — copy a YAML file into the user profiles directory
 """
+
 from __future__ import annotations
 
 import os
@@ -68,29 +69,55 @@ def profile() -> None:
 
 @profile.command("create")
 @click.argument("name")
-@click.option("--description", default=None, help="Short description of what this profile is for.")
-@click.option("--tool", default="siphon-cli", show_default=True,
-              help="Adapter the profile will use.")
-@click.option("--tier", default="banking", show_default=True,
-              help="Payload tier: banking, core, regional, full.")
-@click.option("--strategy", "strategies", multiple=True,
-              help="Strategy (text / docx / pdf / xlsx). Repeat for multiple.")
+@click.option(
+    "--description", default=None, help="Short description of what this profile is for."
+)
+@click.option(
+    "--tool",
+    default="siphon-cli",
+    show_default=True,
+    help="Adapter the profile will use.",
+)
+@click.option(
+    "--tier",
+    default="banking",
+    show_default=True,
+    help="Payload tier: banking, core, regional, full.",
+)
+@click.option(
+    "--strategy",
+    "strategies",
+    multiple=True,
+    help="Strategy (text / docx / pdf / xlsx). Repeat for multiple.",
+)
 @click.option("--exe", default=None, help="Path to scanner binary.")
-@click.option("--cmd-style", default=None, help="cmd-style: python / rust / binary / cargo.")
+@click.option(
+    "--cmd-style", default=None, help="cmd-style: python / rust / binary / cargo."
+)
 @click.option("--scanner-label", default=None)
 @click.option("--evasion-mode", default="exhaustive", show_default=True)
 @click.option("--min-detection-rate", type=float, default=None)
 @click.option("--require-context", is_flag=True, default=False)
 @click.option("--wrap-context", is_flag=True, default=False)
-@click.option("--falsepos/--no-falsepos", default=False,
-              help="Include a false-positive run in this profile.")
+@click.option(
+    "--falsepos/--no-falsepos",
+    default=False,
+    help="Include a false-positive run in this profile.",
+)
 @click.option("--falsepos-count", type=int, default=100, show_default=True)
-@click.option("--c2-url", default=None,
-              help="Push results to this Siphon-C2 URL. Supports ${ENV_VAR}.")
-@click.option("--c2-key", default=None,
-              help="API key for C2 push. Supports ${ENV_VAR}.")
-@click.option("--cron", default=None,
-              help="Cron expression (5 fields). Stored under schedule.cron.")
+@click.option(
+    "--c2-url",
+    default=None,
+    help="Push results to this Siphon-C2 URL. Supports ${ENV_VAR}.",
+)
+@click.option(
+    "--c2-key", default=None, help="API key for C2 push. Supports ${ENV_VAR}."
+)
+@click.option(
+    "--cron",
+    default=None,
+    help="Cron expression (5 fields). Stored under schedule.cron.",
+)
 def profile_create(
     name: str,
     description: Optional[str],
@@ -170,10 +197,20 @@ def profile_create(
 
 
 @profile.command("list")
-@click.option("--builtins-only", "builtins_only", is_flag=True, default=False,
-              help="Show only built-in profiles.")
-@click.option("--user-only", "user_only", is_flag=True, default=False,
-              help="Show only user profiles.")
+@click.option(
+    "--builtins-only",
+    "builtins_only",
+    is_flag=True,
+    default=False,
+    help="Show only built-in profiles.",
+)
+@click.option(
+    "--user-only",
+    "user_only",
+    is_flag=True,
+    default=False,
+    help="Show only user profiles.",
+)
 def profile_list(builtins_only: bool, user_only: bool) -> None:
     """List profiles (user profiles first, built-ins after)."""
     user_names = [] if builtins_only else list_profiles()
@@ -217,8 +254,12 @@ def profile_list(builtins_only: bool, user_only: bool) -> None:
 
 @profile.command("show")
 @click.argument("name")
-@click.option("--expand-env", is_flag=True, default=False,
-              help="Substitute ${ENV_VAR} placeholders in the output.")
+@click.option(
+    "--expand-env",
+    is_flag=True,
+    default=False,
+    help="Substitute ${ENV_VAR} placeholders in the output.",
+)
 def profile_show(name: str, expand_env: bool) -> None:
     """Dump a profile as YAML to stdout."""
     try:
@@ -228,8 +269,10 @@ def profile_show(name: str, expand_env: bool) -> None:
         sys.exit(1)
     if expand_env:
         from evadex.profiles.schema import expand_profile
+
         p = expand_profile(p)
     import yaml
+
     sys.stdout.write(yaml.safe_dump(p.to_dict(), sort_keys=False))
 
 
@@ -238,10 +281,18 @@ def profile_show(name: str, expand_env: bool) -> None:
 
 @profile.command("run")
 @click.argument("names", nargs=-1, required=True)
-@click.option("--dry-run", is_flag=True, default=False,
-              help="Print the argv that would be invoked and exit. No scan is run.")
-@click.option("--skip-falsepos", is_flag=True, default=False,
-              help="Skip the profile's falsepos run even if it is enabled.")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Print the argv that would be invoked and exit. No scan is run.",
+)
+@click.option(
+    "--skip-falsepos",
+    is_flag=True,
+    default=False,
+    help="Skip the profile's falsepos run even if it is enabled.",
+)
 def profile_run(names: tuple, dry_run: bool, skip_falsepos: bool) -> None:
     """Run one or more profiles end-to-end.
 
@@ -263,9 +314,13 @@ def profile_run(names: tuple, dry_run: bool, skip_falsepos: bool) -> None:
 
         if dry_run:
             err_console.print(f"[bold]{name}[/bold] — dry-run:")
-            out_console.print("  scan:     evadex scan " + " ".join(_shq(a) for a in scan_argv))
+            out_console.print(
+                "  scan:     evadex scan " + " ".join(_shq(a) for a in scan_argv)
+            )
             if fp_argv is not None:
-                out_console.print("  falsepos: evadex falsepos " + " ".join(_shq(a) for a in fp_argv))
+                out_console.print(
+                    "  falsepos: evadex falsepos " + " ".join(_shq(a) for a in fp_argv)
+                )
             continue
 
         err_console.print(f"[bold cyan]Running profile '{name}'[/bold cyan]")
@@ -361,8 +416,12 @@ def profile_delete(name: str, yes: bool) -> None:
 
 @profile.command("export")
 @click.argument("name")
-@click.option("--output", "-o", default=None,
-              help="Path to write to. Defaults to <name>.yaml in the cwd.")
+@click.option(
+    "--output",
+    "-o",
+    default=None,
+    help="Path to write to. Defaults to <name>.yaml in the cwd.",
+)
 def profile_export(name: str, output: Optional[str]) -> None:
     """Write a profile to an arbitrary path for sharing."""
     try:
@@ -372,13 +431,18 @@ def profile_export(name: str, output: Optional[str]) -> None:
         sys.exit(1)
     out_path = Path(output) if output else Path.cwd() / f"{name}.yaml"
     import yaml
+
     out_path.write_text(yaml.safe_dump(p.to_dict(), sort_keys=False), encoding="utf-8")
     out_console.print(f"[green]Exported[/green] {name} → {out_path}")
 
 
 @profile.command("import")
 @click.argument("path")
-@click.option("--name", default=None, help="Override the profile's name (default: file's 'name' field).")
+@click.option(
+    "--name",
+    default=None,
+    help="Override the profile's name (default: file's 'name' field).",
+)
 @click.option("--overwrite", is_flag=True, default=False)
 def profile_import(path: str, name: Optional[str], overwrite: bool) -> None:
     """Copy a profile YAML into the user profiles directory."""
@@ -387,6 +451,7 @@ def profile_import(path: str, name: Optional[str], overwrite: bool) -> None:
         err_console.print(f"[red]File not found: {src}[/red]")
         sys.exit(1)
     import yaml
+
     try:
         raw = yaml.safe_load(src.read_text(encoding="utf-8"))
     except yaml.YAMLError as e:

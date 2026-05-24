@@ -26,7 +26,8 @@ class DlpscanCliAdapter(BaseAdapter):
     async def health_check(self) -> bool:
         try:
             proc = await asyncio.create_subprocess_exec(
-                self._exe, "--help",
+                self._exe,
+                "--help",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -56,7 +57,12 @@ class DlpscanCliAdapter(BaseAdapter):
             matches = await self._scan_bytes_async(data, strategy)
 
         detected = len(matches) > 0
-        return ScanResult(payload=payload, variant=variant, detected=detected, raw_response={"matches": matches})
+        return ScanResult(
+            payload=payload,
+            variant=variant,
+            detected=detected,
+            raw_response={"matches": matches},
+        )
 
     async def _scan_text_async(self, text: str) -> list:
         return await self._run_on_tempfile_async(text.encode("utf-8"), ".txt")

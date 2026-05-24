@@ -11,6 +11,7 @@ are gated behind the ``evadex[barcodes]`` optional install (``qrcode``,
 ``python-barcode``, ``Pillow``) so the core package stays small; a clear
 error is raised if the extras are missing.
 """
+
 from __future__ import annotations
 
 import io
@@ -40,6 +41,7 @@ def _require_qrcode():
     try:
         import qrcode  # type: ignore
         import qrcode.constants  # type: ignore
+
         return qrcode
     except ImportError as exc:
         raise RuntimeError(BARCODE_DEPS_HINT) from exc
@@ -49,6 +51,7 @@ def _require_barcode():
     try:
         import barcode  # type: ignore
         from barcode.writer import ImageWriter  # type: ignore
+
         return barcode, ImageWriter
     except ImportError as exc:
         raise RuntimeError(BARCODE_DEPS_HINT) from exc
@@ -57,12 +60,14 @@ def _require_barcode():
 def _require_pil():
     try:
         from PIL import Image, ImageDraw, ImageFont  # type: ignore
+
         return Image, ImageDraw, ImageFont
     except ImportError as exc:
         raise RuntimeError(BARCODE_DEPS_HINT) from exc
 
 
 # ── Public writers registered via writers.__init__ ──────────────────────────
+
 
 def write_png(entries: list[GeneratedEntry], path: str) -> None:
     """Single PNG with one barcode per entry, arranged in a grid."""
@@ -80,14 +85,17 @@ def write_multi_barcode_png(entries: list[GeneratedEntry], path: str) -> None:
 
 # ── Core implementation ────────────────────────────────────────────────────
 
+
 def _active_barcode_type() -> str:
     """Read the currently-configured --barcode-type (set by the CLI)."""
     from evadex.generate.writers import _active_barcode_type as t  # late import
+
     return t or "qr"
 
 
 def _active_seed() -> Optional[int]:
     from evadex.generate.writers import _active_seed
+
     return _active_seed
 
 
@@ -314,7 +322,7 @@ def _render_entry(entry: GeneratedEntry, barcode_type: str, rng: random.Random):
                 parts = clean.split(sep, 1)
                 break
         else:
-            parts = [clean[:len(clean) // 2], clean[len(clean) // 2:]]
+            parts = [clean[: len(clean) // 2], clean[len(clean) // 2 :]]
         parts = [p for p in parts if p]
         if len(parts) < 2:
             parts = [clean]
@@ -374,13 +382,23 @@ def _embed_in_document(img):
     draw.rectangle([0, 0, canvas_w, 40], fill="#003366")
     draw.text((12, 12), "ACMECORP — INVOICE 2026-0042", fill="white", font=font)
     # Body text
-    draw.text((20, 60), "Please scan the code below to verify the transaction.", fill="black", font=font)
+    draw.text(
+        (20, 60),
+        "Please scan the code below to verify the transaction.",
+        fill="black",
+        font=font,
+    )
     # Barcode
     x = (canvas_w - img.width) // 2
     y = 100
     canvas.paste(img, (x, y))
     # Footer
-    draw.text((20, y + img.height + 20), "Internal use only — DLP control sample.", fill="#666", font=font)
+    draw.text(
+        (20, y + img.height + 20),
+        "Internal use only — DLP control sample.",
+        fill="#666",
+        font=font,
+    )
     return canvas
 
 

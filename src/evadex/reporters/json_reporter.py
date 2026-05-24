@@ -53,7 +53,9 @@ def _enrich_by_technique(
         denom = p + f
         evasion_rate = round(f / denom * 100, 1) if denom else 0.0
         entry = {
-            "pass": p, "fail": f, "error": e,
+            "pass": p,
+            "fail": f,
+            "error": e,
             "evasion_rate": evasion_rate,
         }
         if tech in first_evaded:
@@ -69,7 +71,9 @@ def _enrich_by_category(
     results: list[ScanResult],
 ) -> dict:
     """Add evasion_rate + worst_technique + best_technique + sample_evaded."""
-    per_cat_tech: dict = defaultdict(lambda: defaultdict(lambda: {"pass": 0, "fail": 0}))
+    per_cat_tech: dict = defaultdict(
+        lambda: defaultdict(lambda: {"pass": 0, "fail": 0})
+    )
     sample_evaded: dict = {}
     for r in results:
         cat = r.payload.category.value
@@ -86,7 +90,9 @@ def _enrich_by_category(
         denom = p + f
         evasion_rate = round(f / denom * 100, 1) if denom else 0.0
         entry = {
-            "pass": p, "fail": f, "error": e,
+            "pass": p,
+            "fail": f,
+            "error": e,
             "evasion_rate": evasion_rate,
         }
         tech_map = per_cat_tech.get(cat, {})
@@ -98,8 +104,16 @@ def _enrich_by_category(
             tech_rates.append((tech, round(tc["fail"] / td * 100, 1), td))
         if tech_rates:
             tech_rates.sort(key=lambda x: x[1])
-            entry["best_technique"] = {"technique": tech_rates[0][0], "evasion_rate": tech_rates[0][1], "samples": tech_rates[0][2]}
-            entry["worst_technique"] = {"technique": tech_rates[-1][0], "evasion_rate": tech_rates[-1][1], "samples": tech_rates[-1][2]}
+            entry["best_technique"] = {
+                "technique": tech_rates[0][0],
+                "evasion_rate": tech_rates[0][1],
+                "samples": tech_rates[0][2],
+            }
+            entry["worst_technique"] = {
+                "technique": tech_rates[-1][0],
+                "evasion_rate": tech_rates[-1][1],
+                "samples": tech_rates[-1][2],
+            }
         if cat in sample_evaded:
             entry["sample_evaded"] = sample_evaded[cat][:200]
         out[cat] = entry
@@ -113,7 +127,7 @@ class JsonReporter(BaseReporter):
     def render(self, results: list[ScanResult]) -> str:
         total = len(results)
         passes = sum(1 for r in results if r.severity == SeverityLevel.PASS)
-        fails  = sum(1 for r in results if r.severity == SeverityLevel.FAIL)
+        fails = sum(1 for r in results if r.severity == SeverityLevel.FAIL)
         errors = sum(1 for r in results if r.severity == SeverityLevel.ERROR)
 
         by_category: dict = defaultdict(lambda: {"pass": 0, "fail": 0, "error": 0})
@@ -133,14 +147,14 @@ class JsonReporter(BaseReporter):
         confidence_dist = _confidence_histogram(results)
 
         meta = {
-            "timestamp":            datetime.now(timezone.utc).isoformat(),
-            "scanner":              self.scanner_label,
-            "total":                total,
-            "pass":                 passes,
-            "fail":                 fails,
-            "error":                errors,
-            "pass_rate":            round(passes / total * 100, 1) if total else 0.0,
-            "summary_by_category":  dict(sorted(enriched_by_category.items())),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "scanner": self.scanner_label,
+            "total": total,
+            "pass": passes,
+            "fail": fails,
+            "error": errors,
+            "pass_rate": round(passes / total * 100, 1) if total else 0.0,
+            "summary_by_category": dict(sorted(enriched_by_category.items())),
             "summary_by_generator": dict(sorted(by_generator.items())),
             "summary_by_technique": dict(sorted(enriched_by_technique.items())),
             "confidence_distribution": confidence_dist,

@@ -8,6 +8,7 @@ Validity rules per HMRC spec (CWG2 Appendix B):
  * Disallowed full prefixes: BG, GB, NK, KN, NT, TN, ZZ
  * Suffix: A, B, C, or D
 """
+
 from __future__ import annotations
 
 import random

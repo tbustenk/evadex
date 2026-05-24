@@ -6,6 +6,7 @@ real-world context, detection fix, seed bypass weight). Those entries
 are the canonical source of technique docs; see the README section on
 ``--evasion-mode`` for the seed-weight rationale.
 """
+
 from __future__ import annotations
 
 import sys
@@ -23,9 +24,10 @@ console = Console()
 @dataclass(frozen=True)
 class _TechniqueDoc:
     """Human-readable documentation for one evasion technique."""
+
     name: str
     description: str
-    example: str       # "input → output" format
+    example: str  # "input → output" format
     context: str
     fix: str
 
@@ -115,21 +117,15 @@ _FAMILY_DOCS: dict[str, dict[str, str]] = {
         ),
     },
     "delimiter": {
-        "context": (
-            "Log lines, URLs, any format where delimiters vary legitimately."
-        ),
+        "context": ("Log lines, URLs, any format where delimiters vary legitimately."),
         "fix": (
             "Accept a broader delimiter character class in patterns, or "
             "normalise delimiters before matching."
         ),
     },
     "leetspeak": {
-        "context": (
-            "Older phishing, obfuscated hostnames, informal exfil channels."
-        ),
-        "fix": (
-            "Run a leetspeak → ASCII normaliser before pattern matching."
-        ),
+        "context": ("Older phishing, obfuscated hostnames, informal exfil channels."),
+        "fix": ("Run a leetspeak → ASCII normaliser before pattern matching."),
     },
     "regional_digits": {
         "context": (
@@ -177,8 +173,7 @@ _FAMILY_DOCS: dict[str, dict[str, str]] = {
             "extraction is configurable and may be off."
         ),
         "fix": (
-            "Enable recursive archive extraction with a depth cap to "
-            "avoid zip bombs."
+            "Enable recursive archive extraction with a depth cap to avoid zip bombs."
         ),
     },
     "barcode_evasion": {
@@ -207,7 +202,9 @@ def _render_verbose_generator(
     (labelled "estimated") so the operator can always see a number.
     """
     from evadex.feedback.seed_weights import (
-        SEED_WEIGHTS, SEED_WEIGHT_RATIONALE, TECHNIQUE_SEED_WEIGHTS,
+        SEED_WEIGHTS,
+        SEED_WEIGHT_RATIONALE,
+        TECHNIQUE_SEED_WEIGHTS,
     )
 
     fam = _FAMILY_DOCS.get(gen.name, {})
@@ -262,7 +259,7 @@ def _render_verbose_generator(
             seed_bypass = TECHNIQUE_SEED_WEIGHTS.get(technique)
             if seed_bypass is None:
                 seed_bypass = SEED_WEIGHTS.get(gen.name, 0.5)
-            evasion_cell = f"[yellow]{seed_bypass*100:4.1f}%[/yellow] [dim](estimated · seed)[/dim]"
+            evasion_cell = f"[yellow]{seed_bypass * 100:4.1f}%[/yellow] [dim](estimated · seed)[/dim]"
         table.add_row(technique, desc, evasion_cell, display)
     console.print(table)
     console.print()
@@ -277,18 +274,22 @@ def _load_observed_rates(audit_log: str) -> dict:
     stats = load_technique_history(audit_log)
     return {
         t: {"avg": s.average_success, "runs": s.runs}
-        for t, s in stats.items() if s.runs > 0
+        for t, s in stats.items()
+        if s.runs > 0
     }
 
 
 @click.command("list-techniques")
 @click.option(
-    "--generator", "-g", "filter_gen",
+    "--generator",
+    "-g",
+    "filter_gen",
     default=None,
     help="Show only techniques from this generator family.",
 )
 @click.option(
-    "--verbose", "-v",
+    "--verbose",
+    "-v",
     is_flag=True,
     default=False,
     help=(
@@ -369,4 +370,6 @@ def list_techniques(filter_gen: str | None, verbose: bool, audit_log: str) -> No
         console.print(table)
         total += len(seen)
 
-    console.print(f"[dim]{total} technique(s) across {len(generators)} generator(s)[/dim]")
+    console.print(
+        f"[dim]{total} technique(s) across {len(generators)} generator(s)[/dim]"
+    )

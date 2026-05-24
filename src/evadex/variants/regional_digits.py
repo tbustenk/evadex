@@ -4,21 +4,21 @@ from evadex.core.result import Variant
 from evadex.variants.base import BaseVariantGenerator
 
 DIGIT_SCRIPTS = {
-    "arabic_indic":          (0x0660, "Arabic-Indic digits"),
+    "arabic_indic": (0x0660, "Arabic-Indic digits"),
     "extended_arabic_indic": (0x06F0, "Extended Arabic-Indic digits (Urdu/Persian)"),
-    "devanagari":            (0x0966, "Devanagari digits"),
-    "bengali":               (0x09E6, "Bengali digits"),
-    "thai":                  (0x0E50, "Thai digits"),
-    "myanmar":               (0x1040, "Myanmar digits"),
-    "khmer":                 (0x17E0, "Khmer digits"),
-    "mongolian":             (0x1810, "Mongolian digits"),
-    "nko":                   (0x07C0, "NKo digits"),
-    "tibetan":               (0x0F20, "Tibetan digits"),
+    "devanagari": (0x0966, "Devanagari digits"),
+    "bengali": (0x09E6, "Bengali digits"),
+    "thai": (0x0E50, "Thai digits"),
+    "myanmar": (0x1040, "Myanmar digits"),
+    "khmer": (0x17E0, "Khmer digits"),
+    "mongolian": (0x1810, "Mongolian digits"),
+    "nko": (0x07C0, "NKo digits"),
+    "tibetan": (0x0F20, "Tibetan digits"),
 }
 
 
 def _replace_digits(value: str, base: int) -> str:
-    return ''.join(chr(base + int(c)) if c.isdigit() else c for c in value)
+    return "".join(chr(base + int(c)) if c.isdigit() else c for c in value)
 
 
 @register_generator("regional_digits")
@@ -50,7 +50,7 @@ class RegionalDigitsGenerator(BaseVariantGenerator):
             else:
                 mixed_chars.append(c)
         yield self._make_variant(
-            ''.join(mixed_chars),
+            "".join(mixed_chars),
             "regional_mixed_alternating",
             "Alternating Arabic-Indic and Devanagari digits",
         )
@@ -65,7 +65,7 @@ class RegionalDigitsGenerator(BaseVariantGenerator):
             base = thai_base if idx < half else bengali_base
             chars[pos] = chr(base + int(c))
         yield self._make_variant(
-            ''.join(chars),
+            "".join(chars),
             "regional_mixed_partial",
             "First half Thai digits, second half Bengali digits",
         )

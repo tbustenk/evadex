@@ -4,16 +4,18 @@ data but are provably invalid (fail checksums, use reserved codes, etc.).
 Use these to measure false positive rate: any value flagged by the scanner is
 an incorrect match.
 """
+
 from __future__ import annotations
 
 import random
 import string
-from typing import Optional
+from typing import Callable, Optional
 
 from evadex.synthetic.validators import luhn_check_digit
 
 
 # ── Credit card ───────────────────────────────────────────────────────────────
+
 
 def generate_false_credit_cards(count: int, seed: Optional[int] = None) -> list[str]:
     """16-digit numbers with card-like prefixes that fail the Luhn check.
@@ -58,6 +60,7 @@ def generate_false_ssns(count: int, seed: Optional[int] = None) -> list[str]:
 
 # ── SIN ───────────────────────────────────────────────────────────────────────
 
+
 def generate_false_sins(count: int, seed: Optional[int] = None) -> list[str]:
     """SIN-shaped NNN NNN NNN strings that fail the Luhn checksum.
 
@@ -82,9 +85,9 @@ def generate_false_sins(count: int, seed: Optional[int] = None) -> list[str]:
 
 _IBAN_TEMPLATES = [
     # (country_code, bban_length, alpha_positions)
-    ("GB", 18, {0, 1, 2, 3}),   # GB + 2 check + 4 alpha + 14 digits
-    ("DE", 18, set()),           # DE + 2 check + 18 digits
-    ("FR", 23, set()),           # FR + 2 check + 23 digits
+    ("GB", 18, {0, 1, 2, 3}),  # GB + 2 check + 4 alpha + 14 digits
+    ("DE", 18, set()),  # DE + 2 check + 18 digits
+    ("FR", 23, set()),  # FR + 2 check + 23 digits
 ]
 
 
@@ -109,7 +112,8 @@ def generate_false_ibans(count: int, seed: Optional[int] = None) -> list[str]:
     for _ in range(count):
         country, bban_len, alpha_pos = rng.choice(_IBAN_TEMPLATES)
         bban = "".join(
-            rng.choice(string.ascii_uppercase) if i in alpha_pos
+            rng.choice(string.ascii_uppercase)
+            if i in alpha_pos
             else str(rng.randint(0, 9))
             for i in range(bban_len)
         )
@@ -122,8 +126,7 @@ def generate_false_ibans(count: int, seed: Optional[int] = None) -> list[str]:
 
 # ── Email ─────────────────────────────────────────────────────────────────────
 
-_INVALID_TLDS = [".invalid", ".test", ".example", ".localhost", ".local",
-                 ".123", ".x"]
+_INVALID_TLDS = [".invalid", ".test", ".example", ".localhost", ".local", ".123", ".x"]
 _DOMAINS = ["domain", "company", "example", "mailserver", "corp"]
 
 
@@ -151,10 +154,24 @@ def generate_false_emails(count: int, seed: Optional[int] = None) -> list[str]:
 # North American Numbering Plan (NANP) reserves area codes starting with 0 or 1,
 # and the 555 midrange is commonly used as a fictional/test number in the US.
 _INVALID_AREA_CODES = [
-    "000", "001", "011", "100", "101", "111",
-    "200", "201", "211", "300", "400",
-    "500", "555", "600", "700", "800",
-    "900", "911",
+    "000",
+    "001",
+    "011",
+    "100",
+    "101",
+    "111",
+    "200",
+    "201",
+    "211",
+    "300",
+    "400",
+    "500",
+    "555",
+    "600",
+    "700",
+    "800",
+    "900",
+    "911",
 ]
 
 
@@ -193,8 +210,7 @@ def generate_false_ramqs(count: int, seed: Optional[int] = None) -> list[str]:
     results = []
     for _ in range(count):
         name = "".join(
-            rng.choice(_SURNAME_CHARS if i % 2 == 0 else _ALL_LETTERS)
-            for i in range(4)
+            rng.choice(_SURNAME_CHARS if i % 2 == 0 else _ALL_LETTERS) for i in range(4)
         )
         year = rng.randint(0, 99)
         month = rng.choice(_INVALID_MONTHS)
@@ -219,8 +235,8 @@ _COMMON_HASH_LOOKALIKES = [
 ]
 
 _COMMON_BASE64_LOOKALIKES = [
-    "SGVsbG8gV29ybGQ=",          # "Hello World"
-    "dGVzdA==",                  # "test"
+    "SGVsbG8gV29ybGQ=",  # "Hello World"
+    "dGVzdA==",  # "test"
     "dGhpcyBpcyBub3QgYSBzZWNyZXQ=",  # "this is not a secret"
     "TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ=",  # "Lorem ipsum dolor sit amet"
     "Zm9vYmFyYmF6cXV4cXVpeHF1dXg=",  # "foobarbazquxquixquux"
@@ -256,8 +272,7 @@ def generate_false_entropy_values(count: int, seed: Optional[int] = None) -> lis
             results.append("".join(c * n for c in chars))
         elif kind == "uuid":
             parts = [
-                "".join(rng.choices("0123456789abcdef", k=k))
-                for k in (8, 4, 4, 4, 12)
+                "".join(rng.choices("0123456789abcdef", k=k)) for k in (8, 4, 4, 4, 12)
             ]
             # UUIDv4 variant bits (not strictly required for the FP test, but
             # produces a structurally valid-looking UUID).
@@ -289,12 +304,8 @@ CONTEXT_WRAP_TEMPLATES: dict[str, str] = {
         # category only.
         "Employee Social Security Number: {value} on file."
     ),
-    "sin": (
-        "Social Insurance Number (NAS/SIN): {value}. Required for T4 filing."
-    ),
-    "iban": (
-        "Please wire the funds to IBAN {value}. Bank reference: INV-2026-001."
-    ),
+    "sin": ("Social Insurance Number (NAS/SIN): {value}. Required for T4 filing."),
+    "iban": ("Please wire the funds to IBAN {value}. Bank reference: INV-2026-001."),
     "email": (
         "Contact the account holder at email address {value} to confirm the transaction."
     ),
@@ -313,9 +324,7 @@ CONTEXT_WRAP_TEMPLATES: dict[str, str] = {
     # For entropy FPs, wrap in an assignment-plus-keyword context that
     # stresses BOTH gated and assignment modes. If the scanner flags this,
     # it's trusting entropy + context alone to infer sensitivity.
-    "entropy": (
-        "api_key={value}  # build-time identifier, not a secret"
-    ),
+    "entropy": ("api_key={value}  # build-time identifier, not a secret"),
 }
 
 
@@ -346,28 +355,46 @@ def wrap_with_context(cat_name: str, value: str) -> str:
 RELEVANT_SCANNER_LABELS: dict[str, set[str]] = {
     "credit_card": {
         "credit card numbers",
-        "visa", "mastercard", "amex", "american express",
-        "discover", "diners club", "jcb", "unionpay",
+        "visa",
+        "mastercard",
+        "amex",
+        "american express",
+        "discover",
+        "diners club",
+        "jcb",
+        "unionpay",
     },
     "ssn": {"usa ssn", "north america - united states"},
     "sin": {"canada sin"},
     "iban": {"iban generic", "iban"},
     "email": {"email address", "email"},
     "phone": {
-        "us phone number", "canada phone number", "phone number",
-        "international phone", "e.164 phone",
+        "us phone number",
+        "canada phone number",
+        "phone number",
+        "international phone",
+        "e.164 phone",
         # UK/regional phone patterns sometimes fire on NANP-shaped numbers
         # too — those still count as phone FPs (the scanner flagged an
         # invalid phone as a valid phone, just wrong-region).
-        "uk phone number", "eu phone number",
+        "uk phone number",
+        "eu phone number",
     },
     "ca_ramq": {"quebec hc"},
     "entropy": {
         # "Generic" high-entropy secrets we deliberately construct FPs for.
-        "aws access key", "aws secret key", "gcp service account",
-        "private key", "rsa private key", "ssh private key",
-        "jwt", "generic api key", "generic secret",
-        "slack token", "github token", "stripe key",
+        "aws access key",
+        "aws secret key",
+        "gcp service account",
+        "private key",
+        "rsa private key",
+        "ssh private key",
+        "jwt",
+        "generic api key",
+        "generic secret",
+        "slack token",
+        "github token",
+        "stripe key",
     },
 }
 
@@ -396,15 +423,15 @@ def is_match_relevant(cat_name: str, match: dict) -> bool:
 # ── Registry ──────────────────────────────────────────────────────────────────
 
 FALSEPOS_GENERATORS: dict[str, "Callable[[int, Optional[int]], list[str]]"] = {
-    "credit_card":    generate_false_credit_cards,
-    "ssn":            generate_false_ssns,
-    "sin":            generate_false_sins,
-    "iban":           generate_false_ibans,
-    "email":          generate_false_emails,
-    "phone":          generate_false_phones,
-    "ca_ramq":        generate_false_ramqs,
+    "credit_card": generate_false_credit_cards,
+    "ssn": generate_false_ssns,
+    "sin": generate_false_sins,
+    "iban": generate_false_ibans,
+    "email": generate_false_emails,
+    "phone": generate_false_phones,
+    "ca_ramq": generate_false_ramqs,
     # Entropy FPs — UUIDs, empty-string hashes, common base64, char runs.
     # Any detection under an entropy mode is a false positive: these are
     # decidedly not secrets despite looking structurally secret-like.
-    "entropy":        generate_false_entropy_values,
+    "entropy": generate_false_entropy_values,
 }

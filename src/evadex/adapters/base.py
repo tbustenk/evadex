@@ -17,7 +17,9 @@ class AdapterConfig:
 
     @classmethod
     def from_dict(cls, d: dict) -> "AdapterConfig":
-        extra = {k: v for k, v in d.items() if k not in ("base_url", "api_key", "timeout")}
+        extra = {
+            k: v for k, v in d.items() if k not in ("base_url", "api_key", "timeout")
+        }
         return cls(
             base_url=d.get("base_url", "http://localhost:8080"),
             api_key=d.get("api_key"),

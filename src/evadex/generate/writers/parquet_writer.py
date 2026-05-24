@@ -23,6 +23,7 @@ Optional dependency
 Gated behind ``pip install evadex[data-formats]``. A clear RuntimeError
 with the install hint is raised when pyarrow is unavailable.
 """
+
 from __future__ import annotations
 
 import os
@@ -49,9 +50,20 @@ PARQUET_DEPS_HINT = (
 # stuffed into a generic "notes" column. Column order matters because
 # Siphon emits headers in schema order.
 _EN_COLUMNS = [
-    "customer_id", "name", "email", "phone", "date_of_birth", "address",
-    "sin", "card_number", "iban", "swift_bic", "aba_routing",
-    "aws_key", "jwt", "notes",
+    "customer_id",
+    "name",
+    "email",
+    "phone",
+    "date_of_birth",
+    "address",
+    "sin",
+    "card_number",
+    "iban",
+    "swift_bic",
+    "aba_routing",
+    "aws_key",
+    "jwt",
+    "notes",
 ]
 _EN_CATEGORY_MAP = {
     PayloadCategory.EMAIL: "email",
@@ -67,9 +79,20 @@ _EN_CATEGORY_MAP = {
 }
 
 _FR_COLUMNS = [
-    "id_client", "nom", "courriel", "telephone", "date_de_naissance",
-    "adresse", "numero_assurance_sociale", "numero_carte", "iban",
-    "code_swift", "routage_aba", "cle_aws", "jeton_jwt", "notes",
+    "id_client",
+    "nom",
+    "courriel",
+    "telephone",
+    "date_de_naissance",
+    "adresse",
+    "numero_assurance_sociale",
+    "numero_carte",
+    "iban",
+    "code_swift",
+    "routage_aba",
+    "cle_aws",
+    "jeton_jwt",
+    "notes",
 ]
 # Mapping mirrors _EN_CATEGORY_MAP but with French column names.
 _FR_CATEGORY_MAP = {
@@ -97,6 +120,7 @@ def write_parquet(entries: list[GeneratedEntry], path: str) -> None:
     pq = _require_parquet()
 
     from evadex.generate.writers import _active_seed
+
     seed = _active_seed
     rng = random.Random(seed if seed is not None else 0)
     language = normalize_language(_active_language())
@@ -130,9 +154,7 @@ def write_parquet(entries: list[GeneratedEntry], path: str) -> None:
         # Notes column: include the category + technique so scan output
         # carries the evasion metadata back to evadex.
         technique = entry.technique or "plain"
-        rows[notes_col].append(
-            f"category={entry.category.value} technique={technique}"
-        )
+        rows[notes_col].append(f"category={entry.category.value} technique={technique}")
 
     table = pa.table(rows)
     _ensure_dir(path)
@@ -151,7 +173,9 @@ def _fake_for_column(col: str, rng: random.Random) -> str:
     if col in ("card_number", "numero_carte"):
         return "".join(str(rng.randint(0, 9)) for _ in range(16))
     if col in ("sin", "numero_assurance_sociale"):
-        return f"{rng.randint(100, 999)} {rng.randint(100, 999)} {rng.randint(100, 999)}"
+        return (
+            f"{rng.randint(100, 999)} {rng.randint(100, 999)} {rng.randint(100, 999)}"
+        )
     if col == "iban":
         return f"GB{rng.randint(10, 99)}TEST{rng.randint(10**18, 10**19 - 1)}"
     if col in ("swift_bic", "code_swift"):
@@ -163,7 +187,9 @@ def _fake_for_column(col: str, rng: random.Random) -> str:
     if col in ("phone", "telephone"):
         return f"+1-555-{rng.randint(100, 999)}-{rng.randint(1000, 9999)}"
     if col in ("aws_key", "cle_aws"):
-        return "AKIA" + "".join(rng.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", k=16))
+        return "AKIA" + "".join(
+            rng.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", k=16)
+        )
     if col in ("jwt", "jeton_jwt"):
         return "eyJhbGciOiJIUzI1NiJ9.TEST.TEST"
     return "—"
@@ -172,6 +198,7 @@ def _fake_for_column(col: str, rng: random.Random) -> str:
 def _active_language() -> str:
     try:
         from evadex.generate.writers import _active_language as lang
+
         return lang
     except Exception:
         return "en"
@@ -180,6 +207,7 @@ def _active_language() -> str:
 def _require_pyarrow():
     try:
         import pyarrow  # type: ignore
+
         return pyarrow
     except ImportError as exc:
         raise RuntimeError(PARQUET_DEPS_HINT) from exc
@@ -188,6 +216,7 @@ def _require_pyarrow():
 def _require_parquet():
     try:
         import pyarrow.parquet as pq  # type: ignore
+
         return pq
     except ImportError as exc:
         raise RuntimeError(PARQUET_DEPS_HINT) from exc

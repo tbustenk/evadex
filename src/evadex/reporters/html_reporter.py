@@ -220,12 +220,14 @@ def _confidence_rows(results):
     for label, _lo, _hi in _CONFIDENCE_BUCKETS:
         n = counts[label]
         pct = round(n / total * 100, 1)
-        rows.append({
-            "label": label,
-            "count": n,
-            "pct": pct,
-            "width": int(round(pct * 3)),  # 1% = 3px, max 300px
-        })
+        rows.append(
+            {
+                "label": label,
+                "count": n,
+                "pct": pct,
+                "width": int(round(pct * 3)),  # 1% = 3px, max 300px
+            }
+        )
     return rows, total
 
 
@@ -245,14 +247,16 @@ def _worst_techniques(results, limit: int = 4):
         if total < 3 or counts["fail"] == 0:
             continue
         rate = round(counts["fail"] / total * 100, 1)
-        rows.append({
-            "category_label": cat.replace("_", " ").title(),
-            "technique": tech,
-            "evasion_rate": rate,
-            "evaded": counts["fail"],
-            "total": total,
-            "example": (counts["sample"] or "")[:180],
-        })
+        rows.append(
+            {
+                "category_label": cat.replace("_", " ").title(),
+                "technique": tech,
+                "evasion_rate": rate,
+                "evaded": counts["fail"],
+                "total": total,
+                "example": (counts["sample"] or "")[:180],
+            }
+        )
     rows.sort(key=lambda x: -x["evasion_rate"])
     return rows[:limit]
 
@@ -275,13 +279,13 @@ def _worst_example(results):
 
 class HtmlReporter(BaseReporter):
     def render(self, results: list[ScanResult]) -> str:
-        total  = len(results)
+        total = len(results)
         passes = sum(1 for r in results if r.severity == SeverityLevel.PASS)
-        fails  = sum(1 for r in results if r.severity == SeverityLevel.FAIL)
+        fails = sum(1 for r in results if r.severity == SeverityLevel.FAIL)
         errors = sum(1 for r in results if r.severity == SeverityLevel.ERROR)
 
-        pass_pct  = round(passes / total * 100, 1) if total else 0
-        fail_pct  = round(fails  / total * 100, 1) if total else 0
+        pass_pct = round(passes / total * 100, 1) if total else 0
+        fail_pct = round(fails / total * 100, 1) if total else 0
         error_pct = round(errors / total * 100, 1) if total else 0
 
         conf_rows, conf_total = _confidence_rows(results)

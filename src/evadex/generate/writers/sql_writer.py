@@ -1,4 +1,5 @@
 """SQL writer for evadex generate — database dump format."""
+
 from __future__ import annotations
 
 import datetime
@@ -29,10 +30,37 @@ def write_sql(entries: list[GeneratedEntry], path: str) -> None:
     rng = random.Random(42)
     today = datetime.date.today().isoformat()
 
-    first_names = ["John", "Sarah", "David", "Maria", "Robert", "Emily", "Michael",
-                   "Jennifer", "James", "Lisa", "Wei", "Priya", "Ahmed", "Yuki"]
-    last_names = ["Smith", "Chen", "Wilson", "Garcia", "Johnson", "Brown", "Lee",
-                  "Taylor", "Anderson", "Martinez", "Kumar", "Tanaka", "Hassan"]
+    first_names = [
+        "John",
+        "Sarah",
+        "David",
+        "Maria",
+        "Robert",
+        "Emily",
+        "Michael",
+        "Jennifer",
+        "James",
+        "Lisa",
+        "Wei",
+        "Priya",
+        "Ahmed",
+        "Yuki",
+    ]
+    last_names = [
+        "Smith",
+        "Chen",
+        "Wilson",
+        "Garcia",
+        "Johnson",
+        "Brown",
+        "Lee",
+        "Taylor",
+        "Anderson",
+        "Martinez",
+        "Kumar",
+        "Tanaka",
+        "Hassan",
+    ]
     departments = ["Finance", "Compliance", "HR", "IT", "Operations", "Legal", "Risk"]
 
     # The schema declares every category column up-front so each INSERT
@@ -75,7 +103,11 @@ def write_sql(entries: list[GeneratedEntry], path: str) -> None:
         col_name = _CATEGORY_COLUMN.get(e.category, "sensitive_val")
         # Context-injection variants embed value in a sentence — use plain
         # value for the structured column, sentence goes in notes.
-        raw_val = e.plain_value if e.generator_name == "context_injection" else e.variant_value
+        raw_val = (
+            e.plain_value
+            if e.generator_name == "context_injection"
+            else e.variant_value
+        )
         val = _sql_escape(raw_val)
         notes = _sql_escape(e.embedded_text)
 

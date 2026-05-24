@@ -1,4 +1,5 @@
 """Realistic business filler text for embedding sensitive values in test documents."""
+
 from __future__ import annotations
 
 import random

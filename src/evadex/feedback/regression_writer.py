@@ -5,6 +5,7 @@ file with one test function per evasion.  Each test asserts that dlpscan's
 InputGuard detects the obfuscated variant — tests will fail until the scanner
 is updated to close the gap.
 """
+
 from __future__ import annotations
 
 import re
@@ -15,24 +16,24 @@ from evadex.core.result import PayloadCategory, ScanResult, SeverityLevel
 
 _CATEGORY_PRESET: dict[PayloadCategory, str] = {
     PayloadCategory.CREDIT_CARD: "Preset.PCI_DSS",
-    PayloadCategory.IBAN:        "Preset.PCI_DSS",
-    PayloadCategory.SWIFT_BIC:   "Preset.PCI_DSS",
+    PayloadCategory.IBAN: "Preset.PCI_DSS",
+    PayloadCategory.SWIFT_BIC: "Preset.PCI_DSS",
     PayloadCategory.ABA_ROUTING: "Preset.PCI_DSS",
-    PayloadCategory.BITCOIN:     "Preset.PCI_DSS",
-    PayloadCategory.ETHEREUM:    "Preset.PCI_DSS",
-    PayloadCategory.SSN:          "Preset.PII",
-    PayloadCategory.SIN:          "Preset.PII",
-    PayloadCategory.EMAIL:        "Preset.PII",
-    PayloadCategory.PHONE:        "Preset.PII",
-    PayloadCategory.US_PASSPORT:  "Preset.PII",
-    PayloadCategory.AU_TFN:       "Preset.PII",
-    PayloadCategory.DE_TAX_ID:    "Preset.PII",
-    PayloadCategory.FR_INSEE:     "Preset.PII",
-    PayloadCategory.AWS_KEY:        "Preset.CREDENTIALS",
-    PayloadCategory.JWT:            "Preset.CREDENTIALS",
-    PayloadCategory.GITHUB_TOKEN:   "Preset.CREDENTIALS",
-    PayloadCategory.STRIPE_KEY:     "Preset.CREDENTIALS",
-    PayloadCategory.SLACK_TOKEN:    "Preset.CREDENTIALS",
+    PayloadCategory.BITCOIN: "Preset.PCI_DSS",
+    PayloadCategory.ETHEREUM: "Preset.PCI_DSS",
+    PayloadCategory.SSN: "Preset.PII",
+    PayloadCategory.SIN: "Preset.PII",
+    PayloadCategory.EMAIL: "Preset.PII",
+    PayloadCategory.PHONE: "Preset.PII",
+    PayloadCategory.US_PASSPORT: "Preset.PII",
+    PayloadCategory.AU_TFN: "Preset.PII",
+    PayloadCategory.DE_TAX_ID: "Preset.PII",
+    PayloadCategory.FR_INSEE: "Preset.PII",
+    PayloadCategory.AWS_KEY: "Preset.CREDENTIALS",
+    PayloadCategory.JWT: "Preset.CREDENTIALS",
+    PayloadCategory.GITHUB_TOKEN: "Preset.CREDENTIALS",
+    PayloadCategory.STRIPE_KEY: "Preset.CREDENTIALS",
+    PayloadCategory.SLACK_TOKEN: "Preset.CREDENTIALS",
     PayloadCategory.CLASSIFICATION: "Preset.CREDENTIALS",
 }
 _DEFAULT_PRESET = "Preset.PCI_DSS"
@@ -59,21 +60,21 @@ def generate_regression_code(results: list[ScanResult]) -> str:
 
     for result in evasions:
         label_slug = _slug(result.payload.label)
-        tech_slug  = _slug(result.variant.technique)
-        base_name  = f"test_{label_slug}_{tech_slug}"
+        tech_slug = _slug(result.variant.technique)
+        base_name = f"test_{label_slug}_{tech_slug}"
 
         seen_counts[base_name] += 1
         count = seen_counts[base_name]
         func_name = base_name if count == 1 else f"{base_name}_{count}"
 
-        preset       = _CATEGORY_PRESET.get(result.payload.category, _DEFAULT_PRESET)
+        preset = _CATEGORY_PRESET.get(result.payload.category, _DEFAULT_PRESET)
         variant_repr = repr(result.variant.value)
-        comment      = f"  # {result.variant.transform_name}"
+        comment = f"  # {result.variant.transform_name}"
 
         block = (
             f"def {func_name}():\n"
-            f"    \"\"\"{result.payload.label} evaded via {result.variant.technique}"
-            f" \u2014 should be detected\"\"\"\n"
+            f'    """{result.payload.label} evaded via {result.variant.technique}'
+            f' \u2014 should be detected"""\n'
             f"    from dlpscan import InputGuard, Preset\n"
             f"    guard = InputGuard(presets=[{preset}])\n"
             f"    result = guard.scan({variant_repr}){comment}\n"

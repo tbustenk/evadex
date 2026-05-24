@@ -8,12 +8,22 @@ import click
 from click.core import ParameterSource
 from rich.console import Console
 from rich.progress import (
-    Progress, SpinnerColumn, BarColumn, TaskProgressColumn,
-    TextColumn, TimeElapsedColumn, TimeRemainingColumn,
+    Progress,
+    SpinnerColumn,
+    BarColumn,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
 )
 from evadex.cli.commands.compare import build_comparison
 from evadex.config import load_config, find_config
-from evadex.core.registry import load_builtins, get_adapter, get_generator, all_generators
+from evadex.core.registry import (
+    load_builtins,
+    get_adapter,
+    get_generator,
+    all_generators,
+)
 from evadex.core.engine import Engine
 from evadex.core.result import Payload, PayloadCategory, SeverityLevel
 from evadex.payloads.builtins import get_payloads, detect_category, HEURISTIC_CATEGORIES
@@ -29,18 +39,18 @@ TIER_CHOICES = click.Choice(sorted(VALID_TIERS), case_sensitive=False)
 
 
 _GENERATOR_LABELS: dict[str, str] = {
-    "unicode_encoding":   "Unicode encoding",
-    "delimiter":          "Delimiter variation",
-    "splitting":          "Value splitting",
-    "leetspeak":          "Leetspeak substitution",
-    "regional_digits":    "Regional digit scripts",
-    "structural":         "Structural manipulation",
-    "encoding":           "Encoding obfuscation",
-    "context_injection":  "Context injection",
+    "unicode_encoding": "Unicode encoding",
+    "delimiter": "Delimiter variation",
+    "splitting": "Value splitting",
+    "leetspeak": "Leetspeak substitution",
+    "regional_digits": "Regional digit scripts",
+    "structural": "Structural manipulation",
+    "encoding": "Encoding obfuscation",
+    "context_injection": "Context injection",
     "unicode_whitespace": "Unicode whitespace",
-    "bidirectional":      "Bidirectional text",
-    "soft_hyphen":        "Invisible separator injection",
-    "morse_code":         "Morse code encoding",
+    "bidirectional": "Bidirectional text",
+    "soft_hyphen": "Invisible separator injection",
+    "morse_code": "Morse code encoding",
 }
 
 
@@ -57,7 +67,9 @@ def _key_findings(results, err_console) -> None:
 
     if total_fails == 0:
         err_console.print("  [bold]Key Findings:[/bold]")
-        err_console.print("    [green]• Scanner detected all variants — no bypass techniques succeeded[/green]")
+        err_console.print(
+            "    [green]• Scanner detected all variants — no bypass techniques succeeded[/green]"
+        )
         err_console.print()
         return
 
@@ -72,7 +84,8 @@ def _key_findings(results, err_console) -> None:
 
     gen_rates = {
         g: round(c["fail"] / c["total"] * 100, 1)
-        for g, c in by_gen.items() if c["total"]
+        for g, c in by_gen.items()
+        if c["total"]
     }
     ranked_gens = sorted(gen_rates.items(), key=lambda kv: kv[1], reverse=True)
 
@@ -81,11 +94,17 @@ def _key_findings(results, err_console) -> None:
         top_gen, top_rate = ranked_gens[0]
         label = _gen_label(top_gen)
         if top_rate >= 80:
-            findings.append(f"[red]{label} consistently evades detection ({top_rate}% bypass)[/red]")
+            findings.append(
+                f"[red]{label} consistently evades detection ({top_rate}% bypass)[/red]"
+            )
         elif top_rate >= 50:
-            findings.append(f"[red]{label} shows highest bypass rate ({top_rate}%)[/red]")
+            findings.append(
+                f"[red]{label} shows highest bypass rate ({top_rate}%)[/red]"
+            )
         else:
-            findings.append(f"[yellow]{label} shows highest bypass rate ({top_rate}%)[/yellow]")
+            findings.append(
+                f"[yellow]{label} shows highest bypass rate ({top_rate}%)[/yellow]"
+            )
 
     # Finding 2: generator that bypasses across the broadest spread of categories
     by_gen_cats: dict = defaultdict(set)
@@ -96,7 +115,8 @@ def _key_findings(results, err_console) -> None:
     all_cats = {r.payload.category.value for r in results}
     top_gen_name = ranked_gens[0][0] if ranked_gens else None
     broad = [
-        (g, cats) for g, cats in by_gen_cats.items()
+        (g, cats)
+        for g, cats in by_gen_cats.items()
         if g != top_gen_name
         and len(cats) >= max(2, len(all_cats) // 2)
         and gen_rates.get(g, 0) >= 30
@@ -118,7 +138,8 @@ def _key_findings(results, err_console) -> None:
 
     cat_rates = {
         c: round(v["fail"] / v["total"] * 100, 1)
-        for c, v in by_cat.items() if v["total"]
+        for c, v in by_cat.items()
+        if v["total"]
     }
     if len(cat_rates) > 1:
         worst_cat = max(cat_rates, key=lambda c: cat_rates[c])
@@ -140,8 +161,8 @@ def _key_findings(results, err_console) -> None:
         t = by_strat["text"]
         text_rate = round(t["fail"] / t["total"] * 100, 1) if t["total"] else 0.0
         file_total = sum(v["total"] for s, v in by_strat.items() if s != "text")
-        file_fail  = sum(v["fail"]  for s, v in by_strat.items() if s != "text")
-        file_rate  = round(file_fail / file_total * 100, 1) if file_total else 0.0
+        file_fail = sum(v["fail"] for s, v in by_strat.items() if s != "text")
+        file_rate = round(file_fail / file_total * 100, 1) if file_total else 0.0
         gap = round(file_rate - text_rate, 1)
         if abs(gap) >= 5:
             if gap > 0:
@@ -208,7 +229,9 @@ def _print_confidence_distribution(results, err_console) -> None:
         pct = round(n / total * 100, 1) if total else 0.0
         bar_len = int(round(n / total * max_bar)) if total else 0
         bar = "█" * bar_len
-        err_console.print(f"    {label}  [blue]{bar:<{max_bar}}[/blue]  {pct:>5.1f}%  ({n})")
+        err_console.print(
+            f"    {label}  [blue]{bar:<{max_bar}}[/blue]  {pct:>5.1f}%  ({n})"
+        )
     err_console.print()
 
 
@@ -226,6 +249,7 @@ def _find_last_baseline(scanner_label: str) -> str | None:
         if not scans_dir.exists():
             return None
         from evadex.archive import _safe_label as _sl
+
         label_sanitized = _sl(scanner_label)
         pattern = f"scan_*_{label_sanitized}.json"
         candidates = sorted(scans_dir.glob(pattern))
@@ -240,9 +264,9 @@ def _find_last_baseline(scanner_label: str) -> str | None:
 
 def _print_summary(results, err_console):
     """Print a structured, human-readable summary to stderr."""
-    total  = len(results)
+    total = len(results)
     passes = sum(1 for r in results if r.severity == SeverityLevel.PASS)
-    fails  = sum(1 for r in results if r.severity == SeverityLevel.FAIL)
+    fails = sum(1 for r in results if r.severity == SeverityLevel.FAIL)
     errors = sum(1 for r in results if r.severity == SeverityLevel.ERROR)
     pass_rate = round(passes / total * 100, 1) if total else 0.0
 
@@ -292,36 +316,85 @@ def _print_summary(results, err_console):
 
 @click.command("scan")
 @click.pass_context
-@click.option("--config", "config_path", default=None, metavar="PATH",
-              help="Path to evadex.yaml config file. Config values are defaults; "
-                   "CLI flags override them. Auto-discovered from the current directory "
-                   "if evadex.yaml exists and --config is not passed.")
-@click.option("--tool", "-t", default="dlpscan-cli", show_default=True,
-              help="DLP adapter to use. Built-in adapters: dlpscan-cli, siphon-cli, "
-                   "siphon, dlpscan, presidio.")
-@click.option("--input", "-i", "input_value", default=None,
-              help="Single value to test (if omitted, runs all built-ins)")
-@click.option("--format", "-f", "fmt", type=click.Choice(["json", "html"]),
-              default="json", show_default=True, help="Output format")
+@click.option(
+    "--config",
+    "config_path",
+    default=None,
+    metavar="PATH",
+    help="Path to evadex.yaml config file. Config values are defaults; "
+    "CLI flags override them. Auto-discovered from the current directory "
+    "if evadex.yaml exists and --config is not passed.",
+)
+@click.option(
+    "--tool",
+    "-t",
+    default="dlpscan-cli",
+    show_default=True,
+    help="DLP adapter to use. Built-in adapters: dlpscan-cli, siphon-cli, "
+    "siphon, dlpscan, presidio.",
+)
+@click.option(
+    "--input",
+    "-i",
+    "input_value",
+    default=None,
+    help="Single value to test (if omitted, runs all built-ins)",
+)
+@click.option(
+    "--format",
+    "-f",
+    "fmt",
+    type=click.Choice(["json", "html"]),
+    default="json",
+    show_default=True,
+    help="Output format",
+)
 @click.option("--output", "-o", default=None, help="Output file path (default: stdout)")
-@click.option("--url", default="http://localhost:8080", show_default=True,
-              help="Adapter base URL")
-@click.option("--api-key", default=None, envvar="EVADEX_API_KEY",
-              help="API key for adapter")
-@click.option("--timeout", default=30.0, show_default=True, type=float,
-              help="Request timeout in seconds")
-@click.option("--strategy", "strategies", multiple=True, type=STRATEGY_CHOICES,
-              help="Submission strategies to use (default: all). Repeat for multiple.")
-@click.option("--concurrency", default=32, show_default=True, type=int,
-              help="Max concurrent requests")
-@click.option("--category", "categories", multiple=True, type=CATEGORY_CHOICES,
-              help="Filter built-in payloads by category. Repeat for multiple.")
-@click.option("--variant-group", "variant_groups", multiple=True,
-              help="Limit to specific generator names. Repeat for multiple.")
+@click.option(
+    "--url", default="http://localhost:8080", show_default=True, help="Adapter base URL"
+)
+@click.option(
+    "--api-key", default=None, envvar="EVADEX_API_KEY", help="API key for adapter"
+)
+@click.option(
+    "--timeout",
+    default=30.0,
+    show_default=True,
+    type=float,
+    help="Request timeout in seconds",
+)
+@click.option(
+    "--strategy",
+    "strategies",
+    multiple=True,
+    type=STRATEGY_CHOICES,
+    help="Submission strategies to use (default: all). Repeat for multiple.",
+)
+@click.option(
+    "--concurrency",
+    default=32,
+    show_default=True,
+    type=int,
+    help="Max concurrent requests",
+)
+@click.option(
+    "--category",
+    "categories",
+    multiple=True,
+    type=CATEGORY_CHOICES,
+    help="Filter built-in payloads by category. Repeat for multiple.",
+)
+@click.option(
+    "--variant-group",
+    "variant_groups",
+    multiple=True,
+    help="Limit to specific generator names. Repeat for multiple.",
+)
 @click.option(
     "--evasion-mode",
-    type=click.Choice(["random", "weighted", "adversarial", "exhaustive"],
-                      case_sensitive=False),
+    type=click.Choice(
+        ["random", "weighted", "adversarial", "exhaustive"], case_sensitive=False
+    ),
     default="exhaustive",
     show_default=True,
     help=(
@@ -334,93 +407,223 @@ def _print_summary(results, err_console):
         "Reads history from --audit-log."
     ),
 )
-@click.option("--include-heuristic", "include_heuristic", is_flag=True, default=False,
-              help="Also run heuristic categories (JWT, AWS key). See README for limitations.")
-@click.option("--tier", "tier", default=None, type=TIER_CHOICES, show_default=False,
-              help=(
-                  "Payload tier to run. One of: northam (default), banking, core, regional, full. "
-                  "Ignored when --category is also specified."
-              ))
-@click.option("--scanner-label", "scanner_label", default="", show_default=False,
-              help="Label for this scanner in JSON output (e.g. 'python-1.3.0' or 'rust-2.0.0')")
-@click.option("--exe", "executable", default=None, show_default=False,
-              help="Path to scanner executable (dlpscan-cli / siphon-cli adapters)")
-@click.option("--cmd-style", "cmd_style", default=None,
-              type=click.Choice(["python", "rust", "binary", "cargo"]), show_default=False,
-              help="Command format. dlpscan-cli: 'python' (-f json) or 'rust' "
-                   "(--format json scan). siphon-cli: 'binary' (siphon) or 'cargo' "
-                   "(cargo run --release --bin siphon --).")
-@click.option("--min-detection-rate", "min_detection_rate", default=None, type=float,
-              help="Exit with code 1 if detection rate falls below this threshold (0-100). "
-                   "For CI/CD pipeline integration.")
-@click.option("--baseline", "save_baseline", default=None,
-              help="Save this run's JSON results to a baseline file for future comparison.")
-@click.option("--compare-baseline", "compare_baseline", default=None,
-              help="Compare this run against a saved baseline JSON and report regressions.")
-@click.option("--audit-log", "audit_log", default=None,
-              help="Append a one-line JSON audit record for this run to a file. "
-                   "Created (with parent directories) if it does not exist. "
-                   "Can also be set via 'audit_log' in evadex.yaml.")
-@click.option("--feedback-report", "feedback_report", default=None, metavar="PATH",
-              help="Save a structured JSON feedback report to PATH. Contains per-technique "
-                   "evasion counts, fix suggestions, and the generated regression test code.")
-@click.option("--require-context", "require_context", is_flag=True, default=False,
-              help="Pass --require-context to dlpscan-rs: only flag matches when surrounding "
-                   "keywords are present. Reduces false positives but may also reduce detection "
-                   "rate for variants lacking keyword context. Requires --cmd-style rust.")
-@click.option("--wrap-context", "wrap_context", is_flag=True, default=False,
-              help="Embed every variant value in a realistic keyword sentence before submission. "
-                   "dlpscan-rs requires surrounding context words to flag matches — submitting a "
-                   "bare value produces misleading (artificially low) detection rates. "
-                   "Automatically enabled when --cmd-style rust is used. "
-                   "Pass --no-wrap-context to disable.")
-@click.option("--no-wrap-context", "no_wrap_context", is_flag=True, default=False,
-              help="Explicitly disable context wrapping even when --cmd-style rust is active.")
-@click.option("--c2-url", "c2_url", default=None, envvar="EVADEX_C2_URL",
-              help="Siphon-C2 management-plane URL (e.g. http://c2.internal:9090). "
-                   "Scan results are pushed to POST /v1/evadex/scan. A failure or "
-                   "unreachable C2 is logged as a warning but never fails the scan.")
-@click.option("--c2-key", "c2_key", default=None, envvar="EVADEX_C2_KEY",
-              help="API key sent as 'x-api-key' to Siphon-C2 (same format as the "
-                   "core Siphon API). Falls back to EVADEX_C2_KEY env var.")
-@click.option("--save-as", "save_as", default=None, metavar="NAME",
-              help="Save the flags used for this run as a named profile in "
-                   "~/.evadex/profiles before executing. Future runs can use "
-                   "'evadex profile run NAME' with the same config.")
-@click.option("--min-confidence", "min_confidence", default=None, type=float,
-              help="Confidence floor passed to the scanner adapter (0.0–1.0). "
-                   "Matches below this score are ignored by the adapter before "
-                   "evadex sees them. Useful for tuning FP/recall tradeoff.")
-@click.option("--progress-json", "progress_json", is_flag=True, default=False,
-              help="Emit one JSON progress record per tick to stderr — used by "
-                   "the bridge to surface live progress to the C2 UI. Format: "
-                   "{\"progress\": float, \"tested\": int, \"total\": int, "
-                   "\"detected\": int, \"elapsed_s\": float}. Implies "
-                   "suppression of the Rich TTY progress bar.")
-@click.option("--fast", "fast_mode", is_flag=True, default=False,
-              help="Fast scan: restrict to the top 5 highest-bypass techniques "
-                   "per generator family and drop techniques with estimated "
-                   "bypass <10%. Typically trims the variant pool by ~80% with "
-                   "most of the detection signal retained. Seed weights are "
-                   "blended with audit history when --audit-log is set.")
-@click.option("--verbose", "-v", "verbose", is_flag=True, default=False,
-              help="Live per-variant output: each variant result prints to "
-                   "stderr as it completes (✓ detected / ✗ evaded). Suppresses "
-                   "the progress bar since per-variant lines scroll past it.")
-@click.option("--stream/--no-stream", "streaming", default=True, show_default=True,
-              help="Stream variants to the scanner as they are generated (default). "
-                   "--no-stream collects all variants into memory before submitting. "
-                   "Streaming uses less peak memory; --no-stream makes total known upfront.")
+@click.option(
+    "--include-heuristic",
+    "include_heuristic",
+    is_flag=True,
+    default=False,
+    help="Also run heuristic categories (JWT, AWS key). See README for limitations.",
+)
+@click.option(
+    "--tier",
+    "tier",
+    default=None,
+    type=TIER_CHOICES,
+    show_default=False,
+    help=(
+        "Payload tier to run. One of: northam (default), banking, core, regional, full. "
+        "Ignored when --category is also specified."
+    ),
+)
+@click.option(
+    "--scanner-label",
+    "scanner_label",
+    default="",
+    show_default=False,
+    help="Label for this scanner in JSON output (e.g. 'python-1.3.0' or 'rust-2.0.0')",
+)
+@click.option(
+    "--exe",
+    "executable",
+    default=None,
+    show_default=False,
+    help="Path to scanner executable (dlpscan-cli / siphon-cli adapters)",
+)
+@click.option(
+    "--cmd-style",
+    "cmd_style",
+    default=None,
+    type=click.Choice(["python", "rust", "binary", "cargo"]),
+    show_default=False,
+    help="Command format. dlpscan-cli: 'python' (-f json) or 'rust' "
+    "(--format json scan). siphon-cli: 'binary' (siphon) or 'cargo' "
+    "(cargo run --release --bin siphon --).",
+)
+@click.option(
+    "--min-detection-rate",
+    "min_detection_rate",
+    default=None,
+    type=float,
+    help="Exit with code 1 if detection rate falls below this threshold (0-100). "
+    "For CI/CD pipeline integration.",
+)
+@click.option(
+    "--baseline",
+    "save_baseline",
+    default=None,
+    help="Save this run's JSON results to a baseline file for future comparison.",
+)
+@click.option(
+    "--compare-baseline",
+    "compare_baseline",
+    default=None,
+    help="Compare this run against a saved baseline JSON and report regressions.",
+)
+@click.option(
+    "--audit-log",
+    "audit_log",
+    default=None,
+    help="Append a one-line JSON audit record for this run to a file. "
+    "Created (with parent directories) if it does not exist. "
+    "Can also be set via 'audit_log' in evadex.yaml.",
+)
+@click.option(
+    "--feedback-report",
+    "feedback_report",
+    default=None,
+    metavar="PATH",
+    help="Save a structured JSON feedback report to PATH. Contains per-technique "
+    "evasion counts, fix suggestions, and the generated regression test code.",
+)
+@click.option(
+    "--require-context",
+    "require_context",
+    is_flag=True,
+    default=False,
+    help="Pass --require-context to dlpscan-rs: only flag matches when surrounding "
+    "keywords are present. Reduces false positives but may also reduce detection "
+    "rate for variants lacking keyword context. Requires --cmd-style rust.",
+)
+@click.option(
+    "--wrap-context",
+    "wrap_context",
+    is_flag=True,
+    default=False,
+    help="Embed every variant value in a realistic keyword sentence before submission. "
+    "dlpscan-rs requires surrounding context words to flag matches — submitting a "
+    "bare value produces misleading (artificially low) detection rates. "
+    "Automatically enabled when --cmd-style rust is used. "
+    "Pass --no-wrap-context to disable.",
+)
+@click.option(
+    "--no-wrap-context",
+    "no_wrap_context",
+    is_flag=True,
+    default=False,
+    help="Explicitly disable context wrapping even when --cmd-style rust is active.",
+)
+@click.option(
+    "--c2-url",
+    "c2_url",
+    default=None,
+    envvar="EVADEX_C2_URL",
+    help="Siphon-C2 management-plane URL (e.g. http://c2.internal:9090). "
+    "Scan results are pushed to POST /v1/evadex/scan. A failure or "
+    "unreachable C2 is logged as a warning but never fails the scan.",
+)
+@click.option(
+    "--c2-key",
+    "c2_key",
+    default=None,
+    envvar="EVADEX_C2_KEY",
+    help="API key sent as 'x-api-key' to Siphon-C2 (same format as the "
+    "core Siphon API). Falls back to EVADEX_C2_KEY env var.",
+)
+@click.option(
+    "--save-as",
+    "save_as",
+    default=None,
+    metavar="NAME",
+    help="Save the flags used for this run as a named profile in "
+    "~/.evadex/profiles before executing. Future runs can use "
+    "'evadex profile run NAME' with the same config.",
+)
+@click.option(
+    "--min-confidence",
+    "min_confidence",
+    default=None,
+    type=float,
+    help="Confidence floor passed to the scanner adapter (0.0–1.0). "
+    "Matches below this score are ignored by the adapter before "
+    "evadex sees them. Useful for tuning FP/recall tradeoff.",
+)
+@click.option(
+    "--progress-json",
+    "progress_json",
+    is_flag=True,
+    default=False,
+    help="Emit one JSON progress record per tick to stderr — used by "
+    "the bridge to surface live progress to the C2 UI. Format: "
+    '{"progress": float, "tested": int, "total": int, '
+    '"detected": int, "elapsed_s": float}. Implies '
+    "suppression of the Rich TTY progress bar.",
+)
+@click.option(
+    "--fast",
+    "fast_mode",
+    is_flag=True,
+    default=False,
+    help="Fast scan: restrict to the top 5 highest-bypass techniques "
+    "per generator family and drop techniques with estimated "
+    "bypass <10%. Typically trims the variant pool by ~80% with "
+    "most of the detection signal retained. Seed weights are "
+    "blended with audit history when --audit-log is set.",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    "verbose",
+    is_flag=True,
+    default=False,
+    help="Live per-variant output: each variant result prints to "
+    "stderr as it completes (✓ detected / ✗ evaded). Suppresses "
+    "the progress bar since per-variant lines scroll past it.",
+)
+@click.option(
+    "--stream/--no-stream",
+    "streaming",
+    default=True,
+    show_default=True,
+    help="Stream variants to the scanner as they are generated (default). "
+    "--no-stream collects all variants into memory before submitting. "
+    "Streaming uses less peak memory; --no-stream makes total known upfront.",
+)
 def scan(
     ctx,
-    config_path, tool, input_value, fmt, output, url, api_key, timeout,
-    strategies, concurrency, categories, variant_groups, evasion_mode,
+    config_path,
+    tool,
+    input_value,
+    fmt,
+    output,
+    url,
+    api_key,
+    timeout,
+    strategies,
+    concurrency,
+    categories,
+    variant_groups,
+    evasion_mode,
     include_heuristic,
-    tier, scanner_label, executable, cmd_style, min_detection_rate,
-    save_baseline, compare_baseline, audit_log, feedback_report,
-    require_context, wrap_context, no_wrap_context,
-    c2_url, c2_key, save_as,
-    min_confidence, progress_json, fast_mode, verbose, streaming,
+    tier,
+    scanner_label,
+    executable,
+    cmd_style,
+    min_detection_rate,
+    save_baseline,
+    compare_baseline,
+    audit_log,
+    feedback_report,
+    require_context,
+    wrap_context,
+    no_wrap_context,
+    c2_url,
+    c2_key,
+    save_as,
+    min_confidence,
+    progress_json,
+    fast_mode,
+    verbose,
+    streaming,
 ):
     """Test a DLP scanner against known sensitive data patterns.
 
@@ -442,6 +645,7 @@ def scan(
     # the original baseline and the comparison always shows zero delta.
     if save_baseline and compare_baseline:
         from pathlib import Path
+
         if Path(save_baseline).resolve() == Path(compare_baseline).resolve():
             err_console.print(
                 "[red]Error: --baseline and --compare-baseline cannot point to the same file. "
@@ -462,6 +666,7 @@ def scan(
     # Apply config values as defaults for any option not explicitly passed on
     # the CLI (source == DEFAULT).  CLI flags always win.
     if cfg is not None:
+
         def _is_default(name: str) -> bool:
             return ctx.get_parameter_source(name) == ParameterSource.DEFAULT
 
@@ -528,30 +733,32 @@ def scan(
             err_console.print(f"[red]{e}[/red]")
             sys.exit(1)
 
-        scan_section = scan_flags_to_profile_dict({
-            "tool": tool,
-            "input_value": input_value,
-            "fmt": fmt,
-            "output": output,
-            "url": url,
-            "api_key": api_key,
-            "timeout": timeout,
-            "strategies": strategies,
-            "concurrency": concurrency,
-            "categories": categories,
-            "variant_groups": variant_groups,
-            "evasion_mode": evasion_mode,
-            "include_heuristic": include_heuristic,
-            "tier": tier,
-            "scanner_label": scanner_label,
-            "executable": executable,
-            "cmd_style": cmd_style,
-            "min_detection_rate": min_detection_rate,
-            "audit_log": audit_log,
-            "feedback_report": feedback_report,
-            "require_context": require_context,
-            "wrap_context": wrap_context,
-        })
+        scan_section = scan_flags_to_profile_dict(
+            {
+                "tool": tool,
+                "input_value": input_value,
+                "fmt": fmt,
+                "output": output,
+                "url": url,
+                "api_key": api_key,
+                "timeout": timeout,
+                "strategies": strategies,
+                "concurrency": concurrency,
+                "categories": categories,
+                "variant_groups": variant_groups,
+                "evasion_mode": evasion_mode,
+                "include_heuristic": include_heuristic,
+                "tier": tier,
+                "scanner_label": scanner_label,
+                "executable": executable,
+                "cmd_style": cmd_style,
+                "min_detection_rate": min_detection_rate,
+                "audit_log": audit_log,
+                "feedback_report": feedback_report,
+                "require_context": require_context,
+                "wrap_context": wrap_context,
+            }
+        )
         c2_section: dict = {}
         if c2_url:
             c2_section["url"] = c2_url
@@ -583,16 +790,20 @@ def scan(
         )
 
     # Resolve strategies
-    active_strategies = list(strategies) if strategies else ["text", "docx", "pdf", "xlsx"]
+    active_strategies = (
+        list(strategies) if strategies else ["text", "docx", "pdf", "xlsx"]
+    )
 
     # Resolve payloads
     if input_value:
         category = detect_category(input_value)
-        payloads = [Payload(
-            value=input_value,
-            category=category,
-            label=f"Custom ({category.value})",
-        )]
+        payloads = [
+            Payload(
+                value=input_value,
+                category=category,
+                label=f"Custom ({category.value})",
+            )
+        ]
     else:
         if categories:
             # Explicit --category always wins over --tier
@@ -626,6 +837,7 @@ def scan(
     # Auto-detect scanner exe from PATH if none configured
     if tool in ("dlpscan-cli", "siphon-cli") and not executable:
         import shutil as _shutil
+
         _sfx = ".exe" if sys.platform == "win32" else ""
         _names = (
             ["siphon", f"siphon{_sfx}"]
@@ -691,21 +903,23 @@ def scan(
 
     if em == "adversarial":
         from evadex.feedback.technique_history import (
-            has_history, load_technique_history,
+            has_history,
+            load_technique_history,
         )
+
         log_path = audit_log or "results/audit.jsonl"
         if has_history(log_path):
             stats = load_technique_history(log_path)
-            evading = {
-                t for t, s in stats.items()
-                if s.average_success <= 0.5
-            }
+            evading = {t for t, s in stats.items() if s.average_success <= 0.5}
             from evadex.core.registry import _GENERATORS as _ALL_GENS
+
             # _GENERATORS stores classes; instantiate when forming the
             # default pool. Already-resolved generators stay as instances.
-            pool = generators if generators is not None else [
-                cls() for cls in _ALL_GENS.values()
-            ]
+            pool = (
+                generators
+                if generators is not None
+                else [cls() for cls in _ALL_GENS.values()]
+            )
             kept = [g for g in pool if g.name in evading]
             if kept:
                 generators = kept
@@ -732,10 +946,12 @@ def scan(
     technique_filter: set[str] | None = None
     if fast_mode:
         from evadex.feedback.fast_mode import pick_fast_techniques
+
         pool = generators if generators is not None else all_generators()
         _fast_audit_log = audit_log or "results/audit.jsonl"
         technique_filter, _fast_diag = pick_fast_techniques(
-            pool, audit_log=_fast_audit_log,
+            pool,
+            audit_log=_fast_audit_log,
         )
         if not technique_filter:
             err_console.print(
@@ -744,7 +960,9 @@ def scan(
             )
             technique_filter = None
         else:
-            hist_note = "with history blend" if _fast_diag["has_history"] else "seeds only"
+            hist_note = (
+                "with history blend" if _fast_diag["has_history"] else "seeds only"
+            )
             err_console.print(
                 f"[dim]--fast: kept {_fast_diag['kept']} technique(s), "
                 f"dropped {_fast_diag['dropped']} ({hist_note}).[/dim]"
@@ -762,14 +980,20 @@ def scan(
 
     # Run engine with live progress bar on stderr
     if tool in ("dlpscan-cli", "siphon-cli"):
-        err_console.print(f"[dim]Running evadex scan against [bold]{tool}[/bold]...[/dim]")
+        err_console.print(
+            f"[dim]Running evadex scan against [bold]{tool}[/bold]...[/dim]"
+        )
     else:
-        err_console.print(f"[dim]Running evadex scan against [bold]{tool}[/bold] at {url}...[/dim]")
+        err_console.print(
+            f"[dim]Running evadex scan against [bold]{tool}[/bold] at {url}...[/dim]"
+        )
 
     # Header banner matches the user-facing UX: "scanning <tier> tier ·
     # weighted mode · concurrency N". When --verbose is on the progress
     # bar is suppressed because per-variant lines would scroll past it.
-    _effective_tier_name = tier or "northam" if not input_value and not categories else "custom"
+    _effective_tier_name = (
+        tier or "northam" if not input_value and not categories else "custom"
+    )
     _effective_mode = "fast" if fast_mode else (evasion_mode or "exhaustive").lower()
     err_console.print(
         f"[dim]scanning [bold]{_effective_tier_name}[/bold] tier · "
@@ -796,10 +1020,10 @@ def scan(
     # Throttled so we never emit more than once per 200 ms during a
     # fast local run — the bridge only polls every 3 s anyway.
     _progress_state = {
-        "start":       time.time(),
-        "last_emit":   0.0,
-        "detected":    0,
-        "evaded":      0,
+        "start": time.time(),
+        "last_emit": 0.0,
+        "detected": 0,
+        "evaded": 0,
     }
     _min_emit_interval_s = 0.2
 
@@ -810,10 +1034,10 @@ def scan(
         _progress_state["last_emit"] = now
         pct = round(100.0 * completed / total, 1) if total else 0.0
         record = {
-            "progress":  pct,
-            "tested":    int(completed),
-            "total":     int(total),
-            "detected":  int(_progress_state["detected"]),
+            "progress": pct,
+            "tested": int(completed),
+            "total": int(total),
+            "detected": int(_progress_state["detected"]),
             "elapsed_s": round(now - _progress_state["start"], 1),
         }
         try:
@@ -834,8 +1058,7 @@ def scan(
             val = val[:57] + "..."
         if sev == "pass":
             conf = (
-                f" ({result.confidence:.2f})"
-                if result.confidence is not None else ""
+                f" ({result.confidence:.2f})" if result.confidence is not None else ""
             )
             err_console.print(
                 f"  [green]✓[/green] [dim]{cat}[/dim] · {tech} · "
@@ -917,7 +1140,9 @@ def scan(
     err_console.print()
 
     # Report
-    reporter = HtmlReporter() if fmt == "html" else JsonReporter(scanner_label=scanner_label)
+    reporter = (
+        HtmlReporter() if fmt == "html" else JsonReporter(scanner_label=scanner_label)
+    )
     rendered = reporter.render(results)
 
     # ── Auto baseline delta (printed to stderr BEFORE stdout write) ─────────
@@ -947,9 +1172,12 @@ def scan(
     # ── Archive: save timestamped copy and append to audit.jsonl ─────────────
     if fmt == "json":
         from evadex.archive import (
-            archive_scan, append_results_audit,
-            build_scan_audit_entry, get_commit_hash,
+            archive_scan,
+            append_results_audit,
+            build_scan_audit_entry,
+            get_commit_hash,
         )
+
         _archive_path = archive_scan(rendered, scanner_label)
         _commit = get_commit_hash()
         _audit_entry = build_scan_audit_entry(
@@ -971,7 +1199,9 @@ def scan(
             with open(output, "w", encoding="utf-8") as f:
                 f.write(rendered)
         except OSError as e:
-            err_console.print(f"[red]Cannot write output file '{output}': {e.strerror}[/red]")
+            err_console.print(
+                f"[red]Cannot write output file '{output}': {e.strerror}[/red]"
+            )
             sys.exit(1)
         err_console.print(f"[dim]Report written to {output}[/dim]")
         err_console.print(
@@ -1010,9 +1240,12 @@ def scan(
 
     if feedback_report:
         from evadex.feedback.report import write_feedback_report
+
         try:
             write_feedback_report(results, feedback_report, scanner_label=scanner_label)
-            err_console.print(f"[dim]Feedback report written to {feedback_report}[/dim]")
+            err_console.print(
+                f"[dim]Feedback report written to {feedback_report}[/dim]"
+            )
         except OSError as e:
             err_console.print(
                 f"[red]Cannot write feedback report '{feedback_report}': {e.strerror}[/red]"
@@ -1026,7 +1259,9 @@ def scan(
             with open(save_baseline, "w", encoding="utf-8") as f:
                 f.write(baseline_rendered)
         except OSError as e:
-            err_console.print(f"[red]Cannot write baseline file '{save_baseline}': {e.strerror}[/red]")
+            err_console.print(
+                f"[red]Cannot write baseline file '{save_baseline}': {e.strerror}[/red]"
+            )
             sys.exit(1)
         err_console.print(f"[dim]Baseline saved to {save_baseline}[/dim]")
 
@@ -1041,35 +1276,59 @@ def scan(
         except json.JSONDecodeError as e:
             err_console.print(f"[red]Baseline file is not valid JSON: {e}[/red]")
             sys.exit(1)
-        if not isinstance(baseline_data, dict) or "meta" not in baseline_data or "results" not in baseline_data:
+        if (
+            not isinstance(baseline_data, dict)
+            or "meta" not in baseline_data
+            or "results" not in baseline_data
+        ):
             err_console.print(
                 "[red]Baseline file does not look like an evadex result file "
                 "(missing 'meta' or 'results' keys). "
                 "Generate a baseline with: evadex scan ... --baseline <file>[/red]"
             )
             sys.exit(1)
-        current_data = json.loads(JsonReporter(scanner_label=scanner_label).render(results))
+        current_data = json.loads(
+            JsonReporter(scanner_label=scanner_label).render(results)
+        )
         try:
             comp = build_comparison(baseline_data, current_data)
         except (KeyError, TypeError, ValueError) as e:
-            err_console.print(f"[red]Baseline comparison failed — baseline file may be from an incompatible evadex version: {e}[/red]")
+            err_console.print(
+                f"[red]Baseline comparison failed — baseline file may be from an incompatible evadex version: {e}[/red]"
+            )
             sys.exit(1)
         delta = comp["overall"]["delta"]
-        regressions = [d for d in comp["diffs"] if d["b_severity"] == "fail" and d["a_severity"] == "pass"]
-        improvements = [d for d in comp["diffs"] if d["b_severity"] == "pass" and d["a_severity"] == "fail"]
+        regressions = [
+            d
+            for d in comp["diffs"]
+            if d["b_severity"] == "fail" and d["a_severity"] == "pass"
+        ]
+        improvements = [
+            d
+            for d in comp["diffs"]
+            if d["b_severity"] == "pass" and d["a_severity"] == "fail"
+        ]
         err_console.print(
             f"\n[bold]Baseline comparison:[/bold] "
             f"{'[red]' if delta < 0 else '[green]'}{delta:+.1f} pp[/{'red' if delta < 0 else 'green'}] "
             f"vs {comp['label_a']}"
         )
         if regressions:
-            err_console.print(f"[red]  {len(regressions)} regression(s) — variants now evading that baseline caught:[/red]")
+            err_console.print(
+                f"[red]  {len(regressions)} regression(s) — variants now evading that baseline caught:[/red]"
+            )
             for r in regressions[:20]:
-                err_console.print(f"    [dim]{r['category']}[/dim]  {r['payload_label']}  [cyan]{r['generator']}[/cyan]/{r['technique']}")
+                err_console.print(
+                    f"    [dim]{r['category']}[/dim]  {r['payload_label']}  [cyan]{r['generator']}[/cyan]/{r['technique']}"
+                )
             if len(regressions) > 20:
-                err_console.print(f"    [dim]... and {len(regressions) - 20} more[/dim]")
+                err_console.print(
+                    f"    [dim]... and {len(regressions) - 20} more[/dim]"
+                )
         if improvements:
-            err_console.print(f"[green]  {len(improvements)} improvement(s) — variants now caught that baseline missed[/green]")
+            err_console.print(
+                f"[green]  {len(improvements)} improvement(s) — variants now caught that baseline missed[/green]"
+            )
         if not regressions and not improvements:
             err_console.print("[green]  No changes vs baseline.[/green]")
 
@@ -1078,6 +1337,7 @@ def scan(
     if audit_log:
         from evadex.audit import append_audit_entry
         from collections import defaultdict as _dd
+
         # Per-technique pass rates feed `evadex techniques` and the
         # weighted/adversarial evasion modes. From the scanner's
         # perspective "success" = variant was caught (pass), so rate =
@@ -1112,7 +1372,8 @@ def scan(
             compare_baseline=compare_baseline,
             min_detection_rate=min_detection_rate,
             exit_code=(
-                1 if (min_detection_rate is not None and pass_rate < min_detection_rate)
+                1
+                if (min_detection_rate is not None and pass_rate < min_detection_rate)
                 else 0
             ),
             technique_success_rates=technique_success_rates,
@@ -1124,24 +1385,38 @@ def scan(
     # management plane is explicitly "not critical path" per the Siphon
     # architecture docs.
     from evadex.reporters.c2_reporter import push_scan_results, resolve_c2_config
+
     _c2_url, _c2_key = resolve_c2_config(c2_url, c2_key)
     if _c2_url:
         try:
             _rendered_json = json.loads(rendered) if fmt == "json" else None
         except (ValueError, TypeError):
             _rendered_json = None
-        _meta = (_rendered_json or {}).get("meta", {}) if isinstance(_rendered_json, dict) else {}
-        _fail_findings = [
-            r for r in (_rendered_json or {}).get("results", [])
-            if isinstance(r, dict) and r.get("severity") == "fail"
-        ][:50] if isinstance(_rendered_json, dict) else []
+        _meta = (
+            (_rendered_json or {}).get("meta", {})
+            if isinstance(_rendered_json, dict)
+            else {}
+        )
+        _fail_findings = (
+            [
+                r
+                for r in (_rendered_json or {}).get("results", [])
+                if isinstance(r, dict) and r.get("severity") == "fail"
+            ][:50]
+            if isinstance(_rendered_json, dict)
+            else []
+        )
         push_scan_results(
-            _c2_url, _c2_key,
+            _c2_url,
+            _c2_key,
             scanner_label=scanner_label,
             tool=tool,
             categories=list(categories) if categories else [],
             strategies=active_strategies,
-            total=total, passes=passes, fails=fails, errors=errors,
+            total=total,
+            passes=passes,
+            fails=fails,
+            errors=errors,
             pass_rate=pass_rate,
             by_category=_meta.get("summary_by_category") or {},
             by_technique=_meta.get("summary_by_generator") or {},

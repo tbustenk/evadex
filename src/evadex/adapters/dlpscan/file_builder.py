@@ -3,25 +3,28 @@ from typing import Literal
 
 try:
     from docx import Document
+
     HAS_DOCX = True
 except ImportError:
     HAS_DOCX = False
 
 try:
     from fpdf import FPDF
+
     HAS_FPDF = True
 except ImportError:
     HAS_FPDF = False
 
 try:
     import openpyxl
+
     HAS_OPENPYXL = True
 except ImportError:
     HAS_OPENPYXL = False
 
 
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-PDF_MIME  = "application/pdf"
+PDF_MIME = "application/pdf"
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 NOISE_SENTENCES = [
@@ -100,13 +103,13 @@ class FileBuilder:
             raise RuntimeError("openpyxl is required for XLSX generation")
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws['A1'] = NOISE_SENTENCES[0]
-        ws['A2'] = text
-        ws['A3'] = NOISE_SENTENCES[1]
-        ws['B1'] = "Document ID"
-        ws['B2'] = "12345"
-        ws['C1'] = "Classification"
-        ws['C2'] = "Confidential"
+        ws["A1"] = NOISE_SENTENCES[0]
+        ws["A2"] = text
+        ws["A3"] = NOISE_SENTENCES[1]
+        ws["B1"] = "Document ID"
+        ws["B2"] = "12345"
+        ws["C1"] = "Classification"
+        ws["C2"] = "Confidential"
         buf = io.BytesIO()
         wb.save(buf)
         return buf.getvalue()

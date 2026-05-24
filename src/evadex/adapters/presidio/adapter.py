@@ -20,6 +20,7 @@ language : str
 min_score : float
     Minimum recognizer confidence score to count as a detection (default: 0.0).
 """
+
 from evadex.adapters.base import BaseAdapter, AdapterError
 from evadex.adapters.presidio.client import PresidioClient
 from evadex.core.registry import register_adapter

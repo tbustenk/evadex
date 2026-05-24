@@ -7,6 +7,7 @@ fields Siphon's ``extract_ics`` walks.
 Lines are CRLF-terminated and folded at 75 octets per RFC 5545 so
 the fixture is parseable by any conformant calendar client.
 """
+
 from __future__ import annotations
 
 import datetime
@@ -47,10 +48,10 @@ def _escape_ics_text(s: str) -> str:
     and newline get backslash-escaped."""
     return (
         s.replace("\\", "\\\\")
-         .replace(";", "\\;")
-         .replace(",", "\\,")
-         .replace("\n", "\\n")
-         .replace("\r", "")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+        .replace("\n", "\\n")
+        .replace("\r", "")
     )
 
 
@@ -116,8 +117,7 @@ def _vevent(
 
 def write_ics(entries: list[GeneratedEntry], path: str) -> None:
     rng = random.Random(42)
-    base_dt = datetime.datetime(2026, 5, 1, 9, 0, 0,
-                                tzinfo=datetime.timezone.utc)
+    base_dt = datetime.datetime(2026, 5, 1, 9, 0, 0, tzinfo=datetime.timezone.utc)
 
     out: list[str] = [
         "BEGIN:VCALENDAR",

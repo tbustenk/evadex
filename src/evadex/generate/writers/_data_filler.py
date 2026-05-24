@@ -5,6 +5,7 @@ per-column fake values (names, addresses, dates, amounts), not prose.
 Shared by ``parquet_writer`` and ``sqlite_writer`` so column content
 stays consistent between the two formats.
 """
+
 from __future__ import annotations
 
 import datetime as _dt
@@ -14,45 +15,144 @@ from typing import Optional
 
 
 EN_FIRST = [
-    "James", "Mary", "Robert", "Patricia", "John", "Jennifer", "Michael",
-    "Linda", "William", "Elizabeth", "David", "Barbara", "Richard", "Susan",
-    "Joseph", "Jessica", "Thomas", "Sarah", "Charles", "Karen",
+    "James",
+    "Mary",
+    "Robert",
+    "Patricia",
+    "John",
+    "Jennifer",
+    "Michael",
+    "Linda",
+    "William",
+    "Elizabeth",
+    "David",
+    "Barbara",
+    "Richard",
+    "Susan",
+    "Joseph",
+    "Jessica",
+    "Thomas",
+    "Sarah",
+    "Charles",
+    "Karen",
 ]
 EN_LAST = [
-    "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller",
-    "Davis", "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez",
-    "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin",
+    "Smith",
+    "Johnson",
+    "Williams",
+    "Brown",
+    "Jones",
+    "Garcia",
+    "Miller",
+    "Davis",
+    "Rodriguez",
+    "Martinez",
+    "Hernandez",
+    "Lopez",
+    "Gonzalez",
+    "Wilson",
+    "Anderson",
+    "Thomas",
+    "Taylor",
+    "Moore",
+    "Jackson",
+    "Martin",
 ]
 # Canadian French names — common in QC registries.
 FR_FIRST = [
-    "Jean", "Marie", "Pierre", "Louise", "Michel", "Sylvie", "François",
-    "Nicole", "Luc", "Hélène", "Marc", "Martine", "Paul", "Christine",
-    "Philippe", "Josée", "Claude", "Lise", "Daniel", "Diane",
+    "Jean",
+    "Marie",
+    "Pierre",
+    "Louise",
+    "Michel",
+    "Sylvie",
+    "François",
+    "Nicole",
+    "Luc",
+    "Hélène",
+    "Marc",
+    "Martine",
+    "Paul",
+    "Christine",
+    "Philippe",
+    "Josée",
+    "Claude",
+    "Lise",
+    "Daniel",
+    "Diane",
 ]
 FR_LAST = [
-    "Tremblay", "Gagnon", "Roy", "Côté", "Bouchard", "Gauthier", "Morin",
-    "Lavoie", "Fortin", "Gagné", "Ouellet", "Bélanger", "Pelletier",
-    "Lévesque", "Bergeron", "Leblanc", "Paquette", "Girard", "Simard",
+    "Tremblay",
+    "Gagnon",
+    "Roy",
+    "Côté",
+    "Bouchard",
+    "Gauthier",
+    "Morin",
+    "Lavoie",
+    "Fortin",
+    "Gagné",
+    "Ouellet",
+    "Bélanger",
+    "Pelletier",
+    "Lévesque",
+    "Bergeron",
+    "Leblanc",
+    "Paquette",
+    "Girard",
+    "Simard",
     "Boucher",
 ]
 
 EN_CITIES = [
-    ("Toronto", "ON"), ("Vancouver", "BC"), ("Calgary", "AB"), ("Ottawa", "ON"),
-    ("Edmonton", "AB"), ("Winnipeg", "MB"), ("Hamilton", "ON"),
-    ("Halifax", "NS"), ("Victoria", "BC"), ("Saskatoon", "SK"),
+    ("Toronto", "ON"),
+    ("Vancouver", "BC"),
+    ("Calgary", "AB"),
+    ("Ottawa", "ON"),
+    ("Edmonton", "AB"),
+    ("Winnipeg", "MB"),
+    ("Hamilton", "ON"),
+    ("Halifax", "NS"),
+    ("Victoria", "BC"),
+    ("Saskatoon", "SK"),
 ]
 FR_CITIES = [
-    ("Montréal", "QC"), ("Québec", "QC"), ("Laval", "QC"), ("Gatineau", "QC"),
-    ("Sherbrooke", "QC"), ("Saguenay", "QC"), ("Lévis", "QC"),
-    ("Trois-Rivières", "QC"), ("Longueuil", "QC"), ("Terrebonne", "QC"),
+    ("Montréal", "QC"),
+    ("Québec", "QC"),
+    ("Laval", "QC"),
+    ("Gatineau", "QC"),
+    ("Sherbrooke", "QC"),
+    ("Saguenay", "QC"),
+    ("Lévis", "QC"),
+    ("Trois-Rivières", "QC"),
+    ("Longueuil", "QC"),
+    ("Terrebonne", "QC"),
 ]
 
-STREETS_EN = ["Main St", "King St", "Queen St", "Dundas St", "Yonge St",
-              "Bloor St", "College St", "Bay St", "Front St", "Adelaide St"]
-STREETS_FR = ["rue Sainte-Catherine", "boulevard René-Lévesque", "rue Notre-Dame",
-              "avenue du Mont-Royal", "rue Saint-Denis", "rue Sherbrooke",
-              "boulevard Saint-Laurent", "avenue du Parc", "rue Peel",
-              "rue Crescent"]
+STREETS_EN = [
+    "Main St",
+    "King St",
+    "Queen St",
+    "Dundas St",
+    "Yonge St",
+    "Bloor St",
+    "College St",
+    "Bay St",
+    "Front St",
+    "Adelaide St",
+]
+STREETS_FR = [
+    "rue Sainte-Catherine",
+    "boulevard René-Lévesque",
+    "rue Notre-Dame",
+    "avenue du Mont-Royal",
+    "rue Saint-Denis",
+    "rue Sherbrooke",
+    "boulevard Saint-Laurent",
+    "avenue du Parc",
+    "rue Peel",
+    "rue Crescent",
+]
 
 
 def fake_name(rng: random.Random, language: str = "en") -> str:

@@ -19,6 +19,7 @@ resulting file exercises realistic DLP signal:
   encoded so Siphon's ``extract_mbox`` decode path runs in both the
   ``7bit`` and ``base64`` branches.
 """
+
 from __future__ import annotations
 
 import base64
@@ -92,14 +93,20 @@ _ATTACHMENT_NAMES = [
 # only needs enough noise to look plausible and trip naive filters.
 
 _HOMOGLYPHS = {
-    "a": "а", "e": "е", "o": "о", "p": "р", "c": "с", "x": "х",
+    "a": "а",
+    "e": "е",
+    "o": "о",
+    "p": "р",
+    "c": "с",
+    "x": "х",
 }
 _ZWSP = "​"
 
 
 def _homoglyph(text: str, rng: random.Random) -> str:
-    return "".join(_HOMOGLYPHS.get(ch, ch) if rng.random() < 0.35 else ch
-                   for ch in text)
+    return "".join(
+        _HOMOGLYPHS.get(ch, ch) if rng.random() < 0.35 else ch for ch in text
+    )
 
 
 def _zwsp_split(text: str, rng: random.Random) -> str:
@@ -120,6 +127,7 @@ def _evade(text: str, rng: random.Random) -> str:
 
 
 # ── Per-message rendering ─────────────────────────────────────────────
+
 
 def _phishing_body(
     recipient: tuple[str, str],
@@ -178,11 +186,13 @@ def _format_phishing(
     entry: GeneratedEntry,
 ) -> str:
     # Phishing messages almost always come from a fake lookalike sender.
-    fake_name, fake_addr = rng.choice([
-        ("Account Security", "no-reply@acmebank-secure.example.com"),
-        ("ACME Bank", "security@acmebank-support.example"),
-        ("Payroll Notice", "payroll-noreply@bank-update.example.com"),
-    ])
+    fake_name, fake_addr = rng.choice(
+        [
+            ("Account Security", "no-reply@acmebank-secure.example.com"),
+            ("ACME Bank", "security@acmebank-support.example"),
+            ("Payroll Notice", "payroll-noreply@bank-update.example.com"),
+        ]
+    )
     recipient = rng.choice(_TO_ADDRS)
     subj = rng.choice(_PHISH_SUBJECTS)
     sent = base_dt + datetime.timedelta(minutes=msg_id * 7)
@@ -248,7 +258,7 @@ def _format_with_attachment(
         "",
         body,
         f"--{boundary}",
-        'Content-Type: application/octet-stream',
+        "Content-Type: application/octet-stream",
         f'Content-Disposition: attachment; filename="{fname}"',
         "Content-Transfer-Encoding: base64",
         "X-Evadex-Attachment-Reference: true",
@@ -293,7 +303,7 @@ def _format_standard(
 
     if use_base64:
         encoded = base64.b64encode(body.encode("utf-8")).decode("ascii")
-        wrapped = "\n".join(encoded[i:i + 76] for i in range(0, len(encoded), 76))
+        wrapped = "\n".join(encoded[i : i + 76] for i in range(0, len(encoded), 76))
         headers.append('Content-Type: text/plain; charset="utf-8"')
         headers.append("Content-Transfer-Encoding: base64")
         return "\n".join(headers) + "\n\n" + wrapped + "\n\n"
@@ -313,10 +323,9 @@ def write_mbox(entries: list[GeneratedEntry], path: str) -> None:
       * 33 % base64-encoded bodies (among the standard messages)
     """
     from evadex.generate.writers import _active_seed
+
     rng = random.Random(_active_seed if _active_seed is not None else 42)
-    base_dt = datetime.datetime(
-        2026, 4, 17, 9, 0, 0, tzinfo=datetime.timezone.utc
-    )
+    base_dt = datetime.datetime(2026, 4, 17, 9, 0, 0, tzinfo=datetime.timezone.utc)
 
     with open(path, "w", encoding="utf-8", newline="\n") as fh:
         for i, e in enumerate(entries, 1):

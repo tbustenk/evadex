@@ -92,16 +92,22 @@ def build_comparison(data_a: dict, data_b: dict) -> dict:
         b_tot = b["pass"] + b["fail"] + b["error"]
         a_rate = round(a["pass"] / a_tot * 100, 1) if a_tot else 0.0
         b_rate = round(b["pass"] / b_tot * 100, 1) if b_tot else 0.0
-        is_new     = a_tot == 0 and b_tot > 0
-        is_removed = a_tot > 0  and b_tot == 0
-        by_category.append({
-            "category": cat,
-            "a_pass": a["pass"], "a_fail": a["fail"], "a_rate": a_rate,
-            "b_pass": b["pass"], "b_fail": b["fail"], "b_rate": b_rate,
-            "delta": round(b_rate - a_rate, 1),
-            "is_new": is_new,
-            "is_removed": is_removed,
-        })
+        is_new = a_tot == 0 and b_tot > 0
+        is_removed = a_tot > 0 and b_tot == 0
+        by_category.append(
+            {
+                "category": cat,
+                "a_pass": a["pass"],
+                "a_fail": a["fail"],
+                "a_rate": a_rate,
+                "b_pass": b["pass"],
+                "b_fail": b["fail"],
+                "b_rate": b_rate,
+                "delta": round(b_rate - a_rate, 1),
+                "is_new": is_new,
+                "is_removed": is_removed,
+            }
+        )
 
     # Per-technique aggregates
     tech_a: dict = defaultdict(lambda: {"pass": 0, "fail": 0, "error": 0})
@@ -123,10 +129,15 @@ def build_comparison(data_a: dict, data_b: dict) -> dict:
         b_rate = round(b["pass"] / b_tot * 100, 1) if b_tot else 0.0
         delta = round(b_rate - a_rate, 1)
         if delta != 0:
-            by_technique.append({
-                "generator": gen, "technique": tech,
-                "a_rate": a_rate, "b_rate": b_rate, "delta": delta,
-            })
+            by_technique.append(
+                {
+                    "generator": gen,
+                    "technique": tech,
+                    "a_rate": a_rate,
+                    "b_rate": b_rate,
+                    "delta": delta,
+                }
+            )
     by_technique.sort(key=lambda x: x["delta"])
 
     # Per-variant diffs
@@ -149,14 +160,14 @@ def build_comparison(data_a: dict, data_b: dict) -> dict:
         if severity_changed or confidence_changed:
             ref = r_a or r_b
             entry = {
-                "payload_label":  ref["payload"]["label"],
-                "category":       ref["payload"]["category"],
-                "generator":      ref["variant"]["generator"],
-                "technique":      ref["variant"]["technique"],
+                "payload_label": ref["payload"]["label"],
+                "category": ref["payload"]["category"],
+                "generator": ref["variant"]["generator"],
+                "technique": ref["variant"]["technique"],
                 "transform_name": ref["variant"]["transform_name"],
-                "strategy":       ref["variant"]["strategy"],
-                "a_severity":     sev_a,
-                "b_severity":     sev_b,
+                "strategy": ref["variant"]["strategy"],
+                "a_severity": sev_a,
+                "b_severity": sev_b,
             }
             if conf_a is not None:
                 entry["a_confidence"] = round(float(conf_a), 4)
@@ -168,10 +179,12 @@ def build_comparison(data_a: dict, data_b: dict) -> dict:
 
     # Build verdict for use in reporters
     overall_delta = round(meta_b["pass_rate"] - meta_a["pass_rate"], 1)
-    n_improved  = sum(1 for c in by_category if c["delta"] > 0 and not c["is_new"])
+    n_improved = sum(1 for c in by_category if c["delta"] > 0 and not c["is_new"])
     n_regressed = sum(1 for c in by_category if c["delta"] < 0 and not c["is_removed"])
-    n_new       = sum(1 for c in by_category if c["is_new"])
-    worst_reg   = sorted([c for c in by_category if c["delta"] < 0], key=lambda x: x["delta"])
+    n_new = sum(1 for c in by_category if c["is_new"])
+    worst_reg = sorted(
+        [c for c in by_category if c["delta"] < 0], key=lambda x: x["delta"]
+    )
     if overall_delta > 0:
         verdict = "IMPROVED"
     elif overall_delta < 0:
@@ -180,25 +193,29 @@ def build_comparison(data_a: dict, data_b: dict) -> dict:
         verdict = "UNCHANGED"
 
     return {
-        "label_a":  meta_a.get("scanner") or "file_a",
-        "label_b":  meta_b.get("scanner") or "file_b",
+        "label_a": meta_a.get("scanner") or "file_a",
+        "label_b": meta_b.get("scanner") or "file_b",
         "overall": {
-            "a_total":  meta_a["total"],  "b_total":  meta_b["total"],
-            "a_pass":   meta_a["pass"],   "b_pass":   meta_b["pass"],
-            "a_fail":   meta_a["fail"],   "b_fail":   meta_b["fail"],
-            "a_errors": meta_a["error"],  "b_errors": meta_b["error"],
-            "a_rate":   meta_a["pass_rate"],
-            "b_rate":   meta_b["pass_rate"],
-            "delta":    overall_delta,
+            "a_total": meta_a["total"],
+            "b_total": meta_b["total"],
+            "a_pass": meta_a["pass"],
+            "b_pass": meta_b["pass"],
+            "a_fail": meta_a["fail"],
+            "b_fail": meta_b["fail"],
+            "a_errors": meta_a["error"],
+            "b_errors": meta_b["error"],
+            "a_rate": meta_a["pass_rate"],
+            "b_rate": meta_b["pass_rate"],
+            "delta": overall_delta,
         },
-        "by_category":  by_category,
+        "by_category": by_category,
         "by_technique": by_technique,
-        "diffs":        diffs,
+        "diffs": diffs,
         "verdict": {
-            "verdict":     verdict,
-            "n_improved":  n_improved,
+            "verdict": verdict,
+            "n_improved": n_improved,
             "n_regressed": n_regressed,
-            "n_new":       n_new,
+            "n_new": n_new,
             "worst_regressed": worst_reg[0]["category"] if worst_reg else None,
         },
     }
@@ -209,9 +226,9 @@ def _print_visual_diff(comparison: dict, console: Console) -> None:
     overall = comparison["overall"]
     label_a = comparison["label_a"]
     label_b = comparison["label_b"]
-    delta   = overall["delta"]
-    a_rate  = overall["a_rate"]
-    b_rate  = overall["b_rate"]
+    delta = overall["delta"]
+    a_rate = overall["a_rate"]
+    b_rate = overall["b_rate"]
 
     def _arrow(d: float) -> str:
         if d > 0:
@@ -224,7 +241,9 @@ def _print_visual_diff(comparison: dict, console: Console) -> None:
         return f"+{d:.1f}pp" if d > 0 else f"{d:.1f}pp"
 
     console.print()
-    console.print(f"[bold]evadex compare[/bold]  [dim]{label_a}[/dim] → [dim]{label_b}[/dim]")
+    console.print(
+        f"[bold]evadex compare[/bold]  [dim]{label_a}[/dim] → [dim]{label_b}[/dim]"
+    )
     console.print("─" * 65)
 
     # Overall detection rate row
@@ -233,19 +252,26 @@ def _print_visual_diff(comparison: dict, console: Console) -> None:
         f"  [dim]Detection Rate[/dim]    "
         f"[blue]{a_rate:>6.1f}%[/blue]  →  [cyan]{b_rate:>6.1f}%[/cyan]"
         f"   {_arrow(delta)} [{rate_color}]{_sign(delta)}[/{rate_color}]"
-        + ("  [green]✓ improved[/green]" if delta > 0
-           else "  [red]✗ regressed[/red]" if delta < 0
-           else "  [dim]→ unchanged[/dim]")
+        + (
+            "  [green]✓ improved[/green]"
+            if delta > 0
+            else "  [red]✗ regressed[/red]"
+            if delta < 0
+            else "  [dim]→ unchanged[/dim]"
+        )
     )
 
     # Per-category summary
-    by_cat    = comparison.get("by_category", [])
-    improved  = [c for c in by_cat if c["delta"] > 0 and not c.get("is_new")]
+    by_cat = comparison.get("by_category", [])
+    improved = [c for c in by_cat if c["delta"] > 0 and not c.get("is_new")]
     regressed = [c for c in by_cat if c["delta"] < 0 and not c.get("is_removed")]
-    new_cats  = [c for c in by_cat if c.get("is_new")]
-    removed   = [c for c in by_cat if c.get("is_removed")]
-    unchanged = [c for c in by_cat if c["delta"] == 0
-                 and not c.get("is_new") and not c.get("is_removed")]
+    new_cats = [c for c in by_cat if c.get("is_new")]
+    removed = [c for c in by_cat if c.get("is_removed")]
+    unchanged = [
+        c
+        for c in by_cat
+        if c["delta"] == 0 and not c.get("is_new") and not c.get("is_removed")
+    ]
 
     if by_cat:
         console.print()
@@ -291,7 +317,11 @@ def _print_visual_diff(comparison: dict, console: Console) -> None:
         for t in sorted(big_tech, key=lambda x: x["delta"]):
             td = t["delta"]
             col = "green" if td > 0 else "red"
-            note = "[green]✓ Siphon improved[/green]" if td > 0 else "[red]✗ regression[/red]"
+            note = (
+                "[green]✓ Siphon improved[/green]"
+                if td > 0
+                else "[red]✗ regression[/red]"
+            )
             console.print(
                 f"    [{col}]{'▲' if td > 0 else '▼'}[/{col}] "
                 f"[dim]{t['technique']:<28}[/dim]  "
@@ -364,8 +394,9 @@ def _parse_since(since_str: str) -> datetime:
     )
 
 
-def _find_scan_before(before_dt: datetime,
-                      scan_dir: Path = Path("results/scans")) -> str | None:
+def _find_scan_before(
+    before_dt: datetime, scan_dir: Path = Path("results/scans")
+) -> str | None:
     """Return the most-recent scan file archived before *before_dt*."""
     if not scan_dir.exists():
         return None
@@ -377,7 +408,9 @@ def _find_scan_before(before_dt: datetime,
         if not m:
             continue
         try:
-            ts = datetime.strptime(m.group(1), "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+            ts = datetime.strptime(m.group(1), "%Y%m%dT%H%M%SZ").replace(
+                tzinfo=timezone.utc
+            )
         except ValueError:
             continue
         if ts < before_dt and (best_dt is None or ts > best_dt):
@@ -398,7 +431,9 @@ def _find_latest_scan(scan_dir: Path = Path("results/scans")) -> str | None:
         if not m:
             continue
         try:
-            ts = datetime.strptime(m.group(1), "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+            ts = datetime.strptime(m.group(1), "%Y%m%dT%H%M%SZ").replace(
+                tzinfo=timezone.utc
+            )
         except ValueError:
             continue
         if best_dt is None or ts > best_dt:
@@ -409,22 +444,49 @@ def _find_latest_scan(scan_dir: Path = Path("results/scans")) -> str | None:
 
 @click.command()
 @click.argument("files", nargs=-1, type=click.Path(exists=False))
-@click.option("--format", "-f", "fmt", type=click.Choice(["json", "html"]),
-              default="json", show_default=True, help="Output format")
+@click.option(
+    "--format",
+    "-f",
+    "fmt",
+    type=click.Choice(["json", "html"]),
+    default="json",
+    show_default=True,
+    help="Output format",
+)
 @click.option("--output", "-o", default=None, help="Write to file (default: stdout)")
-@click.option("--label-a", default=None,
-              help="Override label for first file (defaults to scanner field in JSON)")
-@click.option("--label-b", default=None,
-              help="Override label for second file (defaults to scanner field in JSON)")
-@click.option("--since", "since_str", default=None,
-              help="Auto-resolve the baseline (file_a) as the most recent scan before "
-                   "this date/period (e.g. '7d', '2w', '2026-04-20'). "
-                   "With one positional arg it is file_b; with none, latest is file_b.")
-@click.option("--c2-url", "c2_url", default=None, envvar="EVADEX_C2_URL",
-              help="Siphon-C2 management-plane URL. The comparison is pushed to "
-                   "POST /v1/evadex/compare. Failures log a warning; never fail the run.")
-@click.option("--c2-key", "c2_key", default=None, envvar="EVADEX_C2_KEY",
-              help="API key sent as 'x-api-key' to Siphon-C2. Falls back to EVADEX_C2_KEY.")
+@click.option(
+    "--label-a",
+    default=None,
+    help="Override label for first file (defaults to scanner field in JSON)",
+)
+@click.option(
+    "--label-b",
+    default=None,
+    help="Override label for second file (defaults to scanner field in JSON)",
+)
+@click.option(
+    "--since",
+    "since_str",
+    default=None,
+    help="Auto-resolve the baseline (file_a) as the most recent scan before "
+    "this date/period (e.g. '7d', '2w', '2026-04-20'). "
+    "With one positional arg it is file_b; with none, latest is file_b.",
+)
+@click.option(
+    "--c2-url",
+    "c2_url",
+    default=None,
+    envvar="EVADEX_C2_URL",
+    help="Siphon-C2 management-plane URL. The comparison is pushed to "
+    "POST /v1/evadex/compare. Failures log a warning; never fail the run.",
+)
+@click.option(
+    "--c2-key",
+    "c2_key",
+    default=None,
+    envvar="EVADEX_C2_KEY",
+    help="API key sent as 'x-api-key' to Siphon-C2. Falls back to EVADEX_C2_KEY.",
+)
 def compare(files, fmt, output, label_a, label_b, since_str, c2_url, c2_key):
     """Compare two evadex scan result JSON files and report differences.
 
@@ -498,7 +560,9 @@ def compare(files, fmt, output, label_a, label_b, since_str, c2_url, c2_key):
             with open(output, "w", encoding="utf-8") as f:
                 f.write(rendered)
         except OSError as e:
-            err_console.print(f"[red]Cannot write output file '{output}': {e.strerror}[/red]")
+            err_console.print(
+                f"[red]Cannot write output file '{output}': {e.strerror}[/red]"
+            )
             sys.exit(1)
         err_console.print(f"[dim]Comparison report written to {output}[/dim]")
     else:
@@ -506,6 +570,7 @@ def compare(files, fmt, output, label_a, label_b, since_str, c2_url, c2_key):
 
     # ── Siphon-C2 push ────────────────────────────────────────────────────────
     from evadex.reporters.c2_reporter import push_comparison, resolve_c2_config
+
     _c2_url, _c2_key = resolve_c2_config(c2_url, c2_key)
     if _c2_url:
         push_comparison(_c2_url, _c2_key, comparison=comparison)

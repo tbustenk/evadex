@@ -10,13 +10,13 @@ class CompareReporter(BaseReporter):
         out = {
             "meta": {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-                "label_a":   comparison["label_a"],
-                "label_b":   comparison["label_b"],
-                "overall":   comparison["overall"],
+                "label_a": comparison["label_a"],
+                "label_b": comparison["label_b"],
+                "overall": comparison["overall"],
             },
-            "by_category":  comparison["by_category"],
+            "by_category": comparison["by_category"],
             "by_technique": comparison["by_technique"],
-            "diffs":        comparison["diffs"],
-            "verdict":      comparison.get("verdict"),
+            "diffs": comparison["diffs"],
+            "verdict": comparison.get("verdict"),
         }
         return json.dumps(out, indent=2, ensure_ascii=False)

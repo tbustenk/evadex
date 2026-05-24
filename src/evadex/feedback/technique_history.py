@@ -6,6 +6,7 @@ mapping captured at the end of one scan. This module aggregates
 those entries so the CLI can present trends and so the
 weighted/adversarial evasion modes have a numeric input.
 """
+
 from __future__ import annotations
 
 import json
@@ -17,6 +18,7 @@ from typing import Iterator, Optional
 @dataclass
 class TechniqueStats:
     """Aggregated success-rate stats for one technique."""
+
     technique: str
     runs: int = 0
     average_success: float = 0.0

@@ -2,6 +2,7 @@
 results/audit.jsonl.  All public functions swallow exceptions so that a disk
 or permission failure never affects a scan run's exit code or output.
 """
+
 from __future__ import annotations
 
 import json
@@ -13,6 +14,7 @@ from typing import Optional
 
 try:
     from importlib.metadata import version as _pkg_version, PackageNotFoundError
+
     try:
         _VERSION = _pkg_version("evadex")
     except PackageNotFoundError:
@@ -25,6 +27,7 @@ _RESULTS_DIR = Path("results")
 
 
 # ── Internal helpers ───────────────────────────────────────────────────────────
+
 
 def _ensure_dirs() -> Path:
     """Create results directory structure if needed and return it."""
@@ -41,12 +44,15 @@ def _safe_label(s: str) -> str:
 
 # ── Public helpers ─────────────────────────────────────────────────────────────
 
+
 def get_commit_hash() -> Optional[str]:
     """Return the short git commit hash of HEAD, or None if unavailable."""
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         if result.returncode == 0:
             return result.stdout.strip() or None
@@ -56,6 +62,7 @@ def get_commit_hash() -> Optional[str]:
 
 
 # ── Archive functions ──────────────────────────────────────────────────────────
+
 
 def archive_scan(
     rendered_json: str,
@@ -118,6 +125,7 @@ def append_results_audit(entry: dict) -> None:
 
 # ── Audit entry builders ───────────────────────────────────────────────────────
 
+
 def build_scan_audit_entry(
     *,
     scanner_label: str,
@@ -133,19 +141,19 @@ def build_scan_audit_entry(
     ts: Optional[datetime] = None,
 ) -> dict:
     return {
-        "timestamp":      (ts or datetime.now(timezone.utc)).isoformat(),
-        "type":           "scan",
+        "timestamp": (ts or datetime.now(timezone.utc)).isoformat(),
+        "type": "scan",
         "evadex_version": _VERSION,
-        "scanner_label":  scanner_label,
-        "tool":           tool,
-        "categories":     categories,
-        "strategies":     strategies,
-        "total":          total,
-        "pass":           passes,
-        "fail":           fails,
-        "pass_rate":      pass_rate,
-        "commit_hash":    commit_hash,
-        "archive_file":   archive_file,
+        "scanner_label": scanner_label,
+        "tool": tool,
+        "categories": categories,
+        "strategies": strategies,
+        "total": total,
+        "pass": passes,
+        "fail": fails,
+        "pass_rate": pass_rate,
+        "commit_hash": commit_hash,
+        "archive_file": archive_file,
     }
 
 
@@ -162,21 +170,22 @@ def build_falsepos_audit_entry(
     ts: Optional[datetime] = None,
 ) -> dict:
     return {
-        "timestamp":      (ts or datetime.now(timezone.utc)).isoformat(),
-        "type":           "falsepos",
+        "timestamp": (ts or datetime.now(timezone.utc)).isoformat(),
+        "type": "falsepos",
         "evadex_version": _VERSION,
-        "scanner_label":  scanner_label,
-        "tool":           tool,
-        "categories":     categories,
-        "total_tested":   total_tested,
-        "total_flagged":  total_flagged,
-        "fp_rate":        fp_rate,
-        "commit_hash":    commit_hash,
-        "archive_file":   archive_file,
+        "scanner_label": scanner_label,
+        "tool": tool,
+        "categories": categories,
+        "total_tested": total_tested,
+        "total_flagged": total_flagged,
+        "fp_rate": fp_rate,
+        "commit_hash": commit_hash,
+        "archive_file": archive_file,
     }
 
 
 # ── Backfill ───────────────────────────────────────────────────────────────────
+
 
 def backfill_from_directory(directory: str = ".") -> int:
     """Scan *directory* for existing evadex result JSON files and add them
@@ -212,19 +221,19 @@ def backfill_from_directory(directory: str = ".") -> int:
                 shutil.copy2(path, dest)
 
             entry = {
-                "timestamp":      ts.isoformat(),
-                "type":           "scan",
+                "timestamp": ts.isoformat(),
+                "type": "scan",
                 "evadex_version": meta.get("evadex_version", "unknown"),
-                "scanner_label":  scanner_label,
-                "tool":           "dlpscan-cli",
-                "categories":     list(meta.get("summary_by_category", {}).keys()),
-                "strategies":     [],
-                "total":          meta.get("total", 0),
-                "pass":           meta.get("pass", 0),
-                "fail":           meta.get("fail", 0),
-                "pass_rate":      meta.get("pass_rate", 0.0),
-                "commit_hash":    None,
-                "archive_file":   str(dest),
+                "scanner_label": scanner_label,
+                "tool": "dlpscan-cli",
+                "categories": list(meta.get("summary_by_category", {}).keys()),
+                "strategies": [],
+                "total": meta.get("total", 0),
+                "pass": meta.get("pass", 0),
+                "fail": meta.get("fail", 0),
+                "pass_rate": meta.get("pass_rate", 0.0),
+                "commit_hash": None,
+                "archive_file": str(dest),
                 "_backfilled_from": str(path),
             }
             append_results_audit(entry)
@@ -245,17 +254,17 @@ def backfill_from_directory(directory: str = ".") -> int:
                 shutil.copy2(path, dest)
 
             entry = {
-                "timestamp":      ts.isoformat(),
-                "type":           "falsepos",
+                "timestamp": ts.isoformat(),
+                "type": "falsepos",
                 "evadex_version": "unknown",
-                "scanner_label":  "",
-                "tool":           data.get("tool", ""),
-                "categories":     list(data.get("by_category", {}).keys()),
-                "total_tested":   data.get("total_tested", 0),
-                "total_flagged":  data.get("total_flagged", 0),
-                "fp_rate":        data.get("overall_false_positive_rate", 0.0),
-                "commit_hash":    None,
-                "archive_file":   str(dest),
+                "scanner_label": "",
+                "tool": data.get("tool", ""),
+                "categories": list(data.get("by_category", {}).keys()),
+                "total_tested": data.get("total_tested", 0),
+                "total_flagged": data.get("total_flagged", 0),
+                "fp_rate": data.get("overall_false_positive_rate", 0.0),
+                "commit_hash": None,
+                "archive_file": str(dest),
                 "_backfilled_from": str(path),
             }
             append_results_audit(entry)
