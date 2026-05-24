@@ -1,5 +1,35 @@
 # Changelog
 
+## [3.26.0] — 2026-05-24
+
+### Security
+
+- **Bridge API key now compared with `secrets.compare_digest`** in `_require_api_key()` (`src/evadex/bridge/server.py`). The previous `x_api_key != expected` comparison was vulnerable to a timing side-channel — a remote attacker could in principle recover the key one byte at a time by measuring how quickly the server returned 401 against guesses. `compare_digest` runs in constant time relative to the input length. Two new regression tests in `tests/unit/test_bridge.py` lock the behaviour in.
+
+### Tests
+
+- **25 new tests in `tests/unit/synthetic/test_ca_synthetics.py`** covering Canadian Business Number, GST/HST registration, transit/routing number, bank account, all six remaining provincial health cards (MB, SK, NS, NB, PEI, NL), six provincial drivers' licences, and same-seed reproducibility across all of them. These modules were exercised indirectly through scan/falsepos but had no dedicated unit coverage.
+- **2 new tests in `tests/unit/test_bridge.py`**: `test_api_key_uses_constant_time_compare` (verifies the implementation routes through `secrets.compare_digest` via spy) and `test_api_key_missing_header_rejected_safely` (sanity check for missing-header coercion).
+- 1337/1337 tests pass (was 1310).
+
+### Fixed
+
+- **CHANGELOG entry order**: the v3.24.4 block (April 27 release) had been inserted between 3.25.2 and 3.25.1 — wrong chronological position. Moved it to sit between 3.25.0 and 3.24.3 where it belongs.
+
+### Verified
+
+- `ruff check src/` — All checks passed; `ruff format --check src/` — no diff.
+- `pip-audit` — No known vulnerabilities.
+- Bridge end-to-end smoke: `/healthz`, `/v1/evadex/categories`, `/v1/evadex/metrics`, and `POST /v1/evadex/generate` (10-record CSV via `northam` tier) all returned 200 with the expected payloads against the freshly-rebuilt siphon-rs binary.
+- `evadex doctor` shows the rebuilt siphon, all extras installed, audit log + profiles dirs writable.
+- `evadex profile run northam-daily --dry-run` emits the expected `--output` flags pointing under `~/.evadex/results` with paired UTC timestamps (output.dir plumbing from v3.25.6 still working).
+- Benchmark (`evadex benchmark --tier northam --runs 2 --skip-scan`): CSV 5.1s avg, XLSX 28.2s avg, peak generate memory **44 MB**. DOCX is slow at 2.6 min/1000 records — flagged as an open observation for a follow-up perf pass.
+
+### Open observations
+
+- **DOCX generation is ~100× slower than the v3.24.2 changelog claims** (2.6 min for 1000 records vs. the claimed 1.5s). The lxml fast path in `docx_writer.py` is still in place; the bottleneck is likely in the per-row synthetic content generation called before the writer ever runs. Not a regression in any specific recent commit — kept as an open item for a focused perf pass that does proper profiling rather than benchmark-only.
+- **Credit-card synthetic generator uses real-world issuer BIN prefixes** (4, 51-55, 34/37, 6011) combined with random Luhn-valid bodies. Collision odds with a real issued account are negligible but the values are not in dedicated test BIN ranges (e.g. `4111-1111-1111-1111`). Standard practice for DLP synthetic testing, but worth documenting if the surface ever gets a "for-public-distribution" disclaimer page.
+
 ## [3.25.7] — 2026-05-24
 
 ### Changed
@@ -94,19 +124,6 @@
 - 117/117 bridge unit tests pass.
 - End-to-end smoke: `/healthz`, `/categories`, `/metrics`, `/profiles`, `/run` (northam+fast), `/generate` (xlsx + northam), `/report`.
 
-## [3.24.4] — 2026-04-27
-
-### Changed
-
-- **`pyproject.toml` version bump** 3.24.2 → 3.24.3 (had been missed in the prior commit).
-- **Removed Python 3.10 classifier** from `pyproject.toml` — `requires-python = ">=3.11"` was already enforced; classifier was stale.
-- **README requirements line** corrected from Python 3.10+ → Python 3.11+.
-- **Backfilled CHANGELOG entries** for 3.23.3, 3.24.0, 3.24.1, 3.24.2, 3.24.3 that had drifted off the file.
-
-### Verified
-
-- 1178/1178 tests pass after `pip install -e .` refresh to update `evadex.dist-info` (which `evadex doctor` reads for the displayed version).
-
 ## [3.25.1] — 2026-04-28
 
 ### Added
@@ -156,6 +173,19 @@
 
 - 82 new tests across three files: `test_capital_markets_templates.py`, `test_streaming_engine.py` (unit), and extended `test_compare.py` (verdict, `_parse_since`, `_find_scan_before`, `_find_latest_scan`, `--since` CLI flag, HTML verdict section).
 - 1242/1242 tests pass.
+
+## [3.24.4] — 2026-04-27
+
+### Changed
+
+- **`pyproject.toml` version bump** 3.24.2 → 3.24.3 (had been missed in the prior commit).
+- **Removed Python 3.10 classifier** from `pyproject.toml` — `requires-python = ">=3.11"` was already enforced; classifier was stale.
+- **README requirements line** corrected from Python 3.10+ → Python 3.11+.
+- **Backfilled CHANGELOG entries** for 3.23.3, 3.24.0, 3.24.1, 3.24.2, 3.24.3 that had drifted off the file.
+
+### Verified
+
+- 1178/1178 tests pass after `pip install -e .` refresh to update `evadex.dist-info` (which `evadex doctor` reads for the displayed version).
 
 ## [3.24.3] — 2026-04-27
 

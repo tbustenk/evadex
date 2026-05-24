@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import sys
@@ -252,11 +253,18 @@ except ImportError:  # pragma: no cover
 
 # ── Auth dependency ─────────────────────────────────────────────
 def _require_api_key(x_api_key: Optional[str] = Header(default=None)) -> None:
-    """Dependency that enforces ``x-api-key`` when configured."""
+    """Dependency that enforces ``x-api-key`` when configured.
+
+    Uses :func:`secrets.compare_digest` for the comparison so a remote
+    attacker can't recover the key one byte at a time by timing the
+    server's response — short-circuit ``!=`` on a fixed-length string
+    leaks the length of the matching prefix.
+    """
     expected = os.environ.get("EVADEX_BRIDGE_KEY")
     if not expected:
         return
-    if not x_api_key or x_api_key != expected:
+    provided = x_api_key or ""
+    if not secrets.compare_digest(provided, expected):
         raise HTTPException(status_code=401, detail="invalid or missing x-api-key")
 
 

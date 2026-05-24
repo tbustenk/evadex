@@ -527,6 +527,48 @@ class TestCorsAndAuth:
         assert r.status_code == 200
         assert r.json()["ok"] is True
 
+    def test_api_key_uses_constant_time_compare(
+        self, audit_tree: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        # We can't observe wall-clock difference in a unit test (it's
+        # statistically too noisy), but we can verify the implementation
+        # routes through secrets.compare_digest by patching it and
+        # asserting it gets called. A naive `==` comparison would not.
+        import evadex.bridge.server as srv
+
+        calls = []
+        real_compare = srv.secrets.compare_digest
+
+        def spy_compare(a, b):
+            calls.append((a, b))
+            return real_compare(a, b)
+
+        monkeypatch.setenv("EVADEX_BRIDGE_KEY", "k" * 32)
+        monkeypatch.setenv("EVADEX_BRIDGE_ROOT", str(audit_tree))
+        monkeypatch.setattr(srv.secrets, "compare_digest", spy_compare)
+        app = create_app()
+        c = TestClient(app)
+        c.get("/v1/evadex/metrics", headers={"x-api-key": "wrong"})
+        c.get("/v1/evadex/metrics", headers={"x-api-key": "k" * 32})
+        assert len(calls) == 2
+        # Both inputs are passed as strings (not bytes), so the cmp is
+        # length-agnostic — short prefix and full key both reach compare_digest.
+        assert calls[0] == ("wrong", "k" * 32)
+        assert calls[1] == ("k" * 32, "k" * 32)
+
+    def test_api_key_missing_header_rejected_safely(
+        self, audit_tree: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        # A missing x-api-key header must NOT pass `provided or ""` into
+        # compare_digest as None (would TypeError). Sanity-check the empty-
+        # string coercion.
+        monkeypatch.setenv("EVADEX_BRIDGE_KEY", "abc")
+        monkeypatch.setenv("EVADEX_BRIDGE_ROOT", str(audit_tree))
+        app = create_app()
+        r = TestClient(app).get("/v1/evadex/metrics")
+        assert r.status_code == 401
+        assert r.json()["detail"] == "invalid or missing x-api-key"
+
 
 # ── Siphon-exe resolution (v3.16.1) ─────────────────────────────
 
