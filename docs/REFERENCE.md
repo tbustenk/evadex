@@ -1262,8 +1262,9 @@ Benchmarks captured on a Windows / Python 3.13 / 32 GB host running the banking 
 
 | Format | count=100 | count=1 000 | count=10 000 | Peak RSS (1 k) | Notes |
 |---|---|---|---|---|---|
-| `csv` | ~1.5 s | ~3 s | ~20 s, 92 MB output | 103 MB | Linear scaling — recommended for large fixtures. |
-| `xlsx` | ~3 s | ~13 s | **not recommended** | 259 MB | openpyxl materialises every cell in memory. Linear extrapolation puts 10 k at ~2.5 GB peak. Use `csv` or `sqlite` for larger volumes. |
+| `csv` | ~1.5 s | ~5.1 s | ~20 s, 92 MB output | 103 MB | Linear scaling — recommended for large fixtures. |
+| `xlsx` | ~3 s | ~28.2 s | **not recommended** | 259 MB | openpyxl materialises every cell in memory. Linear extrapolation puts 10 k at ~2.5 GB peak. Use `csv` or `sqlite` for larger volumes. |
+| `docx` | ~1.8 s | ~9.84 s | ~95 s | 184 MB | Uses raw `lxml.etree` for table rows (v3.26.1 `addprevious` fix). northam tier, 1 000 records. |
 | `sqlite` | ~1.6 s | ~4 s | ~24 s, 114 MB output | 143 MB / **309 MB at 10 k** | Prior to v3.13.0, the customer table was built in Python before insert and 10 k pushed RSS over 500 MB. Now uses 1000-row chunked `executemany`. |
 | `parquet` | n/a | n/a | n/a | n/a | Generation works, but Siphon's extractor hangs on every Parquet file ≥ 1 KB — see `results/format_detection_matrix.md`. Skipped from perf testing. |
 

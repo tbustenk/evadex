@@ -41,21 +41,37 @@ def test_false_credit_cards_seeded():
 # ── SSN ───────────────────────────────────────────────────────────────────────
 
 _INVALID_SSN_AREAS = {"000", "666"} | {f"{n:03d}" for n in range(900, 1000)}
+_KNOWN_INVALID_SSNS = {"078-05-1120", "219-09-9999", "987-65-4321"}
 
 def test_false_ssns_count():
     assert len(generate_false_ssns(50, seed=0)) == 50
 
 
 def test_false_ssns_format():
-    pattern = re.compile(r'^\d{3}-\d{2}-\d{4}$')
+    # Accept NNN-NN-NNNN and NN-NN-NNNN (EIN-misparse pattern) — both are
+    # structurally SSN-like but invalid per at least one SSA rule.
+    pattern = re.compile(r'^\d{2,3}-\d{1,2}-\d{4}$')
     for v in generate_false_ssns(20, seed=3):
         assert pattern.match(v), f"SSN format mismatch: {v!r}"
 
 
 def test_false_ssns_invalid_area_codes():
+    # With improved generators, invalidity may come from reserved area code,
+    # group=00, serial=0000, or being a known test fixture — any one is enough.
     for v in generate_false_ssns(100, seed=4):
-        area = v.split("-")[0]
-        assert area in _INVALID_SSN_AREAS, f"Expected invalid area code in {v!r}"
+        parts = v.split("-")
+        area = parts[0] if len(parts) >= 1 else ""
+        group = parts[1] if len(parts) >= 2 else ""
+        serial = parts[2] if len(parts) >= 3 else ""
+        is_invalid = (
+            area in _INVALID_SSN_AREAS
+            or group == "00"
+            or serial == "0000"
+            or v in _KNOWN_INVALID_SSNS
+            or len(area) < 3  # EIN-style misparse
+            or len(group) < 2  # short group
+        )
+        assert is_invalid, f"Expected invalid SSN, got {v!r}"
 
 
 # ── SIN ───────────────────────────────────────────────────────────────────────
@@ -153,14 +169,20 @@ def test_false_ramqs_format():
 
 
 def test_false_ramqs_invalid_month():
-    """All generated RAMQ values should have invalid birth month codes."""
+    """All generated RAMQ values should be invalid by at least one RAMQ rule.
+
+    Invalidity can come from: invalid month, invalid day (>31), or seq=00.
+    """
     for v in generate_false_ramqs(100, seed=15):
-        # format: ABCD YYMM DDSS → digits portion is index 5 onward (after "ABCD ")
-        # YYMM occupies positions 5-8 in the full string (after the "ABCD ")
-        digits = v.replace(" ", "")[4:]  # strip 4-letter name prefix
+        digits = v.replace(" ", "")[4:]  # strip 4-letter name prefix: YYMM DDSS
         month = int(digits[2:4])
-        assert month not in _VALID_MONTHS, (
-            f"Month {month} is valid but should be invalid in {v!r}"
+        day = int(digits[4:6])
+        seq = int(digits[6:8])
+        is_invalid_month = month not in _VALID_MONTHS
+        is_invalid_day = day == 0 or day > 31
+        is_invalid_seq = seq == 0
+        assert is_invalid_month or is_invalid_day or is_invalid_seq, (
+            f"RAMQ {v!r} should be invalid (month={month}, day={day}, seq={seq})"
         )
 
 

@@ -42,19 +42,71 @@ def generate_false_credit_cards(count: int, seed: Optional[int] = None) -> list[
 # Area codes that the SSA has never assigned: 000, 666, and 900–999
 _INVALID_SSN_AREAS = ["000", "666"] + [f"{n:03d}" for n in range(900, 1000)]
 
+# Additional invalidity patterns beyond reserved area codes:
+#   - group number 00 is never issued
+#   - serial number 0000 is never issued
+#   - combined reserved area + group 00 + serial 0000
+_INVALID_SSN_PATTERNS = [
+    # Valid-looking area, group=00 (never issued)
+    lambda rng: f"{rng.randint(100, 665):03d}-00-{rng.randint(1, 9999):04d}",
+    # Valid-looking area, serial=0000 (never issued)
+    lambda rng: f"{rng.randint(100, 665):03d}-{rng.randint(1, 99):02d}-0000",
+    # Reserved area 000
+    lambda rng: f"000-{rng.randint(1, 99):02d}-{rng.randint(1, 9999):04d}",
+    # Reserved area 666
+    lambda rng: f"666-{rng.randint(1, 99):02d}-{rng.randint(1, 9999):04d}",
+    # 900+ area codes
+    lambda rng: f"{rng.randint(900, 999):03d}-{rng.randint(1, 99):02d}-{rng.randint(1, 9999):04d}",
+    # group=00 AND serial=0000 (doubly invalid)
+    lambda rng: f"{rng.randint(100, 665):03d}-00-0000",
+    # reserved area + group=00
+    lambda rng: f"000-00-{rng.randint(1, 9999):04d}",
+    # reserved area + serial=0000
+    lambda rng: f"666-{rng.randint(1, 99):02d}-0000",
+    # 900+ area + group=00
+    lambda rng: f"{rng.randint(900, 999):03d}-00-{rng.randint(1, 9999):04d}",
+    # 900+ area + serial=0000
+    lambda rng: f"{rng.randint(900, 999):03d}-{rng.randint(1, 99):02d}-0000",
+    # All-zero group and serial with reserved area
+    lambda rng: f"000-00-0000",
+    # 987-65-4321 — ITIN placeholder published in SSA FAQ
+    lambda rng: "987-65-4321",
+    # 078-05-1120 — Woolworth wallet insert card, historically used for tests
+    lambda rng: "078-05-1120",
+    # Sequential run (cosmetically invalid but structurally conforming)
+    lambda rng: f"{rng.randint(900,999):03d}-{rng.randint(1,99):02d}-{str(rng.randint(1111,9999)):4}",
+    # 219-09-9999 — widely cited "test" SSN
+    lambda rng: "219-09-9999",
+    # 900+ area + group=00 + serial=0000 (triply invalid)
+    lambda rng: f"{rng.randint(900, 999):03d}-00-0000",
+    # group=00, serial=0000, valid-looking area
+    lambda rng: f"{rng.choice([200,300,400,500,600]):03d}-00-0000",
+    # All-zeros — structurally parseable but entirely invalid
+    lambda rng: "000-00-0000",
+    # EIN-style misparse: 00-XXXXXXX mis-formatted as SSN
+    lambda rng: f"00-{rng.randint(10,99)}-{rng.randint(1000,9999):04d}",
+    # single-digit group misparse
+    lambda rng: f"{rng.randint(100, 665):03d}-{rng.randint(0, 9)}-{rng.randint(1000,9999):04d}",
+]
+
 
 def generate_false_ssns(count: int, seed: Optional[int] = None) -> list[str]:
-    """SSN-shaped NNN-NN-NNNN strings with reserved/invalid area codes.
+    """SSN-shaped NNN-NN-NNNN strings that are structurally plausible but invalid.
 
-    The SSA never issues numbers with area codes 000, 666, or 900–999.
+    Covers 20+ distinct invalidity patterns:
+    - Reserved area codes (000, 666, 900-999)
+    - Group number 00 (never issued by the SSA)
+    - Serial number 0000 (never issued by the SSA)
+    - Mixed combinations of the above
+    - Historically published test/placeholder SSNs
     """
     rng = random.Random(seed)
     results = []
-    for _ in range(count):
-        area = rng.choice(_INVALID_SSN_AREAS)
-        mid = f"{rng.randint(0, 99):02d}"
-        last = f"{rng.randint(0, 9999):04d}"
-        results.append(f"{area}-{mid}-{last}")
+    patterns = list(_INVALID_SSN_PATTERNS)
+    for i in range(count):
+        fn = patterns[i % len(patterns)]
+        results.append(fn(rng))
+    return results
     return results
 
 
@@ -199,25 +251,58 @@ _ALL_LETTERS = string.ascii_uppercase
 # Invalid: 00, 13–50, 63–99.
 _INVALID_MONTHS = [0] + list(range(13, 51)) + list(range(63, 100))
 
+# 10+ distinct invalidity patterns for RAMQ
+# Format: LLLL YYMM DDSS (4 letters + year + month + day + seq)
+_RAMQ_INVALID_PATTERNS = [
+    # Invalid birth month (13–19) — clear calendar violation
+    lambda rng, name, yy: (name, yy, rng.randint(13, 19), rng.randint(1, 28), rng.randint(1, 99)),
+    # Invalid birth month (20–49) — deeper into the invalid zone
+    lambda rng, name, yy: (name, yy, rng.randint(20, 49), rng.randint(1, 28), rng.randint(1, 99)),
+    # Invalid birth month (63–79) — female range overrun
+    lambda rng, name, yy: (name, yy, rng.randint(63, 79), rng.randint(1, 28), rng.randint(1, 99)),
+    # Invalid birth month (80–99)
+    lambda rng, name, yy: (name, yy, rng.randint(80, 99), rng.randint(1, 28), rng.randint(1, 99)),
+    # Month 00 — explicit zero
+    lambda rng, name, yy: (name, yy, 0, rng.randint(1, 28), rng.randint(1, 99)),
+    # Invalid day (32–39) — impossible calendar day
+    lambda rng, name, yy: (name, yy, rng.choice([1,2,3,4,5,6,7,8,9,10,11,12]), rng.randint(32, 39), rng.randint(1, 99)),
+    # Invalid day (40–99)
+    lambda rng, name, yy: (name, yy, rng.choice([51,52,53,54,55,56,57,58,59,60,61,62]), rng.randint(40, 99), rng.randint(1, 99)),
+    # Sequence number 00 — impossible (sequences start at 01)
+    lambda rng, name, yy: (name, yy, rng.randint(13, 49), rng.randint(1, 28), 0),
+    # Invalid month + invalid day simultaneously
+    lambda rng, name, yy: (name, yy, rng.randint(13, 49), rng.randint(32, 39), rng.randint(1, 99)),
+    # Invalid month (50) + sequence 00
+    lambda rng, name, yy: (name, yy, 50, rng.randint(1, 28), 0),
+    # Day 00 — impossible
+    lambda rng, name, yy: (name, yy, rng.choice([1,2,3,51,52]), 0, rng.randint(1, 99)),
+    # Month 63 (just past female ceiling) + impossible day
+    lambda rng, name, yy: (name, yy, 63, rng.randint(32, 39), rng.randint(1, 99)),
+]
+
+
+def _ramq_name(rng: random.Random) -> str:
+    return "".join(
+        rng.choice(_SURNAME_CHARS if i % 2 == 0 else _ALL_LETTERS) for i in range(4)
+    )
+
 
 def generate_false_ramqs(count: int, seed: Optional[int] = None) -> list[str]:
-    """RAMQ-shaped XXXX YYMM DDSS strings with invalid birth month codes.
+    """RAMQ-shaped XXXX YYMM DDSS strings with 10+ distinct invalidity patterns.
 
-    RAMQ uses months 01–12 (male) and 51–62 (female). Any other month value
-    (00, 13–50, 63–99) produces a structurally plausible but invalid card number.
+    Covers: invalid birth months (13–19, 20–49, 63–99, 00), impossible
+    calendar days (32–39, 40–99, 00), sequence 00, and combinations thereof.
     """
     rng = random.Random(seed)
     results = []
-    for _ in range(count):
-        name = "".join(
-            rng.choice(_SURNAME_CHARS if i % 2 == 0 else _ALL_LETTERS) for i in range(4)
-        )
-        year = rng.randint(0, 99)
-        month = rng.choice(_INVALID_MONTHS)
-        day = rng.randint(1, 28)
-        seq = rng.randint(1, 99)
+    patterns = list(_RAMQ_INVALID_PATTERNS)
+    for i in range(count):
+        name = _ramq_name(rng)
+        yy = rng.randint(0, 99)
+        fn = patterns[i % len(patterns)]
+        name_out, year, month, day, seq = fn(rng, name, yy)
         digits = f"{year:02d}{month:02d}{day:02d}{seq:02d}"
-        results.append(f"{name} {digits[:4]} {digits[4:]}")
+        results.append(f"{name_out} {digits[:4]} {digits[4:]}")
     return results
 
 

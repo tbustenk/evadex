@@ -22,6 +22,10 @@ from evadex.cli.commands.doctor import doctor
 from evadex.cli.commands.report import report
 from evadex.cli.commands.quickstart import quickstart
 from evadex.cli.commands.export import export_cmd
+from evadex.cli.commands.diff import diff
+from evadex.cli.commands.validate import validate
+from evadex.cli.commands.status import status
+from evadex.cli.commands.cache import cache
 
 # Ensure stdout/stderr use UTF-8 on Windows so that Rich tables with Unicode
 # box-drawing characters and special symbols render without codec errors.
@@ -67,3 +71,7 @@ main.add_command(doctor)
 main.add_command(report)
 main.add_command(quickstart)
 main.add_command(export_cmd, name="export")
+main.add_command(diff)
+main.add_command(validate)
+main.add_command(status)
+main.add_command(cache)

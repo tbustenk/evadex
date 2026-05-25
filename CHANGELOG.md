@@ -1,5 +1,35 @@
 # Changelog
 
+## [3.28.0] — 2026-05-25
+
+### Added
+
+- **`evadex diff FILE_A FILE_B`** — variant-level comparison between two scan results. Reports newly detected (scanner improved) and newly missed (scanner regressed) variants with top category·technique examples. Supports `--format html` for a visual diff report and `--format json`/`--output` for machine-readable output. (`src/evadex/cli/commands/diff.py`)
+- **`evadex validate --template NAME --format FMT`** — verify that a template generates a correct, openable file without errors. Reports file size, entry count, and generation time per template. Supports `--all-templates` to validate every known template and `--scan` to also submit the generated file to the configured scanner. (`src/evadex/cli/commands/validate.py`)
+- **`evadex status`** — show current evadex state at a glance: scanner config and exe discovery, last scan/falsepos results, cache hit rate, bridge reachability, and profile counts with a detection-rate trend line. Supports `--json` for machine-readable output. (`src/evadex/cli/commands/status.py`)
+- **`evadex cache stats` / `evadex cache clear`** — manage the SQLite scan result cache. Cache key is SHA-1 of `(variant_value, technique, scanner_label, siphon_version)`. (`src/evadex/cache/scan_cache.py`, `src/evadex/cli/commands/cache.py`)
+- **Scan result cache** (`evadex.cache.ScanCache`) — SQLite-backed cache at `~/.evadex/cache/scan_cache.db`. TTL defaults to 24 hours (configurable). `ScanCache.get()` and `ScanCache.put()` skip DB I/O when `enabled=False`.
+
+### Changed
+
+- **`pick_fast_techniques`** (`src/evadex/feedback/fast_mode.py`) — two improvements:
+  - *Exponential decay*: more recent audit entries are weighted more heavily than older ones (new `_decay_weight`, `_load_history_bypass_with_decay`). Half-life defaults to 5 runs. A technique that was effective in old runs but patched recently degrades quickly rather than keeping a stale high weight.
+  - *Per-category bypass rates*: new `_load_history_bypass_per_category` reads `category_technique_rates` entries from the audit log and returns a `{category: {technique: bypass}}` map. `pick_fast_techniques(per_category=True)` includes this in its `diag` dict.
+  - *Verbose mode*: `pick_fast_techniques(verbose=True)` includes per-generator technique weights in the `diag` dict for `--verbose` CLI output.
+- **`generate_false_ssns`** (`src/evadex/falsepos/generators.py`) — expanded from reserved-area-code-only to 20+ distinct invalidity patterns: group=00, serial=0000, mixed combinations, and historically published test SSNs (Woolworth, ITIN placeholder).
+- **`generate_false_ramqs`** (`src/evadex/falsepos/generators.py`) — expanded to 12+ distinct invalidity patterns covering invalid months (13–19, 20–49, 63–99, 00), impossible calendar days (32–39, 40–99, 00), sequence=00, and combinations thereof.
+- **REFERENCE.md performance table** — updated benchmarks to v3.26.1 numbers: CSV 1000 records → ~5.1 s (was ~3 s), XLSX 1000 records → ~28.2 s (was ~13 s), added DOCX 1000 records → ~9.84 s (northam tier, new row).
+
+### Tests
+
+- **52 new unit tests** covering: `evadex diff` variant-level classification and CLI (`test_diff.py`, 10 tests); improved SSN and RAMQ generators (`test_falsepos_improved.py`, 10 tests); `evadex validate` integrity checks and CLI mocking (`test_validate.py`, 9 tests); scan cache hit/miss/TTL/clear (`test_scan_cache.py`, 10 tests); `evadex status` human-age formatting and CLI (`test_status.py`, 6 tests); fast-mode exponential decay (`test_fast_mode_v2.py`, 7 tests).
+- **3 existing falsepos generator tests updated** to reflect that SSN and RAMQ invalidity now covers more patterns beyond reserved area codes / invalid months.
+- **1132/1132 unit tests pass**.
+
+### Verified
+
+- `pytest tests/unit --tb=no -q` — 1132 passed.
+
 ## [3.27.0] — 2026-05-25
 
 ### Added
