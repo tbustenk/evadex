@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import sys
 from typing import Optional
 
@@ -67,12 +69,30 @@ def _trend_arrow(delta: Optional[float]) -> str:
     show_default=True,
     help="Only show techniques with at least N data points.",
 )
+@click.option(
+    "--compare",
+    "compare_labels",
+    nargs=2,
+    default=None,
+    metavar="LABEL_A LABEL_B",
+    help="Show technique rates for two scanner labels side by side. "
+    "Pass both labels: --compare siphon-pre-fix siphon-post-fix",
+)
+@click.option(
+    "--export",
+    "export_path",
+    default=None,
+    metavar="PATH",
+    help="Export technique data as CSV to PATH.",
+)
 def techniques(
     audit_log: str,
     last_n: int,
     top: Optional[int],
     category: Optional[str],
     min_runs: int,
+    compare_labels: Optional[tuple[str, str]],
+    export_path: Optional[str],
 ) -> None:
     """Show per-technique scanner-detection success rates from history.
 
@@ -81,9 +101,11 @@ def techniques(
 
     \b
     Examples:
-      evadex techniques                           # all techniques, from history
-      evadex techniques --top 10                  # top 10 most-evading techniques
-      evadex techniques --category credit_card    # filter by category name
+      evadex techniques                                # all techniques, from history
+      evadex techniques --top 10                       # top 10 most-evading techniques
+      evadex techniques --category credit_card         # filter by category name
+      evadex techniques --compare pre-fix post-fix     # side-by-side scanner labels
+      evadex techniques --export techniques.csv        # export as CSV
     """
     if not has_history(audit_log):
         err_console.print(
@@ -95,12 +117,82 @@ def techniques(
         )
         sys.exit(0)
 
+    # ── Compare mode ──────────────────────────────────────────────────────────
+    if compare_labels is not None:
+        label_a, label_b = compare_labels
+        stats_a = load_technique_history(
+            audit_log, last_n=last_n, scanner_label=label_a
+        )
+        stats_b = load_technique_history(
+            audit_log, last_n=last_n, scanner_label=label_b
+        )
+
+        if category:
+            stats_a = {
+                k: v for k, v in stats_a.items() if category.lower() in k.lower()
+            }
+            stats_b = {
+                k: v for k, v in stats_b.items() if category.lower() in k.lower()
+            }
+
+        all_techs = sorted(set(stats_a) | set(stats_b))
+        if not all_techs:
+            err_console.print(
+                f"[yellow]No technique history found for labels "
+                f"'{label_a}' or '{label_b}' in {audit_log}.[/yellow]"
+            )
+            sys.exit(0)
+
+        table = Table(
+            title=f"Technique rates: {label_a} vs {label_b}  (last {last_n} runs)"
+        )
+        table.add_column("Technique", style="cyan", no_wrap=True)
+        table.add_column(f"{label_a} Rate", justify="right")
+        table.add_column(f"{label_b} Rate", justify="right")
+        table.add_column("Delta", justify="right")
+
+        rows = []
+        for tech in all_techs:
+            sa = stats_a.get(tech)
+            sb = stats_b.get(tech)
+            rate_a = sa.latest_success * 100 if sa else None
+            rate_b = sb.latest_success * 100 if sb else None
+            if rate_a is not None and rate_b is not None:
+                delta = rate_b - rate_a
+            else:
+                delta = None
+            rows.append((tech, rate_a, rate_b, delta))
+
+        if top:
+            rows = rows[:top]
+
+        for tech, rate_a, rate_b, delta in rows:
+            a_str = f"{rate_a:.1f}%" if rate_a is not None else "[dim]—[/dim]"
+            b_str = f"{rate_b:.1f}%" if rate_b is not None else "[dim]—[/dim]"
+            if delta is None:
+                d_str = "[dim]—[/dim]"
+            elif delta > 0.5:
+                d_str = f"[green]+{delta:.1f}pp[/green]"
+            elif delta < -0.5:
+                d_str = f"[red]{delta:.1f}pp[/red]"
+            else:
+                d_str = f"[yellow]{delta:+.1f}pp[/yellow]"
+            table.add_row(tech, a_str, b_str, d_str)
+
+        Console().print(table)
+
+        if export_path:
+            _export_compare_csv(export_path, label_a, label_b, rows)
+            err_console.print(f"[dim]Compare data exported to {export_path}[/dim]")
+        return
+
+    # ── Standard (single-label) mode ─────────────────────────────────────────
     stats = load_technique_history(audit_log, last_n=last_n)
     if category:
         stats = {k: v for k, v in stats.items() if category.lower() in k.lower()}
-    rows = filter_stats(stats, min_runs=min_runs, top=top)
+    rows_single = filter_stats(stats, min_runs=min_runs, top=top)
 
-    if not rows:
+    if not rows_single:
         if category:
             err_console.print(
                 f"[yellow]No technique names contain "
@@ -118,14 +210,14 @@ def techniques(
 
     table = Table(
         title=f"Technique scanner-detection rates  "
-        f"(last {last_n} runs, {len(rows)} techniques)"
+        f"(last {last_n} runs, {len(rows_single)} techniques)"
     )
     table.add_column("Technique", style="cyan", no_wrap=True)
     table.add_column("Latest", justify="right")
     table.add_column("Avg", justify="right")
     table.add_column("Runs", justify="right")
     table.add_column("Trend", justify="right")
-    for s in rows:
+    for s in rows_single:
         table.add_row(
             s.technique,
             f"{s.latest_success * 100:.1f}%",
@@ -134,3 +226,48 @@ def techniques(
             _trend_arrow(s.trend),
         )
     Console().print(table)
+
+    if export_path:
+        _export_single_csv(export_path, rows_single)
+        err_console.print(f"[dim]Technique data exported to {export_path}[/dim]")
+
+
+def _export_single_csv(path: str, rows: list) -> None:
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["technique", "latest_rate", "avg_rate", "runs", "trend_delta"])
+    for s in rows:
+        trend = f"{s.trend * 100:.2f}" if s.trend is not None else ""
+        writer.writerow(
+            [
+                s.technique,
+                f"{s.latest_success * 100:.2f}",
+                f"{s.average_success * 100:.2f}",
+                s.runs,
+                trend,
+            ]
+        )
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write(buf.getvalue())
+
+
+def _export_compare_csv(
+    path: str,
+    label_a: str,
+    label_b: str,
+    rows: list[tuple],
+) -> None:
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["technique", f"{label_a}_rate", f"{label_b}_rate", "delta_pp"])
+    for tech, rate_a, rate_b, delta in rows:
+        writer.writerow(
+            [
+                tech,
+                f"{rate_a:.2f}" if rate_a is not None else "",
+                f"{rate_b:.2f}" if rate_b is not None else "",
+                f"{delta:.2f}" if delta is not None else "",
+            ]
+        )
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write(buf.getvalue())

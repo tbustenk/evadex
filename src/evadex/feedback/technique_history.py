@@ -53,14 +53,21 @@ def _iter_audit_entries(path: str) -> Iterator[dict]:
 def load_technique_history(
     audit_log: str,
     last_n: Optional[int] = None,
+    scanner_label: Optional[str] = None,
 ) -> dict[str, TechniqueStats]:
     """Walk *audit_log* and return ``{technique: TechniqueStats}``.
 
     *last_n* — if set, restrict to the most recent N audit entries. Older
     entries (and entries with no ``technique_success_rates`` field, e.g.
     pre-3.13.0) are skipped silently.
+
+    *scanner_label* — if set, only aggregate entries whose ``scanner_label``
+    field matches exactly (case-sensitive). Used by ``evadex techniques
+    --compare`` to build per-label stats side by side.
     """
     entries = list(_iter_audit_entries(audit_log))
+    if scanner_label is not None:
+        entries = [e for e in entries if e.get("scanner_label") == scanner_label]
     if last_n is not None:
         entries = entries[-last_n:]
 

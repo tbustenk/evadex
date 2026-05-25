@@ -1,5 +1,35 @@
 # Changelog
 
+## [3.27.0] — 2026-05-25
+
+### Added
+
+- **CI workflow** (`.github/workflows/ci.yml`). Runs on every push and PR: unit tests on Python 3.11 and 3.13, integration tests, ruff lint/format check, and Docker image builds for both `deploy/Dockerfile` and `deploy/Dockerfile.bridge` (with a `/healthz` liveness probe for the bridge).
+- **`evadex export` command** — export scan results as CSV or Markdown for sharing. `--format csv` writes one row per variant (`category, technique, value, detected, confidence`); `--format markdown` produces a GitHub/Confluence-ready table with a summary header. `--only-bypassed` restricts output to variants that evaded detection.
+- **`evadex techniques --compare LABEL_A LABEL_B`** — show per-technique detection rates for two scanner labels side by side with a delta column. Labels match the `scanner_label` field in the audit log (set via `evadex scan --scanner-label`). Combines with `--export` to write a CSV diff.
+- **`evadex techniques --export PATH`** — export technique history as CSV (`technique, latest_rate, avg_rate, runs, trend_delta`). Works in both normal and `--compare` mode.
+- **`evadex scan --resume`** — resume a previously interrupted scan. Checkpoints are saved to `~/.evadex/checkpoints/` every 100 variants. On resume, already-tested variants are skipped and prior partial results are merged into the final report. Checkpoints are keyed by a SHA-1 fingerprint of `(tier, tool, categories)` so different parameter sets never share a checkpoint. The checkpoint file is deleted on successful completion.
+
+### Changed
+
+- **`load_technique_history`** (`src/evadex/feedback/technique_history.py`) accepts a new optional `scanner_label` parameter that filters audit entries to a specific label before aggregation. Used by `evadex techniques --compare`.
+- **`Engine`** (`src/evadex/core/engine.py`) accepts a new optional `skip_keys` parameter (`frozenset` of 5-tuples). Variants matching a key are silently skipped before submission — used by `--resume` to avoid re-testing already-completed variants.
+- **`ScanResult`** (`src/evadex/core/result.py`) gains a `from_dict` classmethod that reconstructs a `ScanResult` from a `to_dict()` snapshot, used by `--resume` to merge checkpoint partial results.
+
+### Fixed
+
+- **v3.24.2 CHANGELOG**: corrected the claimed DOCX generation time from "1.5 s" to "9.84 s end-to-end". The original entry understated the cost of the O(n²) `body.insert` path that was only fully resolved in v3.26.1.
+
+### Tests
+
+- **33 new unit tests** covering: `evadex export` CSV and Markdown output, error handling (`test_export.py`); checkpoint save/load/delete/fingerprint/find-latest (`test_checkpoint.py`); `evadex techniques --export` CSV round-trip, `--compare` side-by-side table and CSV, `load_technique_history` scanner-label filter (`test_techniques_cmd.py`).
+- **1380/1380 tests pass** (1347 unit + 300 integration; was 1347 total).
+
+### Verified
+
+- `ruff check src/` — all checks passed; `ruff format --check src/` — no diff.
+- `pytest tests/ --tb=no -q` — 1380 passed.
+
 ## [3.26.2] — 2026-05-24
 
 ### Fixed
@@ -239,7 +269,7 @@
 
 ### Performance
 
-- **25× faster DOCX generation** — `docx_writer` now bypasses the python-docx ORM for table rows and prose paragraphs via direct `lxml.etree.SubElement` calls. 1 000-record DOCX: 37 s → 1.5 s.
+- **25× faster DOCX generation** — `docx_writer` now bypasses the python-docx ORM for table rows and prose paragraphs via direct `lxml.etree.SubElement` calls. 1 000-record DOCX: 37 s → 9.84 s end-to-end (initial lxml fast path; a subsequent O(n²) `body.insert` regression reduced the gain — see v3.26.1 for the full fix).
 - **Default concurrency raised from 20 → 32** (benchmark-validated sweet spot). Updated in `core/engine.py`, `cli/commands/scan.py`, `config.py`, README, and REFERENCE.md.
 
 ### Fixed

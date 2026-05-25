@@ -300,7 +300,9 @@ def scan_flags_to_profile_dict(flags: dict) -> dict:
     return mapped
 
 
-def prune_old_results(profile: Profile, *, now: Optional[datetime] = None) -> list[Path]:
+def prune_old_results(
+    profile: Profile, *, now: Optional[datetime] = None
+) -> list[Path]:
     """Delete scan/falsepos result files older than ``profile.output.retain_days``.
 
     A no-op (returns ``[]``) unless ``profile.output`` pins both ``dir`` and

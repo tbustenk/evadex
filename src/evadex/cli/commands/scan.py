@@ -30,6 +30,12 @@ from evadex.payloads.builtins import get_payloads, detect_category, HEURISTIC_CA
 from evadex.payloads.tiers import get_tier_categories, VALID_TIERS
 from evadex.reporters.json_reporter import JsonReporter
 from evadex.reporters.html_reporter import HtmlReporter
+from evadex.checkpoint import (
+    delete_checkpoint,
+    find_latest_checkpoint,
+    new_run_id,
+    save_checkpoint,
+)
 
 err_console = Console(stderr=True)
 
@@ -588,6 +594,16 @@ def _print_summary(results, err_console):
     "--no-stream collects all variants into memory before submitting. "
     "Streaming uses less peak memory; --no-stream makes total known upfront.",
 )
+@click.option(
+    "--resume",
+    "resume",
+    is_flag=True,
+    default=False,
+    help="Resume a previously interrupted scan. Loads the most recent "
+    "checkpoint for the current tier/tool/categories, skips already-tested "
+    "variants, and merges the prior results with the new ones. "
+    "Checkpoints are saved to ~/.evadex/checkpoints/ every 100 variants.",
+)
 def scan(
     ctx,
     config_path,
@@ -624,6 +640,7 @@ def scan(
     fast_mode,
     verbose,
     streaming,
+    resume,
 ):
     """Test a DLP scanner against known sensitive data patterns.
 
@@ -1000,6 +1017,38 @@ def scan(
         f"[bold]{_effective_mode}[/bold] mode · concurrency {concurrency}[/dim]"
     )
 
+    # ── Checkpoint / resume ───────────────────────────────────────────────────
+    _cp_tier = tier or "northam"
+    _cp_categories = sorted(c for c in categories) if categories else []
+    _cp_run_id = new_run_id(_cp_tier, tool)
+    _cp_skip_keys: frozenset = frozenset()
+    _cp_partial_results: list = []
+    _cp_completed_keys: list[tuple] = []
+
+    if resume:
+        _existing_cp = find_latest_checkpoint(_cp_tier, tool, _cp_categories)
+        if _existing_cp:
+            _cp_run_id = _existing_cp["run_id"]
+            _cp_completed_keys = [
+                tuple(k) for k in _existing_cp.get("completed_keys", [])
+            ]
+            _cp_skip_keys = frozenset(_cp_completed_keys)
+            _cp_partial_results = _existing_cp.get("partial_results", [])
+            err_console.print(
+                f"[dim]--resume: found checkpoint {_cp_run_id} with "
+                f"{len(_cp_skip_keys)} completed variants. Skipping them.[/dim]"
+            )
+        else:
+            err_console.print(
+                "[yellow]--resume: no checkpoint found for this tier/tool/categories. "
+                "Starting fresh scan.[/yellow]"
+            )
+
+    _cp_result_buffer: list[dict] = list(_cp_partial_results)
+    _cp_key_buffer: list[tuple] = list(_cp_completed_keys)
+    _cp_save_interval = 100
+    _cp_since_last_save = 0
+
     _show_progress_bar = not progress_json and not verbose
     progress = Progress(
         SpinnerColumn(),
@@ -1076,6 +1125,7 @@ def scan(
             )
 
     def on_result(result, completed, total):
+        nonlocal _cp_since_last_save
         sev = getattr(getattr(result, "severity", None), "value", None)
         if sev == "pass":
             _progress_state["detected"] += 1
@@ -1084,6 +1134,31 @@ def scan(
 
         if verbose:
             _verbose_print(result)
+
+        # Checkpoint: accumulate completed key + result dict, save every 100
+        _cp_key = (
+            result.payload.value,
+            result.payload.category.value,
+            result.variant.generator,
+            result.variant.technique,
+            result.variant.strategy,
+        )
+        _cp_key_buffer.append(_cp_key)
+        _cp_result_buffer.append(result.to_dict())
+        _cp_since_last_save += 1
+        if _cp_since_last_save >= _cp_save_interval:
+            _cp_since_last_save = 0
+            try:
+                save_checkpoint(
+                    _cp_run_id,
+                    _cp_tier,
+                    tool,
+                    _cp_categories,
+                    _cp_key_buffer,
+                    _cp_result_buffer,
+                )
+            except Exception:
+                pass
 
         if progress_task_id is not None and _show_progress_bar:
             cat = result.payload.category.value
@@ -1107,6 +1182,7 @@ def scan(
         on_result=on_result,
         technique_filter=technique_filter,
         streaming=streaming,
+        skip_keys=_cp_skip_keys if _cp_skip_keys else None,
     )
 
     with progress:
@@ -1121,6 +1197,28 @@ def scan(
             # Final tick so the bridge sees 100% regardless of throttling.
             total_done = len(results)
             _emit_progress(total_done, total_done, force=True)
+
+    # Merge checkpoint partial results from a resumed scan, then clean up
+    if _cp_partial_results and resume:
+        from evadex.core.result import ScanResult as _ScanResult
+
+        prior = []
+        for rd in _cp_partial_results:
+            try:
+                prior.append(_ScanResult.from_dict(rd))
+            except Exception:
+                pass
+        if prior:
+            err_console.print(
+                f"[dim]--resume: merged {len(prior)} prior results with "
+                f"{len(results)} new results.[/dim]"
+            )
+        results = prior + results
+    # Delete checkpoint now that the scan ran to completion
+    try:
+        delete_checkpoint(_cp_run_id)
+    except Exception:
+        pass
 
     # Summary
     total, passes, fails, errors, pass_rate = _print_summary(results, err_console)

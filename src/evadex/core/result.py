@@ -1269,3 +1269,37 @@ class ScanResult:
             if val is not None:
                 out[key] = val
         return out
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "ScanResult":
+        """Reconstruct a ScanResult from a to_dict() snapshot (e.g. checkpoint)."""
+        p_raw = d["payload"]
+        v_raw = d["variant"]
+        payload = Payload(
+            value=p_raw["value"],
+            category=PayloadCategory(p_raw["category"]),
+            label=p_raw.get("label", ""),
+        )
+        variant = Variant(
+            value=v_raw["value"],
+            generator=v_raw["generator"],
+            technique=v_raw["technique"],
+            transform_name=v_raw.get("transform_name", ""),
+            strategy=v_raw.get("strategy", "text"),
+        )
+        return cls(
+            payload=payload,
+            variant=variant,
+            detected=d.get("detected", False),
+            raw_response=d.get("raw_response") or {},
+            error=d.get("error"),
+            duration_ms=d.get("duration_ms", 0.0),
+            confidence=d.get("confidence"),
+            bin_brand=d.get("bin_brand"),
+            bin_country=d.get("bin_country"),
+            bin_card_type=d.get("bin_card_type"),
+            bin_issuer=d.get("bin_issuer"),
+            entropy_classification=d.get("entropy_classification"),
+            validator=d.get("validator"),
+            sub_category=d.get("sub_category"),
+        )

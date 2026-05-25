@@ -17,6 +17,7 @@ class Engine:
         on_result: Optional[Callable[[ScanResult, int, int], None]] = None,
         technique_filter: Optional[set[str]] = None,
         streaming: bool = True,
+        skip_keys: Optional[frozenset] = None,
     ):
         self.adapter = adapter
         self.generators = generators  # None = use all registered
@@ -31,6 +32,11 @@ class Engine:
         # generated; streaming=False collects all variants before submitting.
         # Streaming uses less peak memory; batch mode pre-allocates all work.
         self.streaming = streaming
+        # v3.27.0: skip_keys is a frozenset of (payload.value, category.value,
+        # generator, technique, strategy) 5-tuples. Variants matching a key
+        # are skipped entirely — used by --resume to avoid re-testing variants
+        # from a previous interrupted scan.
+        self.skip_keys = skip_keys
 
     def run(self, payloads: list[Payload]) -> list[ScanResult]:
         return asyncio.run(self._run_async_collect(payloads))
@@ -101,6 +107,16 @@ class Engine:
                             ):
                                 continue
                             for strategy in self.strategies:
+                                if self.skip_keys is not None:
+                                    key = (
+                                        payload.value,
+                                        payload.category.value,
+                                        variant.generator,
+                                        variant.technique,
+                                        strategy,
+                                    )
+                                    if key in self.skip_keys:
+                                        continue
                                 task = asyncio.create_task(
                                     _submit_one(payload, variant, strategy)
                                 )
@@ -140,6 +156,16 @@ class Engine:
                             ):
                                 continue
                             for strategy in self.strategies:
+                                if self.skip_keys is not None:
+                                    key = (
+                                        payload.value,
+                                        payload.category.value,
+                                        variant.generator,
+                                        variant.technique,
+                                        strategy,
+                                    )
+                                    if key in self.skip_keys:
+                                        continue
                                 all_work.append((payload, variant, strategy))
                 total_submitted = len(all_work)
                 for payload, variant, strategy in all_work:
