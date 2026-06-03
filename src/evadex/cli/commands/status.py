@@ -55,7 +55,19 @@ def _audit_log_path() -> Path:
     override = os.environ.get("EVADEX_AUDIT_LOG")
     if override:
         return Path(override)
-    return Path.home() / ".evadex" / "results" / "audit.jsonl"
+    # Check evadex.yaml for an explicit audit_log path.
+    try:
+        from evadex.config import find_config, load_config
+
+        cfg_path = find_config()
+        if cfg_path is not None:
+            cfg = load_config(cfg_path)
+            if cfg.audit_log:
+                return Path(cfg.audit_log)
+    except Exception:
+        pass
+    # Fall back to the same default as `evadex scan` and `evadex techniques`.
+    return Path("results/audit.jsonl")
 
 
 def _read_last_entries(audit_path: Path, n: int = 5) -> list[dict]:
@@ -127,6 +139,72 @@ def _profile_count() -> tuple[int, int]:
         return 0, 0
 
 
+def _next_cron_run(expr: str, after: datetime) -> Optional[datetime]:
+    """Return the next UTC datetime matching *expr* that is strictly after *after*.
+
+    Scans forward up to 366 days. Returns None if the expression cannot be
+    parsed or no match is found within that window.
+    """
+    try:
+        from evadex.profiles.schedule import parse_cron
+
+        spec = parse_cron(expr)
+    except Exception:
+        return None
+
+    base = after.astimezone(timezone.utc).replace(second=0, microsecond=0) + timedelta(minutes=1)
+    base_date = base.date()
+    for day_offset in range(366):
+        candidate_date = base_date + timedelta(days=day_offset)
+        for h in sorted(spec["hour"]):
+            for m in sorted(spec["minute"]):
+                try:
+                    candidate = datetime(
+                        candidate_date.year,
+                        candidate_date.month,
+                        candidate_date.day,
+                        h,
+                        m,
+                        0,
+                        tzinfo=timezone.utc,
+                    )
+                except ValueError:
+                    continue
+                if candidate < base:
+                    continue
+                if (
+                    candidate.day in spec["day"]
+                    and candidate.month in spec["month"]
+                    and candidate.weekday() in spec["weekday"]
+                ):
+                    return candidate
+    return None
+
+
+def _scheduled_profiles() -> list[tuple[str, datetime]]:
+    """Return list of (profile_name, next_run_utc) for profiles with schedule.cron."""
+    results = []
+    try:
+        from evadex.profiles.storage import profiles_dir, load_profile
+
+        pdir = profiles_dir()
+        now = datetime.now(timezone.utc)
+        for yaml_path in sorted(pdir.glob("*.yaml")):
+            try:
+                profile = load_profile(yaml_path.stem)
+                cron = (profile.schedule or {}).get("cron")
+                if cron:
+                    next_run = _next_cron_run(cron, now)
+                    if next_run is not None:
+                        results.append((profile.name, next_run))
+            except Exception:
+                continue
+    except Exception:
+        pass
+    results.sort(key=lambda x: x[1])
+    return results
+
+
 def _detect_scanner_exe(cfg_exe: Optional[str]) -> tuple[str, bool]:
     """Return (display_path, found)."""
     import shutil
@@ -187,6 +265,9 @@ def status(emit_json: bool) -> None:
     # Profiles
     user_profiles, builtin_profiles = _profile_count()
 
+    # Scheduled profiles
+    scheduled = _scheduled_profiles()
+
     # Scanner exe
     exe_display, exe_found = _detect_scanner_exe(cfg_exe)
 
@@ -208,6 +289,10 @@ def status(emit_json: bool) -> None:
             "user_profiles": user_profiles,
             "builtin_profiles": builtin_profiles,
             "recent_rates": recent_rates,
+            "next_scheduled": [
+                {"profile": name, "next_run_utc": dt.isoformat()}
+                for name, dt in scheduled
+            ],
         }
         click.echo(_json.dumps(payload, indent=2))
         return
@@ -225,7 +310,13 @@ def status(emit_json: bool) -> None:
     # Last scan
     if last_scan:
         age = _human_age(last_scan["timestamp"])
-        tier = last_scan.get("tier") or last_scan.get("categories", ["?"])[0]
+        tier = (
+            last_scan.get("tier")
+            or (last_scan.get("categories") or None)
+            and last_scan["categories"][0]
+            or last_scan.get("scanner_label")
+            or "?"
+        )
         rate = round(last_scan.get("pass_rate", 0.0), 1)
         err_console.print(f"  Last scan      [dim]{age}[/dim] · [dim]{tier}[/dim] · [cyan]{rate}%[/cyan] detection")
     else:
@@ -256,6 +347,26 @@ def status(emit_json: bool) -> None:
     err_console.print(
         f"  Profiles       [cyan]{user_profiles}[/cyan] user · [cyan]{builtin_profiles}[/cyan] builtin"
     )
+
+    # Next scheduled
+    if scheduled:
+        now = datetime.now(timezone.utc)
+        next_name, next_dt = scheduled[0]
+        delta = next_dt - now
+        hours = int(delta.total_seconds() // 3600)
+        mins = int((delta.total_seconds() % 3600) // 60)
+        if hours >= 24:
+            when_str = f"in {hours // 24}d {hours % 24}h"
+        elif hours > 0:
+            when_str = f"in {hours}h {mins}m"
+        else:
+            when_str = f"in {mins}m"
+        extra = f" [dim](+{len(scheduled) - 1} more)[/dim]" if len(scheduled) > 1 else ""
+        err_console.print(
+            f"  Next scheduled [dim]{next_name}[/dim] · [cyan]{when_str}[/cyan]{extra}"
+        )
+    else:
+        err_console.print(f"  Next scheduled {_DIM}  [dim]no profiles with schedule.cron[/dim]")
 
     # Trend
     if len(recent_rates) >= 2:

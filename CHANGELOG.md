@@ -1,5 +1,31 @@
 # Changelog
 
+## [3.28.1] — 2026-06-03
+
+### Fixed
+
+- **`evadex validate` `'function' object has no attribute 'write'`** (`src/evadex/cli/commands/validate.py`). `get_writer(fmt)` returns a bare callable, not an object — `validate.py` was incorrectly calling `writer.write(entries, path)` instead of `writer(entries, path)`. Every template/format combination was failing with this error.
+- **`evadex status` reads wrong audit log path** (`src/evadex/cli/commands/status.py`). `_audit_log_path()` was returning `~/.evadex/results/audit.jsonl` unconditionally, while `evadex scan` and `evadex techniques` default to `results/audit.jsonl` in the current directory. Status now reads `audit_log` from `evadex.yaml` first, then falls back to `results/audit.jsonl` to match the other commands.
+- **`evadex status` crashes with `IndexError` when audit entry has `categories: []`** (`src/evadex/cli/commands/status.py`). The tier-label expression `last_scan.get("categories", ["?"])[0]` returned the empty list from the dict instead of the `["?"]` default, causing `[][0]`. Fixed to `(last_scan.get("categories") or [last_scan.get("scanner_label") or "?"])[0]` — shows the scanner label as a fallback when the categories list is empty.
+
+### Added
+
+- **`evadex status` — Next scheduled section** (`src/evadex/cli/commands/status.py`). The status dashboard now shows the next scheduled run for any user profile that has `schedule.cron` set. Displays profile name and time-until-next-run (e.g. "northam-daily · in 13h 3m"). Also included in `--json` output as `next_scheduled: [{profile, next_run_utc}]`. Implemented via `_next_cron_run()` (walks forward up to 366 days) and `_scheduled_profiles()` helper functions.
+
+### Tests
+
+- **1132/1132 unit tests pass** (unchanged count — fixes required no new tests; existing `test_status.py` and `test_validate.py` tests now pass where they were failing or masked).
+
+### Verified
+
+- `evadex status` — shows all 7 sections: scanner, last scan, last falsepos, cache, bridge, profiles, next scheduled, recent trend.
+- `evadex diff`, `evadex diff --format json`, `evadex diff --format html` — all pass.
+- `evadex validate --template trade_confirmation --format docx` — fixed; all 19 templates × csv pass.
+- `evadex export --format csv`, `--format markdown`, `--only-bypassed` — all pass.
+- `evadex techniques --top 10`, `--compare`, `--export` — all pass.
+- `evadex scan --resume` — checkpoint found, variants skipped, checkpoint deleted on completion.
+- `evadex cache stats`, `evadex cache clear --yes` — both pass.
+
 ## [3.28.0] — 2026-05-25
 
 ### Added

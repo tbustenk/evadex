@@ -89,7 +89,7 @@ def _validate_one(
             language="en",
         )
         writer = get_writer(fmt)
-        writer.write(entries, str(out_path))
+        writer(entries, str(out_path))
 
         elapsed = time.perf_counter() - t0
 
