@@ -56,7 +56,9 @@ _INVALID_SSN_PATTERNS = [
     # Reserved area 666
     lambda rng: f"666-{rng.randint(1, 99):02d}-{rng.randint(1, 9999):04d}",
     # 900+ area codes
-    lambda rng: f"{rng.randint(900, 999):03d}-{rng.randint(1, 99):02d}-{rng.randint(1, 9999):04d}",
+    lambda rng: (
+        f"{rng.randint(900, 999):03d}-{rng.randint(1, 99):02d}-{rng.randint(1, 9999):04d}"
+    ),
     # group=00 AND serial=0000 (doubly invalid)
     lambda rng: f"{rng.randint(100, 665):03d}-00-0000",
     # reserved area + group=00
@@ -68,25 +70,29 @@ _INVALID_SSN_PATTERNS = [
     # 900+ area + serial=0000
     lambda rng: f"{rng.randint(900, 999):03d}-{rng.randint(1, 99):02d}-0000",
     # All-zero group and serial with reserved area
-    lambda rng: f"000-00-0000",
+    lambda rng: "000-00-0000",
     # 987-65-4321 — ITIN placeholder published in SSA FAQ
     lambda rng: "987-65-4321",
     # 078-05-1120 — Woolworth wallet insert card, historically used for tests
     lambda rng: "078-05-1120",
     # Sequential run (cosmetically invalid but structurally conforming)
-    lambda rng: f"{rng.randint(900,999):03d}-{rng.randint(1,99):02d}-{str(rng.randint(1111,9999)):4}",
+    lambda rng: (
+        f"{rng.randint(900, 999):03d}-{rng.randint(1, 99):02d}-{str(rng.randint(1111, 9999)):4}"
+    ),
     # 219-09-9999 — widely cited "test" SSN
     lambda rng: "219-09-9999",
     # 900+ area + group=00 + serial=0000 (triply invalid)
     lambda rng: f"{rng.randint(900, 999):03d}-00-0000",
     # group=00, serial=0000, valid-looking area
-    lambda rng: f"{rng.choice([200,300,400,500,600]):03d}-00-0000",
+    lambda rng: f"{rng.choice([200, 300, 400, 500, 600]):03d}-00-0000",
     # All-zeros — structurally parseable but entirely invalid
     lambda rng: "000-00-0000",
     # EIN-style misparse: 00-XXXXXXX mis-formatted as SSN
-    lambda rng: f"00-{rng.randint(10,99)}-{rng.randint(1000,9999):04d}",
+    lambda rng: f"00-{rng.randint(10, 99)}-{rng.randint(1000, 9999):04d}",
     # single-digit group misparse
-    lambda rng: f"{rng.randint(100, 665):03d}-{rng.randint(0, 9)}-{rng.randint(1000,9999):04d}",
+    lambda rng: (
+        f"{rng.randint(100, 665):03d}-{rng.randint(0, 9)}-{rng.randint(1000, 9999):04d}"
+    ),
 ]
 
 
@@ -255,27 +261,75 @@ _INVALID_MONTHS = [0] + list(range(13, 51)) + list(range(63, 100))
 # Format: LLLL YYMM DDSS (4 letters + year + month + day + seq)
 _RAMQ_INVALID_PATTERNS = [
     # Invalid birth month (13–19) — clear calendar violation
-    lambda rng, name, yy: (name, yy, rng.randint(13, 19), rng.randint(1, 28), rng.randint(1, 99)),
+    lambda rng, name, yy: (
+        name,
+        yy,
+        rng.randint(13, 19),
+        rng.randint(1, 28),
+        rng.randint(1, 99),
+    ),
     # Invalid birth month (20–49) — deeper into the invalid zone
-    lambda rng, name, yy: (name, yy, rng.randint(20, 49), rng.randint(1, 28), rng.randint(1, 99)),
+    lambda rng, name, yy: (
+        name,
+        yy,
+        rng.randint(20, 49),
+        rng.randint(1, 28),
+        rng.randint(1, 99),
+    ),
     # Invalid birth month (63–79) — female range overrun
-    lambda rng, name, yy: (name, yy, rng.randint(63, 79), rng.randint(1, 28), rng.randint(1, 99)),
+    lambda rng, name, yy: (
+        name,
+        yy,
+        rng.randint(63, 79),
+        rng.randint(1, 28),
+        rng.randint(1, 99),
+    ),
     # Invalid birth month (80–99)
-    lambda rng, name, yy: (name, yy, rng.randint(80, 99), rng.randint(1, 28), rng.randint(1, 99)),
+    lambda rng, name, yy: (
+        name,
+        yy,
+        rng.randint(80, 99),
+        rng.randint(1, 28),
+        rng.randint(1, 99),
+    ),
     # Month 00 — explicit zero
     lambda rng, name, yy: (name, yy, 0, rng.randint(1, 28), rng.randint(1, 99)),
     # Invalid day (32–39) — impossible calendar day
-    lambda rng, name, yy: (name, yy, rng.choice([1,2,3,4,5,6,7,8,9,10,11,12]), rng.randint(32, 39), rng.randint(1, 99)),
+    lambda rng, name, yy: (
+        name,
+        yy,
+        rng.choice([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
+        rng.randint(32, 39),
+        rng.randint(1, 99),
+    ),
     # Invalid day (40–99)
-    lambda rng, name, yy: (name, yy, rng.choice([51,52,53,54,55,56,57,58,59,60,61,62]), rng.randint(40, 99), rng.randint(1, 99)),
+    lambda rng, name, yy: (
+        name,
+        yy,
+        rng.choice([51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62]),
+        rng.randint(40, 99),
+        rng.randint(1, 99),
+    ),
     # Sequence number 00 — impossible (sequences start at 01)
     lambda rng, name, yy: (name, yy, rng.randint(13, 49), rng.randint(1, 28), 0),
     # Invalid month + invalid day simultaneously
-    lambda rng, name, yy: (name, yy, rng.randint(13, 49), rng.randint(32, 39), rng.randint(1, 99)),
+    lambda rng, name, yy: (
+        name,
+        yy,
+        rng.randint(13, 49),
+        rng.randint(32, 39),
+        rng.randint(1, 99),
+    ),
     # Invalid month (50) + sequence 00
     lambda rng, name, yy: (name, yy, 50, rng.randint(1, 28), 0),
     # Day 00 — impossible
-    lambda rng, name, yy: (name, yy, rng.choice([1,2,3,51,52]), 0, rng.randint(1, 99)),
+    lambda rng, name, yy: (
+        name,
+        yy,
+        rng.choice([1, 2, 3, 51, 52]),
+        0,
+        rng.randint(1, 99),
+    ),
     # Month 63 (just past female ceiling) + impossible day
     lambda rng, name, yy: (name, yy, 63, rng.randint(32, 39), rng.randint(1, 99)),
 ]

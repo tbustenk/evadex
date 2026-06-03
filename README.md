@@ -132,6 +132,37 @@ evadex doctor                        # environment health check
 evadex benchmark                     # measure generate/scan performance
 ```
 
+## Result commands (v3.27–3.28)
+
+```bash
+# Compare two scan runs at the individual variant level
+evadex diff before.json after.json
+evadex diff before.json after.json --format html --output diff.html
+evadex diff before.json after.json --format json --output diff.json
+
+# Export scan results as CSV or Markdown
+evadex export scan.json --format csv --output findings.csv
+evadex export scan.json --format markdown --output findings.md
+evadex export scan.json --format csv --only-bypassed  # evasions only
+
+# Validate that a document template generates a correct, openable file
+evadex validate --template trade_confirmation --format docx
+evadex validate --all-templates --format csv
+evadex validate --template swift_mt103 --format docx --scan   # also submit to scanner
+
+# Current state at a glance: scanner, last scan, bridge, cache, scheduled jobs
+evadex status
+evadex status --json
+
+# Manage the scan result cache (SQLite, 24-hour TTL by default)
+evadex cache stats
+evadex cache clear --yes
+
+# Resume an interrupted scan from a saved checkpoint
+evadex scan --resume
+evadex scan --tier northam --resume --scanner-label post-patch
+```
+
 ## Advanced commands (Siphon-specific)
 
 ```bash

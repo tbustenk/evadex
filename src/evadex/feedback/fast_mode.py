@@ -138,16 +138,16 @@ def _load_history_bypass_per_category(
     from evadex.feedback.technique_history import _iter_audit_entries
 
     entries = [
-        e
-        for e in _iter_audit_entries(audit_log)
-        if e.get("category_technique_rates")
+        e for e in _iter_audit_entries(audit_log) if e.get("category_technique_rates")
     ]
     if not entries:
         return {}
 
     total = len(entries)
     # {category: {technique: (weighted_sum, weight_total)}}
-    accum: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(lambda: [0.0, 0.0]))
+    accum: dict[str, dict[str, list[float]]] = defaultdict(
+        lambda: defaultdict(lambda: [0.0, 0.0])
+    )
 
     for pos, entry in enumerate(entries):
         w = _decay_weight(pos, total, half_life)
@@ -164,9 +164,7 @@ def _load_history_bypass_per_category(
     out: dict[str, dict[str, float]] = {}
     for cat, techs in accum.items():
         out[cat] = {
-            tech: vals[0] / vals[1]
-            for tech, vals in techs.items()
-            if vals[1] > 0
+            tech: vals[0] / vals[1] for tech, vals in techs.items() if vals[1] > 0
         }
     return out
 

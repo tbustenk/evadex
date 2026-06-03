@@ -64,7 +64,11 @@ def _validate_one(
         load_builtins()
 
         cats_set = get_tier_categories("northam")
-        cats = list(cats_set)[:4] if cats_set else [PayloadCategory.CREDIT_CARD, PayloadCategory.SSN]
+        cats = (
+            list(cats_set)[:4]
+            if cats_set
+            else [PayloadCategory.CREDIT_CARD, PayloadCategory.SSN]
+        )
 
         config = GenerateConfig(
             fmt=fmt,
@@ -123,6 +127,7 @@ def _check_file_integrity(path: Path, fmt: str) -> None:
     """Raise if the generated file cannot be parsed/read."""
     if fmt in ("docx", "xlsx"):
         import zipfile
+
         with zipfile.ZipFile(path) as zf:
             _ = zf.namelist()
     elif fmt == "json":
@@ -151,7 +156,7 @@ def _render_results(results: list[dict]) -> None:
         if r["ok"]:
             status = "[green]✓ ok[/green]"
         else:
-            status = f"[red]✗ ERROR[/red]"
+            status = "[red]✗ ERROR[/red]"
         table.add_row(
             r["template"],
             r["format"],
@@ -247,6 +252,14 @@ def validate(
         )
         sys.exit(1)
 
+    unknown = [t for t in selected if t not in _ALL_TEMPLATES]
+    if unknown:
+        for t in unknown:
+            err_console.print(
+                f"[yellow]Warning: '{t}' is not a known template — "
+                f"the writer will fall back to generic output.[/yellow]"
+            )
+
     results = []
     with tempfile.TemporaryDirectory() as tmp_dir:
         for tmpl in selected:
@@ -262,7 +275,9 @@ def validate(
             )
             err_console.print(f"[dim]Results written to {output}[/dim]")
         except OSError as e:
-            err_console.print(f"[red]Cannot write output '{output}': {e.strerror}[/red]")
+            err_console.print(
+                f"[red]Cannot write output '{output}': {e.strerror}[/red]"
+            )
             sys.exit(1)
 
     had_errors = any(not r["ok"] for r in results)

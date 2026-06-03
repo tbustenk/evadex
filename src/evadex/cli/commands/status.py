@@ -152,7 +152,9 @@ def _next_cron_run(expr: str, after: datetime) -> Optional[datetime]:
     except Exception:
         return None
 
-    base = after.astimezone(timezone.utc).replace(second=0, microsecond=0) + timedelta(minutes=1)
+    base = after.astimezone(timezone.utc).replace(second=0, microsecond=0) + timedelta(
+        minutes=1
+    )
     base_date = base.date()
     for day_offset in range(366):
         candidate_date = base_date + timedelta(days=day_offset)
@@ -250,11 +252,17 @@ def status(emit_json: bool) -> None:
 
     # Last falsepos entry — identified by a falsepos_rate field (or fall back
     # to the same scan entries for now since they share the log)
-    fp_entries = [e for e in entries if e.get("fail_rate") is not None or "falsepos" in e.get("tool", "")]
+    fp_entries = [
+        e
+        for e in entries
+        if e.get("fail_rate") is not None or "falsepos" in e.get("tool", "")
+    ]
     last_fp: Optional[dict] = fp_entries[-1] if fp_entries else None
 
     # Detection rate trend (last 3 scans)
-    recent_rates = [round(e["pass_rate"], 1) for e in scan_entries[-3:] if "pass_rate" in e]
+    recent_rates = [
+        round(e["pass_rate"], 1) for e in scan_entries[-3:] if "pass_rate" in e
+    ]
 
     # Cache
     cache_entries, cache_hit_rate = _cache_stats()
@@ -302,7 +310,11 @@ def status(emit_json: bool) -> None:
     err_console.print("─" * 52)
 
     # Scanner
-    label_str = f"[cyan]{scanner_label}[/cyan]" if scanner_label else "[dim]not configured[/dim]"
+    label_str = (
+        f"[cyan]{scanner_label}[/cyan]"
+        if scanner_label
+        else "[dim]not configured[/dim]"
+    )
     exe_str = f"[dim]{exe_display}[/dim]"
     scanner_ok = _OK if exe_found else _BAD
     err_console.print(f"  Scanner        {label_str} · {exe_str} {scanner_ok}")
@@ -318,7 +330,9 @@ def status(emit_json: bool) -> None:
             or "?"
         )
         rate = round(last_scan.get("pass_rate", 0.0), 1)
-        err_console.print(f"  Last scan      [dim]{age}[/dim] · [dim]{tier}[/dim] · [cyan]{rate}%[/cyan] detection")
+        err_console.print(
+            f"  Last scan      [dim]{age}[/dim] · [dim]{tier}[/dim] · [cyan]{rate}%[/cyan] detection"
+        )
     else:
         err_console.print(f"  Last scan      {_DIM}  [dim]no scan history found[/dim]")
 
@@ -326,9 +340,13 @@ def status(emit_json: bool) -> None:
     if last_fp:
         age = _human_age(last_fp["timestamp"])
         fp_rate = round(last_fp.get("fail_rate", 0.0), 1)
-        err_console.print(f"  Last falsepos  [dim]{age}[/dim] · [cyan]{fp_rate}%[/cyan] FP rate")
+        err_console.print(
+            f"  Last falsepos  [dim]{age}[/dim] · [cyan]{fp_rate}%[/cyan] FP rate"
+        )
     else:
-        err_console.print(f"  Last falsepos  {_DIM}  [dim]no falsepos history found[/dim]")
+        err_console.print(
+            f"  Last falsepos  {_DIM}  [dim]no falsepos history found[/dim]"
+        )
 
     # Cache
     hit_pct = round(cache_hit_rate * 100, 1)
@@ -361,12 +379,16 @@ def status(emit_json: bool) -> None:
             when_str = f"in {hours}h {mins}m"
         else:
             when_str = f"in {mins}m"
-        extra = f" [dim](+{len(scheduled) - 1} more)[/dim]" if len(scheduled) > 1 else ""
+        extra = (
+            f" [dim](+{len(scheduled) - 1} more)[/dim]" if len(scheduled) > 1 else ""
+        )
         err_console.print(
             f"  Next scheduled [dim]{next_name}[/dim] · [cyan]{when_str}[/cyan]{extra}"
         )
     else:
-        err_console.print(f"  Next scheduled {_DIM}  [dim]no profiles with schedule.cron[/dim]")
+        err_console.print(
+            f"  Next scheduled {_DIM}  [dim]no profiles with schedule.cron[/dim]"
+        )
 
     # Trend
     if len(recent_rates) >= 2:
@@ -380,6 +402,8 @@ def status(emit_json: bool) -> None:
             trend_note = "[dim](→ stable)[/dim]"
         err_console.print(f"  Recent trend   {trend_str}  {trend_note}")
     elif len(recent_rates) == 1:
-        err_console.print(f"  Recent trend   [cyan]{recent_rates[0]}%[/cyan]  [dim](only 1 run)[/dim]")
+        err_console.print(
+            f"  Recent trend   [cyan]{recent_rates[0]}%[/cyan]  [dim](only 1 run)[/dim]"
+        )
 
     err_console.print()

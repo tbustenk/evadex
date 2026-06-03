@@ -185,12 +185,8 @@ def _render_text(diff: dict, console: Console) -> None:
             )
         console.print()
 
-    console.print(
-        "[dim]Use --output diff.json for machine-readable output[/dim]"
-    )
-    console.print(
-        "[dim]Use --format html for visual diff report[/dim]"
-    )
+    console.print("[dim]Use --output diff.json for machine-readable output[/dim]")
+    console.print("[dim]Use --format html for visual diff report[/dim]")
 
 
 def _render_html(diff: dict) -> str:
@@ -229,7 +225,7 @@ td{{padding:.3rem .8rem;border-bottom:1px solid #222}}
 </style></head>
 <body>
 <h1>evadex diff — variant-level comparison</h1>
-<p class="dim">A: {meta_a.get("scanner","file_a")} &nbsp;→&nbsp; B: {meta_b.get("scanner","file_b")}</p>
+<p class="dim">A: {meta_a.get("scanner", "file_a")} &nbsp;→&nbsp; B: {meta_b.get("scanner", "file_b")}</p>
 <div>
   <span class="stat nd">&#9650; Newly detected: <strong>{len(nd):,}</strong></span>
   <span class="stat nm">&#9660; Newly missed: <strong>{len(nm):,}</strong></span>
@@ -305,6 +301,8 @@ def diff(file_a: str, file_b: str, fmt: str, output: str | None) -> None:
         try:
             Path(output).write_text(content, encoding="utf-8")
         except OSError as e:
-            err_console.print(f"[red]Cannot write output file '{output}': {e.strerror}[/red]")
+            err_console.print(
+                f"[red]Cannot write output file '{output}': {e.strerror}[/red]"
+            )
             sys.exit(1)
         err_console.print(f"[dim]Diff written to {output}[/dim]")

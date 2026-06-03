@@ -1,5 +1,32 @@
 # Changelog
 
+## [3.28.2] — 2026-06-03
+
+### Fixed
+
+- **`evadex validate --template <unknown>` silently succeeded** (`src/evadex/cli/commands/validate.py`). Passing a template name not in the known list (`_ALL_TEMPLATES`) produced exit 0 with "✓ ok" — the writer fell back to generic output without any notice, giving a false green. Now emits a yellow warning per unknown template name so the user knows their name was not recognised.
+
+### Changed
+
+- **`evadex cache.py`: removed unused `sys` import.** Ruff F401 — `sys` was imported but not referenced; removed.
+- **`validate.py`: removed bare `f""` string** (`f"[red]✗ ERROR[/red]"` → `"[red]✗ ERROR[/red]"`). Ruff F541 — f-string with no interpolation placeholders.
+- **`falsepos/generators.py`: removed bare `f""` string** (`f"000-00-0000"` → `"000-00-0000"`). Ruff F541 same.
+
+### Added
+
+- **README.md — "Result commands (v3.27–3.28)" section.** Documents `evadex diff`, `evadex export`, `evadex validate`, `evadex status`, `evadex cache`, and `evadex scan --resume` with copy-pasteable examples. Previously absent from README entirely.
+
+### Tests
+
+- **1432/1432 pass** (1132 unit + 300 integration). Ruff clean, pip-audit clean.
+
+### Security
+
+- **Bridge subprocess calls confirmed safe**: `asyncio.create_subprocess_exec` (argv-list form) and `subprocess.run` (argv-list, no `shell=True`). No shell injection risk.
+- **No path traversal in new commands**: `diff`, `export`, `validate`, `cache`, `status` all accept user-supplied paths only for output (write) or scan-result input (read); no paths are constructed from user input without explicit intent.
+- **`evadex status` SSRF via `EVADEX_BRIDGE_URL`**: accepted — this is a local-process env var used only for health-check pings, not a remote-attacker-controlled surface.
+- **pip-audit**: No known vulnerabilities in any installed dependency.
+
 ## [3.28.1] — 2026-06-03
 
 ### Fixed
