@@ -266,18 +266,14 @@ class SiphonHttpClient:
                 headers=self._headers(),
             )
         except httpx.TimeoutException:
-            raise SiphonCliError(
-                f"siphon HTTP scan timed out after {self._timeout}s"
-            )
+            raise SiphonCliError(f"siphon HTTP scan timed out after {self._timeout}s")
         except httpx.RequestError as exc:
             raise SiphonCliError(f"siphon HTTP request error: {exc}") from exc
 
         if resp.status_code == 401:
             raise SiphonCliError("siphon HTTP 401: API key required or invalid")
         if resp.status_code != 200:
-            raise SiphonCliError(
-                f"siphon HTTP {resp.status_code}: {resp.text[:300]}"
-            )
+            raise SiphonCliError(f"siphon HTTP {resp.status_code}: {resp.text[:300]}")
 
         data = resp.json()
         return data.get("findings", [])

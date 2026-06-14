@@ -160,14 +160,18 @@ def quickstart() -> None:
     # HTTP transport tip — shown for siphon users since siphon supports serve mode
     if tool == "siphon-cli":
         console.print()
-        console.print("[dim]Tip: for faster scanning, start siphon in server mode:[/dim]")
+        console.print(
+            "[dim]Tip: for faster scanning, start siphon in server mode:[/dim]"
+        )
         if exe:
             console.print(f"[dim]  {exe} serve --port 8080 --api-key your-key[/dim]")
         else:
             console.print("[dim]  siphon serve --port 8080 --api-key your-key[/dim]")
         console.print("[dim]Then scan via HTTP (12x faster than CLI mode):[/dim]")
-        console.print("[dim]  evadex scan --transport http --url http://localhost:8080 "
-                      "--api-key your-key --tier northam[/dim]")
+        console.print(
+            "[dim]  evadex scan --transport http --url http://localhost:8080 "
+            "--api-key your-key --tier northam[/dim]"
+        )
 
     results_dir = Path.home() / ".evadex" / "results"
     results_dir.mkdir(parents=True, exist_ok=True)
