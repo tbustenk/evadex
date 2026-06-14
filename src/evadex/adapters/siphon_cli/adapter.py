@@ -29,7 +29,7 @@ import random
 
 from evadex.adapters.base import AdapterConfig, BaseAdapter
 from evadex.adapters.dlpscan.file_builder import FileBuilder
-from evadex.adapters.siphon_cli.client import SiphonCliClient
+from evadex.adapters.siphon_cli.client import SiphonCliClient, SiphonHttpClient
 from evadex.core.registry import register_adapter
 from evadex.core.result import Payload, ScanResult, Variant
 from evadex.generate.filler import get_keyword_sentence
@@ -40,44 +40,89 @@ _BIN_FIELDS = ("bin_brand", "bin_card_type", "bin_country", "bin_issuer")
 
 @register_adapter("siphon-cli")
 class SiphonCliAdapter(BaseAdapter):
+    """Adapter for the Siphon DLP scanner.
+
+    Supports two transports selected by the ``transport`` extra config key:
+
+    ``cli`` (default)
+        Spawns ``siphon scan-text`` / ``siphon scan`` as a subprocess.
+        Requires the siphon binary on PATH (or ``executable`` in extra config).
+
+    ``http``
+        POSTs to a running ``siphon serve`` / ``siphon-api`` HTTP endpoint.
+        No subprocess overhead; 200+ variants/sec vs ~8 for CLI mode.
+        Requires ``siphon serve`` (or the ``siphon-api`` binary) to be running.
+        Point it at the server with ``base_url`` / ``--url`` and authenticate
+        with ``api_key`` / ``--api-key``.
+    """
+
     name = "siphon-cli"
 
     def __init__(self, config: "dict | AdapterConfig") -> None:
         super().__init__(config)
         extra = self.config.extra
-        self._exe = extra.get("executable", "siphon")
-        self._cmd_style = extra.get("cmd_style", "binary")
+        self._transport = extra.get("transport", "cli")
         self._wrap_context = bool(extra.get("wrap_context", False))
         self._require_context = bool(extra.get("require_context", False))
         self._min_confidence = float(extra.get("min_confidence", 0.0))
         self._categories = list(extra.get("categories", []))
-        self._client = SiphonCliClient(
-            executable=self._exe,
-            cmd_style=self._cmd_style,
-            timeout=self.config.timeout,
-            require_context=self._require_context,
-            min_confidence=self._min_confidence,
-            categories=self._categories,
-        )
+
+        if self._transport == "http":
+            self._http_client: SiphonHttpClient | None = SiphonHttpClient(
+                base_url=self.config.base_url or "http://localhost:8080",
+                api_key=self.config.api_key,
+                timeout=self.config.timeout,
+            )
+            self._client: SiphonCliClient | None = None
+        else:
+            self._http_client = None
+            exe = extra.get("executable", "siphon")
+            cmd_style = extra.get("cmd_style", "binary")
+            self._client = SiphonCliClient(
+                executable=exe,
+                cmd_style=cmd_style,
+                timeout=self.config.timeout,
+                require_context=self._require_context,
+                min_confidence=self._min_confidence,
+                categories=self._categories,
+            )
+
+    async def teardown(self) -> None:
+        if self._transport == "http" and self._http_client is not None:
+            await self._http_client.close()
 
     async def health_check(self) -> bool:
-        return await self._client.health_check()
+        if self._transport == "http":
+            return await self._http_client.health_check()  # type: ignore[union-attr]
+        return await self._client.health_check()  # type: ignore[union-attr]
 
     async def submit(self, payload: Payload, variant: Variant) -> ScanResult:
         strategy = variant.strategy
 
-        if strategy == "text":
+        if self._transport == "http":
+            # HTTP transport: always submits as text (siphon-api /scan endpoint).
+            # File-format strategies are decoded to UTF-8 before submission —
+            # adequate for regex-layer evasion tests; for file-extraction pipeline
+            # tests use transport=cli which invokes ``siphon scan <file>``.
+            text = variant.value
+            if self._wrap_context:
+                text = get_keyword_sentence(random.Random(), payload.category, text)
+            if strategy != "text":
+                data, _ = FileBuilder.build(variant.value, strategy)
+                matches = await self._http_client.scan_file_bytes(data, f".{strategy}")  # type: ignore[union-attr]
+            else:
+                matches = await self._http_client.scan_text(text)  # type: ignore[union-attr]
+        elif strategy == "text":
             text = variant.value
             if self._wrap_context:
                 # Siphon's rules often require keyword context to fire. Wrap
                 # the bare variant in a realistic sentence so detection rates
-                # reflect what a scanner would see in real documents. The
-                # original variant.value stays in the result for reporting.
+                # reflect what a scanner would see in real documents.
                 text = get_keyword_sentence(random.Random(), payload.category, text)
-            matches = await self._client.scan_text(text)
+            matches = await self._client.scan_text(text)  # type: ignore[union-attr]
         else:
             data, _ = FileBuilder.build(variant.value, strategy)
-            matches = await self._client.scan_file_bytes(data, f".{strategy}")
+            matches = await self._client.scan_file_bytes(data, f".{strategy}")  # type: ignore[union-attr]
 
         detected = len(matches) > 0
         enrichment = self._parse_enrichment(matches)

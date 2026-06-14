@@ -446,6 +446,17 @@ def _print_summary(results, err_console):
     help="Path to scanner executable (dlpscan-cli / siphon-cli adapters)",
 )
 @click.option(
+    "--transport",
+    "transport",
+    default="cli",
+    type=click.Choice(["cli", "http"]),
+    show_default=True,
+    help="siphon-cli transport: 'cli' spawns siphon as a subprocess; "
+    "'http' POSTs to a running siphon serve / siphon-api server "
+    "(use --url and --api-key to configure the endpoint). "
+    "HTTP mode is ~25x faster — no subprocess spawn overhead.",
+)
+@click.option(
     "--cmd-style",
     "cmd_style",
     default=None,
@@ -623,6 +634,7 @@ def scan(
     tier,
     scanner_label,
     executable,
+    transport,
     cmd_style,
     min_detection_rate,
     save_baseline,
@@ -723,6 +735,12 @@ def scan(
             c2_url = cfg.c2_url
         if _is_default("c2_key") and cfg.c2_key is not None:
             c2_key = cfg.c2_key
+        if _is_default("transport") and cfg.transport is not None:
+            transport = cfg.transport
+        if _is_default("url") and cfg.url is not None:
+            url = cfg.url
+        if _is_default("api_key") and cfg.api_key is not None:
+            api_key = cfg.api_key
 
     # ── Auto-enable wrap_context for dlpscan-rs / siphon ──────────────────────
     # Both Rust scanners require surrounding context keywords to fire most
@@ -875,6 +893,8 @@ def scan(
     config = {"base_url": url, "api_key": api_key, "timeout": timeout}
     if executable:
         config["executable"] = executable
+    if transport and transport != "cli":
+        config["transport"] = transport
     if cmd_style:
         config["cmd_style"] = cmd_style
     if require_context:

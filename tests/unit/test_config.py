@@ -266,3 +266,67 @@ def test_default_config_yaml_is_valid(tmp_path):
     assert cfg.tool == "dlpscan-cli"
     assert cfg.concurrency == 32
     assert cfg.format == "json"
+
+
+# ── transport / url / api_key config keys (v3.29.0+) ─────────────────────────
+
+def test_transport_http_is_accepted(tmp_path):
+    cfg_file = _write_yaml(tmp_path, "transport: http\n")
+    cfg = load_config(cfg_file)
+    assert cfg.transport == "http"
+
+
+def test_transport_cli_is_accepted(tmp_path):
+    cfg_file = _write_yaml(tmp_path, "transport: cli\n")
+    cfg = load_config(cfg_file)
+    assert cfg.transport == "cli"
+
+
+def test_transport_invalid_raises(tmp_path):
+    import click
+    cfg_file = _write_yaml(tmp_path, "transport: ftp\n")
+    with pytest.raises(click.UsageError, match="transport"):
+        load_config(cfg_file)
+
+
+def test_url_string_is_accepted(tmp_path):
+    cfg_file = _write_yaml(tmp_path, "url: http://localhost:8090\n")
+    cfg = load_config(cfg_file)
+    assert cfg.url == "http://localhost:8090"
+
+
+def test_url_null_is_accepted(tmp_path):
+    cfg_file = _write_yaml(tmp_path, "url: null\n")
+    cfg = load_config(cfg_file)
+    assert cfg.url is None
+
+
+def test_url_wrong_type_raises(tmp_path):
+    import click
+    cfg_file = _write_yaml(tmp_path, "url: 8080\n")
+    with pytest.raises(click.UsageError, match="url"):
+        load_config(cfg_file)
+
+
+def test_api_key_string_is_accepted(tmp_path):
+    cfg_file = _write_yaml(tmp_path, "api_key: mysecretkey\n")
+    cfg = load_config(cfg_file)
+    assert cfg.api_key == "mysecretkey"
+
+
+def test_api_key_null_is_accepted(tmp_path):
+    cfg_file = _write_yaml(tmp_path, "api_key: null\n")
+    cfg = load_config(cfg_file)
+    assert cfg.api_key is None
+
+
+def test_transport_url_and_api_key_together(tmp_path):
+    cfg_file = _write_yaml(tmp_path, (
+        "transport: http\n"
+        "url: http://siphon.internal:8080\n"
+        "api_key: bench-key\n"
+    ))
+    cfg = load_config(cfg_file)
+    assert cfg.transport == "http"
+    assert cfg.url == "http://siphon.internal:8080"
+    assert cfg.api_key == "bench-key"

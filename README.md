@@ -39,6 +39,35 @@ evadex report results/scan.json      # generate HTML report
 
 ---
 
+## HTTP transport (recommended for Siphon)
+
+For faster scanning start Siphon in server mode:
+
+```bash
+siphon serve --port 8080 --api-key $YOUR_KEY
+```
+
+Then scan via HTTP — 12x faster than CLI mode:
+
+```bash
+evadex scan --transport http --url http://localhost:8080 --api-key $YOUR_KEY --tier northam
+```
+
+Or configure in `evadex.yaml`:
+
+```yaml
+transport: http
+url: http://localhost:8080
+api_key: your-key   # or set EVADEX_API_KEY env var
+```
+
+| Mode | Throughput | Northam scan time |
+|------|-----------|-------------------|
+| CLI (default) | ~11/sec | ~45 min |
+| HTTP | ~131/sec | ~4 min |
+
+---
+
 ## Tiers
 
 | Tier | Focus | Est. Time | When to use |

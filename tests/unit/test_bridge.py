@@ -104,6 +104,10 @@ def audit_tree(tmp_path: Path) -> Path:
 def client(audit_tree: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setenv("EVADEX_BRIDGE_ROOT", str(audit_tree))
     monkeypatch.delenv("EVADEX_BRIDGE_KEY", raising=False)
+    # Without a real siphon binary on PATH the /v1/evadex/run endpoint returns
+    # 503. Set EVADEX_BRIDGE_EXE so _resolve_siphon_exe() returns a stub path
+    # and the tests can exercise the endpoint logic without a live binary.
+    monkeypatch.setenv("EVADEX_BRIDGE_EXE", "/fake/siphon")
     runs_mod.reset()
     app = create_app()
     return TestClient(app)
