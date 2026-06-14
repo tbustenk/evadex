@@ -135,7 +135,7 @@ def test_profile_run_output_dir_emits_output_flag_in_dry_run(tmp_path):
     # output to a single line before checking for filename fragments.
     flat = res.stdout.replace("\n", "")
     assert "--output" in res.stdout
-    assert "with-out-dir_" in res.stdout
+    assert "with-out-dir_" in flat
     assert "_scan.json" in flat
     assert "_falsepos.json" in flat
     # The dry-run branch only prints argv; the actual mkdir of output.dir

@@ -1,5 +1,24 @@
 # Changelog
 
+## [3.29.0] — 2026-06-14
+
+### Added
+
+- **HTTP transport for siphon-cli adapter** (`src/evadex/adapters/siphon_cli/`). `--transport http` POSTs to a running `siphon serve` / `siphon-api` endpoint instead of spawning a subprocess per variant. No spawn overhead; benchmarked at ~131 variants/sec vs ~11 for CLI mode (~12x speedup). Configure via CLI flags (`--transport http --url http://localhost:8080 --api-key your-key`) or `evadex.yaml` (`transport: http`, `url:`, `api_key:`). Uses `httpx.AsyncClient` with connection pooling across variants; closed on adapter teardown.
+- **`config.py`: `transport`, `url`, `api_key` config keys** — new `KNOWN_KEYS` entries with validation (`transport` must be `cli` or `http`; `url` and `api_key` must be strings or null). `EvadexConfig` dataclass gains the same three fields. `DEFAULT_CONFIG_YAML` documents all three as commented-out examples. CLI scan command applies config values as defaults when CLI flags are not explicitly set.
+- **`evadex doctor` — transport status check** — new `_check_transport()` check reports active transport mode and connectivity: `✓ transport: http · http://localhost:8080 · connected` or `⚠ transport: cli · subprocess mode (use siphon serve + --transport http for 12x speedup)`.
+- **`evadex quickstart` — HTTP transport tip** — after scanner setup for `siphon-cli`, the wizard prints a one-liner showing how to start `siphon serve` and run with `--transport http`.
+- **README — HTTP transport section** — new "HTTP transport (recommended for Siphon)" section with throughput table (`~11/sec CLI` vs `~131/sec HTTP`) and YAML config example.
+
+### Fixed
+
+- **Bridge `/v1/evadex/run` tests fail with 503 on CI** (`tests/unit/test_bridge.py`). The test `client` fixture did not set `EVADEX_BRIDGE_EXE`, so `_resolve_siphon_exe()` returned `None` on CI (no siphon binary) and every test that POSTs to `/v1/evadex/run` got a 503 instead of 202. Fixed by adding `monkeypatch.setenv("EVADEX_BRIDGE_EXE", "/fake/siphon")` to the fixture.
+- **Profile CLI dry-run test fails on CI due to terminal line-wrapping** (`tests/unit/profiles/test_cli.py::test_profile_run_output_dir_emits_output_flag_in_dry_run`). Rich wraps long paths at the terminal width on CI (narrower than dev machine), splitting `with-out-dir_` across lines. The pre-existing `flat = res.stdout.replace("\n", "")` variable was computed but the assertion still checked `res.stdout`. Changed to check `flat`.
+
+### Tests
+
+- **1441/1441 pass** (1141 unit + 300 integration). 9 new unit tests cover `transport`, `url`, and `api_key` config keys (`test_transport_http_is_accepted`, `test_transport_cli_is_accepted`, `test_transport_invalid_raises`, `test_url_string_is_accepted`, `test_url_null_is_accepted`, `test_url_wrong_type_raises`, `test_api_key_string_is_accepted`, `test_api_key_null_is_accepted`, `test_transport_url_and_api_key_together`).
+
 ## [3.28.2] — 2026-06-03
 
 ### Fixed

@@ -179,6 +179,41 @@ def _check_audit_log() -> _Check:
         return _Check(False, f"audit log not writable at {p}: {exc}")
 
 
+def _check_transport() -> _Check:
+    """Report the active transport mode (cli vs http) and connectivity."""
+    from evadex.config import find_config, load_config
+
+    transport = "cli"
+    url = "http://localhost:8080"
+    try:
+        cfg_path = find_config()
+        if cfg_path:
+            cfg = load_config(cfg_path)
+            if cfg.transport:
+                transport = cfg.transport
+            if cfg.url:
+                url = cfg.url
+    except Exception:
+        pass
+
+    if transport == "http":
+        reachable = _bridge_reachable(url.rstrip("/") + "/health")
+        if reachable:
+            return _Check(True, f"transport: http · {url} · connected")
+        return _Check(
+            True,
+            f"transport: http · {url} · not reachable "
+            "(start siphon serve or run `evadex scan --transport cli`)",
+            warn=True,
+        )
+    return _Check(
+        True,
+        "transport: cli · subprocess mode "
+        "(use siphon serve + --transport http for 12x speedup)",
+        warn=True,
+    )
+
+
 def _check_default_tier() -> _Check:
     try:
         from evadex.payloads.tiers import get_tier_categories
@@ -240,6 +275,7 @@ def _run_checks() -> list[_Check]:
     results.append(_check_python())
     results.append(_check_default_tier())
     results.append(_check_siphon())
+    results.append(_check_transport())
 
     # Optional extras — each labelled with the install command so the
     # operator can copy-paste.

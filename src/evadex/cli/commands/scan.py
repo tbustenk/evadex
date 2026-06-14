@@ -735,6 +735,12 @@ def scan(
             c2_url = cfg.c2_url
         if _is_default("c2_key") and cfg.c2_key is not None:
             c2_key = cfg.c2_key
+        if _is_default("transport") and cfg.transport is not None:
+            transport = cfg.transport
+        if _is_default("url") and cfg.url is not None:
+            url = cfg.url
+        if _is_default("api_key") and cfg.api_key is not None:
+            api_key = cfg.api_key
 
     # ── Auto-enable wrap_context for dlpscan-rs / siphon ──────────────────────
     # Both Rust scanners require surrounding context keywords to fire most

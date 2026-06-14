@@ -34,6 +34,8 @@ VALID_CATEGORIES = {
     "unknown",
 }
 VALID_TIERS = {"northam", "banking", "core", "regional", "full"}
+VALID_TRANSPORTS = {"cli", "http"}
+
 KNOWN_KEYS = {
     "tool",
     "strategy",
@@ -58,6 +60,10 @@ KNOWN_KEYS = {
     "evasion_mode",
     # HTTP bridge server settings (v3.16.1+)
     "bridge",
+    # HTTP transport for siphon-cli (v3.29.0+)
+    "transport",
+    "url",
+    "api_key",
 }
 
 # Keys accepted inside the optional top-level ``bridge:`` mapping.
@@ -75,6 +81,11 @@ scanner_label: production
 exe: null
 cmd_style: python
 tier: northam  # North America — Canada and United States  |  banking | core | regional | full
+
+# Transport: cli (subprocess) or http (requires siphon serve)
+# transport: cli  # change to http when siphon serve is running
+# url: http://localhost:8080
+# api_key: ""   # set via EVADEX_API_KEY env var in production
 # categories:     # explicit category list — overrides tier when set
 #   - credit_card
 #   - ssn
@@ -142,6 +153,11 @@ class EvadexConfig:
     # HTTP bridge server settings — only consulted by `evadex bridge` and
     # the FastAPI app. Not used by `evadex scan`.
     bridge: Optional[dict] = None
+    # HTTP transport for siphon-cli (v3.29.0+). 'cli' spawns a subprocess;
+    # 'http' POSTs to a running siphon serve / siphon-api endpoint (12x faster).
+    transport: Optional[str] = None
+    url: Optional[str] = None
+    api_key: Optional[str] = None
 
 
 def find_config() -> Optional[Path]:
@@ -399,5 +415,30 @@ def load_config(path: "str | Path") -> EvadexConfig:
                         f"got: {type(v).__name__}"
                     )
             cfg.bridge = dict(val)
+
+    if "transport" in raw:
+        val = raw["transport"]
+        if val is not None and val not in VALID_TRANSPORTS:
+            raise click.UsageError(
+                f"Config 'transport' must be one of: {', '.join(sorted(VALID_TRANSPORTS))}, "
+                f"got: {val!r}"
+            )
+        cfg.transport = val
+
+    if "url" in raw:
+        val = raw["url"]
+        if val is not None and not isinstance(val, str):
+            raise click.UsageError(
+                f"Config 'url' must be a string or null, got: {type(val).__name__}"
+            )
+        cfg.url = val
+
+    if "api_key" in raw:
+        val = raw["api_key"]
+        if val is not None and not isinstance(val, str):
+            raise click.UsageError(
+                f"Config 'api_key' must be a string or null, got: {type(val).__name__}"
+            )
+        cfg.api_key = val
 
     return cfg
