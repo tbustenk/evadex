@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `evadex` is a scanner-agnostic DLP (data loss prevention) evasion test suite. It takes a sensitive value (credit card, SSN, IBAN, AWS key, etc.), runs it through a battery of evasion techniques (unicode tricks, delimiter swaps, encoding, regional digits, splitting, morse, etc.), embeds each variant in plain text and in real document formats (DOCX/PDF/XLSX/...), submits everything to a configured DLP scanner via an adapter, and reports what slipped through. Python 3.11+, distributed on PyPI, CLI-first (`evadex = evadex.cli.app:main`).
 
-Current version: **3.29.0** (see `pyproject.toml`; CHANGELOG is the user-facing release notes). Test suite: **1141 unit + 300 integration = 1441** total; **all 1441 tests pass**. CI runs `tests/unit` on Python 3.11 and 3.13 plus a Docker image-build step (`.github/workflows/ci.yml`).
+Current version: **3.29.1** (see `pyproject.toml`; CHANGELOG is the user-facing release notes). Test suite: **1141 unit + 300 integration = 1441** total; **all 1441 tests pass**. CI runs `tests/unit` on Python 3.11 and 3.13 plus a Docker image-build step (`.github/workflows/ci.yml`).
 
 ## Common commands
 
@@ -118,6 +118,24 @@ Several Python scripts at the repo root (`evadex_regressions.py`, `check_*.py`, 
 ## Recent additions and gotchas
 
 These are behaviours added in recent point releases that aren't obvious from the code structure alone. Knowing them avoids re-deriving the same questions.
+
+### Bridge push-results-to-siphon (v3.29.1)
+On successful scan completion, `_execute()` in `src/evadex/bridge/runs.py` fires
+a background `asyncio.create_task(_push_results_to_siphon(...))`. That function:
+1. Reads the `--output <tmpfile>` JSON (full results, not the 4 KiB tail).
+2. POSTs to `SIPHON_API_URL/v1/evadex/runs` with `run_id`, `tier`,
+   `evasion_mode`, and `strategy` merged into the payload.
+3. Sends `Authorization: Bearer $SIPHON_API_KEY` when the env var is set — the
+   key is **never logged**.
+4. Deletes the temp file in a `finally` block regardless of push outcome.
+5. Silently no-ops when `SIPHON_API_URL` is not set.
+
+New bridge env vars:
+
+| Variable | Default | Notes |
+|---|---|---|
+| `SIPHON_API_URL` | — | siphon-api base URL, e.g. `http://localhost:8080`; push disabled when unset |
+| `SIPHON_API_KEY` | — | forwarded as `x-api-key` header; optional if siphon-api auth is off |
 
 ### HTTP transport for siphon-cli (v3.29.0)
 `--transport http` / `transport: http` in `evadex.yaml` switches `SiphonCliAdapter` from subprocess mode to HTTP mode. Instead of spawning `siphon scan-text` per variant, it POSTs to a running `siphon serve` / `siphon-api` endpoint via `SiphonHttpClient` (`src/evadex/adapters/siphon_cli/client.py`). One persistent `httpx.AsyncClient` is shared across all variants; closed on `adapter.teardown()`. Three new `evadex.yaml` keys: `transport` (`cli`/`http`), `url` (default `http://localhost:8080`), `api_key`. The `EVADEX_API_KEY` env var also works as the api_key source. `evadex doctor` now shows transport mode and connectivity. **Benchmark caveat**: the siphon-api instance on this machine (ports 8090/8091) enforces a ~120 req/s rate limit that throttles evadex's async concurrency — run with `--concurrency 5` or lower to avoid 429s, or point at a rate-limit-free instance for accurate throughput numbers.

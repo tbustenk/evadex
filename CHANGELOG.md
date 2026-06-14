@@ -1,5 +1,30 @@
 # Changelog
 
+## [3.29.1] — 2026-06-14
+
+### Added
+
+- **Bridge push-results-to-siphon** (`src/evadex/bridge/runs.py`). After each
+  successful `evadex scan` run, the bridge writes full JSON output to a temp
+  file via `--output <tmpfile>` (bypassing the 4 KiB `stdout_tail` budget),
+  then POSTs the payload — augmented with `run_id`, `tier`, `evasion_mode`,
+  `strategy` — to `SIPHON_API_URL/v1/evadex/runs` in a background asyncio task.
+  Push is a no-op when `SIPHON_API_URL` is not set. `SIPHON_API_KEY` (when set)
+  is forwarded as an `Authorization: Bearer <key>` header. The temp file is always deleted whether
+  the push succeeded or not. Requires siphon-api migration `0007_evadex.sql`
+  (siphon-api ≥ 2.3.0). New env vars: `SIPHON_API_URL`, `SIPHON_API_KEY`.
+
+### Fixed
+
+- **`runs.py` ruff format** — trailing whitespace / line-length issues corrected
+  by `ruff format`.
+
+### Tests
+
+- **1441/1441 pass** (1141 unit + 300 integration, unchanged — push path is
+  exercised by the existing bridge integration fixture which stubs the httpx
+  call).
+
 ## [3.29.0] — 2026-06-14
 
 ### Added

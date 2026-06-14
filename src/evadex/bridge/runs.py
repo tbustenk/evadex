@@ -413,9 +413,7 @@ async def _execute(run_id: str, argv: list[str], cwd: Optional[str]) -> None:
         rec.pop("_proc", None)
 
 
-async def _push_results_to_siphon(
-    run_id: str, output_file: str, rec: dict
-) -> None:
+async def _push_results_to_siphon(run_id: str, output_file: str, rec: dict) -> None:
     """Push completed scan results to the siphon-api evadex ingest endpoint.
 
     Reads the --output JSON file written by the evadex CLI, augments it
@@ -437,7 +435,9 @@ async def _push_results_to_siphon(
         with open(output_file, encoding="utf-8") as fh:
             scan_data = _json.load(fh)
     except Exception as exc:
-        log.warning("[bridge/run %s] siphon push: cannot read output file: %r", run_id, exc)
+        log.warning(
+            "[bridge/run %s] siphon push: cannot read output file: %r", run_id, exc
+        )
         return
     finally:
         try:
@@ -457,7 +457,7 @@ async def _push_results_to_siphon(
     headers: dict[str, str] = {"content-type": "application/json"}
     siphon_key = os.environ.get("SIPHON_API_KEY")
     if siphon_key:
-        headers["x-api-key"] = siphon_key
+        headers["authorization"] = f"Bearer {siphon_key}"
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -474,7 +474,11 @@ async def _push_results_to_siphon(
                 resp.text[:200],
             )
         else:
-            log.info("[bridge/run %s] results pushed to siphon (%s)", run_id, resp.status_code)
+            log.info(
+                "[bridge/run %s] results pushed to siphon (%s)",
+                run_id,
+                resp.status_code,
+            )
     except Exception as exc:
         log.warning("[bridge/run %s] siphon push error: %r", run_id, exc)
 
