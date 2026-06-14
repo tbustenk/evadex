@@ -18,8 +18,11 @@ import logging
 import os
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from typing import Optional
+
+import httpx
 
 
 # Use the uvicorn error logger so argv + run-failure lines show up in
@@ -227,8 +230,8 @@ def get_run(run_id: str) -> Optional[dict]:
     err = _summarise_error(rec)
     if err:
         view["error"] = err
-    # Hide internal plumbing (asyncio handle, cancel flag, exception).
-    for k in ("_exception", "_proc", "_cancel_requested"):
+    # Hide internal plumbing (asyncio handle, cancel flag, exception, output file).
+    for k in ("_exception", "_proc", "_cancel_requested", "_output_file"):
         view.pop(k, None)
     # recent_results is only meaningful while the scan is active; strip it
     # from terminal-run views so clients don't cache stale live data.
@@ -387,6 +390,11 @@ async def _execute(run_id: str, argv: list[str], cwd: Optional[str]) -> None:
         # tick was missed (e.g. output buffering on Windows).
         if rec["status"] == STATUS_COMPLETED:
             rec["progress"] = 100.0
+            output_file = rec.get("_output_file")
+            if output_file:
+                asyncio.create_task(
+                    _push_results_to_siphon(run_id, output_file, dict(rec))
+                )
         if rec["status"] == STATUS_FAILED:
             log.warning(
                 "[bridge/run %s] exit=%s stderr=%r",
@@ -403,6 +411,76 @@ async def _execute(run_id: str, argv: list[str], cwd: Optional[str]) -> None:
     finally:
         rec["finished_at"] = _now()
         rec.pop("_proc", None)
+
+
+async def _push_results_to_siphon(run_id: str, output_file: str, rec: dict) -> None:
+    """Push completed scan results to the siphon-api evadex ingest endpoint.
+
+    Reads the --output JSON file written by the evadex CLI, augments it
+    with bridge-side metadata (run_id, tier, evasion_mode, strategy), and
+    POSTs to ``SIPHON_API_URL/v1/evadex/runs``.  No-ops silently when
+    ``SIPHON_API_URL`` is not set.  Cleans up the temp file when done
+    (whether the push succeeded or not).
+    """
+    siphon_url = os.environ.get("SIPHON_API_URL", "").rstrip("/")
+    if not siphon_url:
+        # env var not set → persistence disabled; clean up the temp file.
+        try:
+            os.unlink(output_file)
+        except OSError:
+            pass
+        return
+
+    try:
+        with open(output_file, encoding="utf-8") as fh:
+            scan_data = _json.load(fh)
+    except Exception as exc:
+        log.warning(
+            "[bridge/run %s] siphon push: cannot read output file: %r", run_id, exc
+        )
+        return
+    finally:
+        try:
+            os.unlink(output_file)
+        except OSError:
+            pass
+
+    body = rec.get("request", {})
+    push_data = {
+        **scan_data,
+        "run_id": run_id,
+        "tier": body.get("tier"),
+        "evasion_mode": body.get("evasion_mode"),
+        "strategy": body.get("strategy") or (body.get("strategies") or [None])[0],
+    }
+
+    headers: dict[str, str] = {"content-type": "application/json"}
+    siphon_key = os.environ.get("SIPHON_API_KEY")
+    if siphon_key:
+        headers["authorization"] = f"Bearer {siphon_key}"
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"{siphon_url}/v1/evadex/runs",
+                json=push_data,
+                headers=headers,
+            )
+        if resp.status_code >= 400:
+            log.warning(
+                "[bridge/run %s] siphon push failed: HTTP %s · %s",
+                run_id,
+                resp.status_code,
+                resp.text[:200],
+            )
+        else:
+            log.info(
+                "[bridge/run %s] results pushed to siphon (%s)",
+                run_id,
+                resp.status_code,
+            )
+    except Exception as exc:
+        log.warning("[bridge/run %s] siphon push error: %r", run_id, exc)
 
 
 async def cancel_run(run_id: str) -> dict:
@@ -461,6 +539,10 @@ def launch(body: dict, cwd: Optional[str] = None) -> dict:
     """
     run_id = _allocate_run_id()
     argv = _build_scan_argv(body)
+    # Write full JSON output to a temp file so the push-to-siphon path
+    # is not constrained by the 4 KiB stdout_tail budget.
+    output_file = os.path.join(tempfile.gettempdir(), f"evadex-{run_id}.json")
+    argv += ["--output", output_file]
     record = {
         "status": STATUS_QUEUED,
         "started_at": _now(),
@@ -478,6 +560,8 @@ def launch(body: dict, cwd: Optional[str] = None) -> dict:
         "elapsed_s": 0.0,
         # Live test results for frontend display
         "recent_results": [],
+        # Internal: path to the --output file (stripped from public view).
+        "_output_file": output_file,
     }
     _RUNS[run_id] = record
     asyncio.create_task(_execute(run_id, argv, cwd))
