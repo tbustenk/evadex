@@ -34,7 +34,7 @@ VALID_CATEGORIES = {
     "unknown",
 }
 VALID_TIERS = {"northam", "banking", "core", "regional", "full"}
-VALID_TRANSPORTS = {"cli", "http"}
+VALID_TRANSPORTS = {"cli", "http", "auto"}
 
 KNOWN_KEYS = {
     "tool",

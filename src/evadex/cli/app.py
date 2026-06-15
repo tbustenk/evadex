@@ -26,6 +26,7 @@ from evadex.cli.commands.diff import diff
 from evadex.cli.commands.validate import validate
 from evadex.cli.commands.status import status
 from evadex.cli.commands.cache import cache
+from evadex.cli.commands.watch import watch
 
 # Ensure stdout/stderr use UTF-8 on Windows so that Rich tables with Unicode
 # box-drawing characters and special symbols render without codec errors.
@@ -75,3 +76,4 @@ main.add_command(diff)
 main.add_command(validate)
 main.add_command(status)
 main.add_command(cache)
+main.add_command(watch)
