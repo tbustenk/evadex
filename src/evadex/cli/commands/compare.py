@@ -419,6 +419,62 @@ def _find_scan_before(
     return best_path
 
 
+def _find_baseline_for(
+    current_path: str, scan_dir: Path = Path("results/scans")
+) -> str | None:
+    """Find the most recent scan before *current_path* with the same scanner label."""
+    if not scan_dir.exists():
+        return None
+    # Load current to get scanner label
+    try:
+        with open(current_path, encoding="utf-8") as f:
+            current_data = json.load(f)
+        scanner_label = (current_data.get("meta") or {}).get("scanner") or ""
+    except Exception:
+        return None
+    # Get timestamp of current file
+    _TS_RE = re.compile(r"scan_(\d{8}T\d{6}Z)_")
+    current_name = Path(current_path).name
+    m_cur = _TS_RE.match(current_name)
+    current_ts = None
+    if m_cur:
+        try:
+            current_ts = datetime.strptime(m_cur.group(1), "%Y%m%dT%H%M%SZ").replace(
+                tzinfo=timezone.utc
+            )
+        except ValueError:
+            pass
+    best_path: str | None = None
+    best_dt: datetime | None = None
+    for p in scan_dir.glob("scan_*.json"):
+        if str(p) == current_path:
+            continue
+        m = _TS_RE.match(p.name)
+        if not m:
+            continue
+        try:
+            ts = datetime.strptime(m.group(1), "%Y%m%dT%H%M%SZ").replace(
+                tzinfo=timezone.utc
+            )
+        except ValueError:
+            continue
+        if current_ts is not None and ts >= current_ts:
+            continue
+        # Check scanner label
+        try:
+            with open(p, encoding="utf-8") as f:
+                d = json.load(f)
+            label = (d.get("meta") or {}).get("scanner") or ""
+        except Exception:
+            continue
+        if scanner_label and label != scanner_label:
+            continue
+        if best_dt is None or ts > best_dt:
+            best_dt = ts
+            best_path = str(p)
+    return best_path
+
+
 def _find_latest_scan(scan_dir: Path = Path("results/scans")) -> str | None:
     """Return the most-recent scan file in *scan_dir*."""
     if not scan_dir.exists():
@@ -473,6 +529,13 @@ def _find_latest_scan(scan_dir: Path = Path("results/scans")) -> str | None:
     "With one positional arg it is file_b; with none, latest is file_b.",
 )
 @click.option(
+    "--baseline",
+    "baseline",
+    default=None,
+    help="Auto-resolve baseline: 'auto' picks the most recent prior scan with "
+    "the same scanner label as the current file.",
+)
+@click.option(
     "--c2-url",
     "c2_url",
     default=None,
@@ -487,7 +550,7 @@ def _find_latest_scan(scan_dir: Path = Path("results/scans")) -> str | None:
     envvar="EVADEX_C2_KEY",
     help="API key sent as 'x-api-key' to Siphon-C2. Falls back to EVADEX_C2_KEY.",
 )
-def compare(files, fmt, output, label_a, label_b, since_str, c2_url, c2_key):
+def compare(files, fmt, output, label_a, label_b, since_str, baseline, c2_url, c2_key):
     """Compare two evadex scan result JSON files and report differences.
 
     \b
@@ -497,7 +560,66 @@ def compare(files, fmt, output, label_a, label_b, since_str, c2_url, c2_key):
       evadex compare --since 7d                 # latest scan vs 7 days ago
       evadex compare --since 2026-04-20         # latest vs specific date
       evadex compare a.json b.json --format html --output diff.html
+      evadex compare --baseline auto            # latest vs most recent prior same-scanner scan
+      evadex compare b.json --baseline auto     # b.json vs most recent prior same-scanner scan
     """
+    # ── --baseline auto ─────────────────────────────────────────────────────
+    if baseline == "auto":
+        if len(files) == 0:
+            resolved_b = _find_latest_scan()
+            if resolved_b is None:
+                err_console.print(
+                    "[red]--baseline auto: no archived scans found in results/scans/.[/red]"
+                )
+                sys.exit(1)
+        elif len(files) == 1:
+            resolved_b = files[0]
+        else:
+            resolved_b = files[1]
+        resolved_a = _find_baseline_for(resolved_b)
+        if resolved_a is None:
+            err_console.print(
+                "[red]--baseline auto: no prior scan with the same scanner label "
+                "found in results/scans/.[/red]"
+            )
+            sys.exit(1)
+        err_console.print(
+            f"[dim]--baseline auto: "
+            f"[bold]{Path(resolved_a).name}[/bold] → "
+            f"[bold]{Path(resolved_b).name}[/bold][/dim]"
+        )
+        path_a, path_b = resolved_a, resolved_b
+        data_a = _load(path_a)
+        data_b = _load(path_b)
+        comparison = build_comparison(data_a, data_b)
+        if label_a:
+            comparison["label_a"] = label_a
+        if label_b:
+            comparison["label_b"] = label_b
+        _print_visual_diff(comparison, err_console)
+        if fmt == "html":
+            reporter = CompareHtmlReporter()
+        else:
+            reporter = CompareReporter()
+        rendered = reporter.render(comparison)
+        if output:
+            try:
+                with open(output, "w", encoding="utf-8") as f:
+                    f.write(rendered)
+            except OSError as e:
+                err_console.print(
+                    f"[red]Cannot write output file '{output}': {e.strerror}[/red]"
+                )
+                sys.exit(1)
+            err_console.print(f"[dim]Comparison report written to {output}[/dim]")
+        else:
+            click.echo(rendered)
+        from evadex.reporters.c2_reporter import push_comparison, resolve_c2_config
+        _c2_url, _c2_key = resolve_c2_config(c2_url, c2_key)
+        if _c2_url:
+            push_comparison(_c2_url, _c2_key, comparison=comparison)
+        return
+
     # ── Resolve file_a and file_b ─────────────────────────────────────────────
     if since_str is not None:
         since_dt = _parse_since(since_str)

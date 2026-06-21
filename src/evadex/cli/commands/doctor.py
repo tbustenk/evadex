@@ -199,7 +199,7 @@ def _check_transport() -> _Check:
     if transport == "http":
         reachable = _bridge_reachable(url.rstrip("/") + "/health")
         if reachable:
-            return _Check(True, f"transport: http · {url} · connected")
+            return _Check(True, f"transport: http · {url} · connected · ~131 scans/sec")
         return _Check(
             True,
             f"transport: http · {url} · not reachable "
@@ -210,7 +210,7 @@ def _check_transport() -> _Check:
         reachable = _bridge_reachable(url.rstrip("/") + "/health")
         if reachable:
             return _Check(
-                True, f"transport: auto → http · {url} · connected (12x faster)"
+                True, f"transport: auto → http · {url} · connected · ~131 scans/sec (12× faster than CLI)"
             )
         return _Check(
             True,
@@ -220,8 +220,7 @@ def _check_transport() -> _Check:
         )
     return _Check(
         True,
-        "transport: cli · subprocess mode "
-        "(use siphon serve + --transport http for 12x speedup)",
+        "transport: cli · subprocess mode (~11 scans/sec — use siphon serve + --transport http for 12× speedup)",
         warn=True,
     )
 

@@ -58,12 +58,31 @@ _console = Console()
     ),
     help="evadex payload tier to scan against.",
 )
+@click.option(
+    "--baseline",
+    "baseline_mode",
+    type=click.Choice(["fixed", "sliding"], case_sensitive=False),
+    default="fixed",
+    show_default=True,
+    help="Baseline mode: 'fixed' uses the first run (default); 'sliding' uses "
+    "a rolling average of the last --window runs.",
+)
+@click.option(
+    "--window",
+    "window",
+    default=5,
+    type=int,
+    show_default=True,
+    help="Number of recent runs to average for the sliding baseline (used with --baseline sliding).",
+)
 def watch(
     scanner_label: str,
     threshold: float,
     interval: int,
     webhook: Optional[str],
     tier: str,
+    baseline_mode: str,
+    window: int,
 ) -> None:
     """Watch Siphon for detection-rate regressions.
 
@@ -85,6 +104,8 @@ def watch(
                 interval=interval,
                 webhook=webhook,
                 tier=tier,
+                baseline_mode=baseline_mode,
+                window=window,
             )
         )
     except KeyboardInterrupt:
@@ -98,6 +119,8 @@ async def _watch_loop(
     interval: int,
     webhook: Optional[str],
     tier: str,
+    baseline_mode: str = "fixed",
+    window: int = 5,
 ) -> None:
     _console.print(
         f"[bold]evadex watch[/bold] · tool=[cyan]{scanner_label}[/cyan] "
@@ -106,6 +129,7 @@ async def _watch_loop(
     )
 
     baseline_rate: Optional[float] = None
+    recent_rates: list[float] = []  # for sliding mode
     run_count = 0
 
     while True:
@@ -117,28 +141,48 @@ async def _watch_loop(
             _console.print(
                 f"[yellow]⚠[/yellow] run #{run_count}: scan failed — skipping"
             )
-            if baseline_rate is None:
+            if baseline_rate is None and not recent_rates:
                 sys.exit(1)
-        elif baseline_rate is None:
-            baseline_rate = rate
-            _console.print(
-                f"[green]✓[/green] run #{run_count}: baseline "
-                f"[green]{rate:.1f}%[/green] detection rate"
-            )
         else:
-            drop = baseline_rate - rate
-            if drop >= threshold:
-                _console.print(
-                    f"[red]✗[/red] run #{run_count}: REGRESSION — "
-                    f"baseline [cyan]{baseline_rate:.1f}%[/cyan] → "
-                    f"current [red]{rate:.1f}%[/red] (−{drop:.1f}pp)"
-                )
-                await _send_webhook(webhook, scanner_label, tier, baseline_rate, rate, drop)
+            recent_rates.append(rate)
+            # Compute effective baseline
+            if baseline_mode == "sliding":
+                window_rates = recent_rates[-window:]
+                current_baseline = sum(window_rates) / len(window_rates)
+                baseline_label = f"sliding({len(window_rates)}/{window})"
             else:
+                if baseline_rate is None:
+                    baseline_rate = rate
+                current_baseline = baseline_rate
+                baseline_label = "baseline"
+
+            if (baseline_mode == "fixed" and len(recent_rates) == 1) or (
+                baseline_mode == "sliding" and len(recent_rates) <= window
+            ):
                 _console.print(
-                    f"[green]✓[/green] run #{run_count}: OK — "
-                    f"{rate:.1f}% (baseline {baseline_rate:.1f}%, Δ{drop:+.1f}pp)"
+                    f"[green]✓[/green] run #{run_count}: {baseline_label} "
+                    f"[green]{rate:.1f}%[/green] detection rate"
                 )
+            else:
+                # For sliding, compare current run vs sliding baseline of PREVIOUS window
+                if baseline_mode == "sliding":
+                    prev_window = recent_rates[-(window+1):-1] if len(recent_rates) > window else recent_rates[:-1]
+                    compare_baseline = sum(prev_window) / len(prev_window) if prev_window else current_baseline
+                else:
+                    compare_baseline = current_baseline
+                drop = compare_baseline - rate
+                if drop >= threshold:
+                    _console.print(
+                        f"[red]✗[/red] run #{run_count}: REGRESSION — "
+                        f"{baseline_label} [cyan]{compare_baseline:.1f}%[/cyan] → "
+                        f"current [red]{rate:.1f}%[/red] (−{drop:.1f}pp)"
+                    )
+                    await _send_webhook(webhook, scanner_label, tier, compare_baseline, rate, drop)
+                else:
+                    _console.print(
+                        f"[green]✓[/green] run #{run_count}: OK — "
+                        f"{rate:.1f}% ({baseline_label} {compare_baseline:.1f}%, Δ{drop:+.1f}pp)"
+                    )
 
         await asyncio.sleep(interval)
 
