@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.31.0] — 2026-06-21
+
+### Added
+- `evadex ci` — CI/CD quality gate command; exits 0 when detection ≥ threshold, 1 otherwise; supports `--min-detection`, `--max-fp`, `--tier`, `--fast`, `--transport`, `--url`, `--api-key` flags; designed for GitHub Actions / GitLab CI
+- Generic HTTP adapter (`tool: http_generic`) — works with any DLP scanner that exposes a JSON HTTP scan endpoint; configurable `request_field`, `response_path`, `auth_header`, and `method`; registered as `"http_generic"` in the adapter registry
+- HTML report: risk rating badge (`CRITICAL` / `HIGH` / `MEDIUM` / `LOW`) based on bypass rate, shown above the Executive Summary
+- HTML report: Compliance Mapping section linking bypass gaps to PCI DSS 3.4, PIPEDA Section 6, and HIPAA Safe Harbor
+
 ## [3.29.1] — 2026-06-14
 
 ### Added

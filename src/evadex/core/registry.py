@@ -60,3 +60,4 @@ def load_builtins():
     import evadex.adapters.presidio.adapter  # noqa: F401
     import evadex.adapters.siphon.adapter  # noqa: F401
     import evadex.adapters.siphon_cli.adapter  # noqa: F401
+    import evadex.adapters.http_generic.adapter  # noqa: F401

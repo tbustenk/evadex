@@ -193,6 +193,104 @@ def _escape(s: object) -> str:
     )
 
 
+def _risk_rating(detection_rate: float) -> tuple[str, str]:
+    """Return (label, CSS class) for the risk rating based on bypass rate."""
+    bypass = 100.0 - detection_rate
+    if bypass >= 70:
+        return "CRITICAL", "bad"
+    if bypass >= 50:
+        return "HIGH", "bad"
+    if bypass >= 30:
+        return "MEDIUM", "warn"
+    return "LOW", "good"
+
+
+def _risk_rating_html(scan: dict) -> str:
+    detection = scan["meta"].get("pass_rate", 0.0)
+    label, klass = _risk_rating(detection)
+    bypass = round(100.0 - detection, 1)
+    return (
+        f'<div class="card {klass}" style="display:inline-block;margin-bottom:16px">'
+        f'<div class="lbl">Risk Rating</div>'
+        f'<div class="val">{label}</div>'
+        f'<div class="meta" style="font-size:11px;margin-top:4px">'
+        f"{bypass}% bypass rate</div>"
+        f"</div>"
+    )
+
+
+_CC_CATS = frozenset(
+    [
+        "credit_card",
+        "visa",
+        "mastercard",
+        "amex",
+        "discover",
+        "cc",
+        "card_number",
+        "pan",
+        "pci",
+    ]
+)
+_CA_CATS = frozenset(["sin", "ca_sin", "ca_phi", "ca_dl", "can_", "canada"])
+_HEALTH_CATS = frozenset(
+    ["phi", "npi", "health", "medicare", "medicaid", "hipaa", "dea"]
+)
+
+
+def _compliance_mapping(scan: dict) -> str:
+    """Return an HTML section mapping detection gaps to compliance frameworks."""
+    by_cat = scan["meta"].get("summary_by_category", {})
+    if not by_cat:
+        return ""
+
+    def _bypass_rate(cat_name: str) -> float:
+        c = by_cat.get(cat_name, {})
+        total = c.get("pass", 0) + c.get("fail", 0) + c.get("error", 0)
+        if total == 0:
+            return 0.0
+        return round(c.get("fail", 0) / total * 100, 1)
+
+    def _any_cat_weak(keywords: frozenset) -> float | None:
+        for cat in by_cat:
+            cat_lower = cat.lower()
+            if any(k in cat_lower for k in keywords):
+                rate = _bypass_rate(cat)
+                if rate > 30:
+                    return rate
+        return None
+
+    pci_rate = _any_cat_weak(_CC_CATS)
+    pipeda_rate = _any_cat_weak(_CA_CATS)
+    hipaa_rate = _any_cat_weak(_HEALTH_CATS)
+
+    items: list[str] = []
+    if pci_rate is not None:
+        items.append(
+            f"<li><strong>PCI DSS Requirement 3.4</strong> (protect stored account data) — "
+            f"credit card evasion bypass rate {pci_rate}% exceeds acceptable threshold. "
+            f"Recommend adding normalisation rules for delimiter injection, encoding chains, "
+            f"and unicode digit substitution.</li>"
+        )
+    if pipeda_rate is not None:
+        items.append(
+            f"<li><strong>PIPEDA Principle 7 / Section 6</strong> (safeguards for personal "
+            f"information) — Canadian identifier bypass rate {pipeda_rate}% suggests gaps "
+            f"in SIN, health card, and driver licence detection patterns.</li>"
+        )
+    if hipaa_rate is not None:
+        items.append(
+            f"<li><strong>HIPAA Safe Harbor (45 CFR §164.514)</strong> — health identifier "
+            f"bypass rate {hipaa_rate}% risks PHI disclosure. Extend NPI, DEA, and "
+            f"Medicare ID detection coverage.</li>"
+        )
+
+    if not items:
+        return '<p class="meta">No significant compliance gaps detected at current bypass rates.</p>'
+
+    return "<ul>" + "".join(items) + "</ul>"
+
+
 def _executive_summary(scan: dict, falsepos: dict | None) -> str:
     meta = scan["meta"]
     total = meta["total"]
@@ -513,9 +611,13 @@ def _render_html(scan: dict, falsepos: dict | None, raw_combined: dict) -> str:
 </header>
 
 <h2>Executive Summary</h2>
+{_risk_rating_html(scan)}
 <div class="summary">
 {_executive_summary(scan, falsepos)}
 </div>
+
+<h2>Compliance Mapping</h2>
+{_compliance_mapping(scan)}
 
 <h2>Detection Rate</h2>
 {_render_cards(scan)}
