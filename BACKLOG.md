@@ -5,7 +5,7 @@ Last updated: 2026-06-21
 ## Ready to build
 
 ### Medium priority
-- [ ] `evadex export --format parquet` — dump audit log to Parquet for BI tool ingestion
+- [x] `evadex export --format parquet` — dump audit log to Parquet for BI tool ingestion (v3.32.0)
 
 ### Detection coverage gaps (from recent evadex data)
 - [ ] Morse code bypass — ~50% evasion rate; target <30%
@@ -16,6 +16,7 @@ Last updated: 2026-06-21
 - (none)
 
 ## Recently completed
+- [x] v3.32.0 — parquet export, Netskope adapter, capital-markets evasion variants (ISIN/CUSIP/SEDOL/LEI/FIGI/RIC)
 - [x] v3.31.0 — `evadex ci` quality gate command, generic HTTP adapter, HTML report risk rating + compliance mapping (PR #15)
 - [x] v3.30.1 — compare --baseline auto, techniques --by-category, doctor scans/sec, watch sliding baseline
 - [x] v3.30.0 — auto transport, SSE stream endpoint, regression watch command
