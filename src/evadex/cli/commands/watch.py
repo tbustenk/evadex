@@ -133,7 +133,9 @@ async def _watch_loop(
                     f"baseline [cyan]{baseline_rate:.1f}%[/cyan] → "
                     f"current [red]{rate:.1f}%[/red] (−{drop:.1f}pp)"
                 )
-                await _send_webhook(webhook, scanner_label, tier, baseline_rate, rate, drop)
+                await _send_webhook(
+                    webhook, scanner_label, tier, baseline_rate, rate, drop
+                )
             else:
                 _console.print(
                     f"[green]✓[/green] run #{run_count}: OK — "
