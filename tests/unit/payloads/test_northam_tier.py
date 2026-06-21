@@ -227,13 +227,14 @@ def test_scan_cli_accepts_northam_tier():
         detected=True,
     )
     runner = CliRunner()
-    with patch("evadex.cli.commands.scan.Engine") as ME, \
-         patch.object(DlpscanCliAdapter, "health_check", new_callable=AsyncMock, return_value=True):
-        ME.return_value.run.return_value = [result_obj]
-        result = runner.invoke(main, [
-            "scan", "--input", "4532015112830366", "--strategy", "text",
-            "--tier", "northam",
-        ])
+    with runner.isolated_filesystem():
+        with patch("evadex.cli.commands.scan.Engine") as ME, \
+             patch.object(DlpscanCliAdapter, "health_check", new_callable=AsyncMock, return_value=True):
+            ME.return_value.run.return_value = [result_obj]
+            result = runner.invoke(main, [
+                "scan", "--input", "4532015112830366", "--strategy", "text",
+                "--tier", "northam",
+            ])
     assert result.exit_code == 0, result.output
 
 
