@@ -2,7 +2,6 @@
 import csv
 import io
 import json
-import pytest
 from click.testing import CliRunner
 from evadex.cli.app import main
 
@@ -125,6 +124,50 @@ class TestExportMarkdown:
         result = runner.invoke(main, ["export", scan, "--format", "markdown"])
         assert result.exit_code == 0
         assert "—" in result.output
+
+
+class TestExportParquet:
+    def test_parquet_creates_file(self, tmp_path):
+        scan = _make_scan_file(tmp_path, [_make_result(True), _make_result(False)])
+        out = str(tmp_path / "out.parquet")
+        runner = CliRunner()
+        result = runner.invoke(main, ["export", scan, "--format", "parquet", "--output", out])
+        assert result.exit_code == 0
+        import pathlib
+        assert pathlib.Path(out).exists()
+
+    def test_parquet_row_count(self, tmp_path):
+        scan = _make_scan_file(tmp_path, [_make_result(True), _make_result(False), _make_result(True)])
+        out = str(tmp_path / "out.parquet")
+        runner = CliRunner()
+        result = runner.invoke(main, ["export", scan, "--format", "parquet", "--output", out])
+        assert result.exit_code == 0
+        import pandas as pd
+        df = pd.read_parquet(out)
+        assert len(df) == 3
+
+    def test_parquet_detected_column(self, tmp_path):
+        scan = _make_scan_file(tmp_path, [_make_result(True), _make_result(False)])
+        out = str(tmp_path / "out.parquet")
+        runner = CliRunner()
+        runner.invoke(main, ["export", scan, "--format", "parquet", "--output", out])
+        import pandas as pd
+        df = pd.read_parquet(out)
+        assert df["detected"].dtype == bool
+        assert list(df["detected"]) == [True, False]
+
+    def test_parquet_default_filename(self, tmp_path):
+        scan = _make_scan_file(tmp_path, [_make_result(True)])
+        runner = CliRunner()
+        import os
+        orig = os.getcwd()
+        os.chdir(tmp_path)
+        try:
+            result = runner.invoke(main, ["export", scan, "--format", "parquet"])
+        finally:
+            os.chdir(orig)
+        assert result.exit_code == 0
+        assert (tmp_path / "evadex_export.parquet").exists()
 
 
 class TestExportErrors:

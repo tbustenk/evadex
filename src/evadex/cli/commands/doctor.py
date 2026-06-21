@@ -210,7 +210,8 @@ def _check_transport() -> _Check:
         reachable = _bridge_reachable(url.rstrip("/") + "/health")
         if reachable:
             return _Check(
-                True, f"transport: auto → http · {url} · connected · ~131 scans/sec (12× faster than CLI)"
+                True,
+                f"transport: auto → http · {url} · connected · ~131 scans/sec (12× faster than CLI)",
             )
         return _Check(
             True,

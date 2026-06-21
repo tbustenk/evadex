@@ -55,9 +55,11 @@ def load_builtins():
     import evadex.variants.entropy_evasion  # noqa: F401
     import evadex.variants.barcode_evasion  # noqa: F401
     import evadex.variants.archive_evasion  # noqa: F401
+    import evadex.variants.capital_markets  # noqa: F401
     import evadex.adapters.dlpscan.adapter  # noqa: F401
     import evadex.adapters.dlpscan_cli.adapter  # noqa: F401
     import evadex.adapters.presidio.adapter  # noqa: F401
     import evadex.adapters.siphon.adapter  # noqa: F401
     import evadex.adapters.siphon_cli.adapter  # noqa: F401
     import evadex.adapters.http_generic.adapter  # noqa: F401
+    import evadex.adapters.netskope.adapter  # noqa: F401
