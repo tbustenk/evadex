@@ -42,7 +42,7 @@ _BIN_FIELDS = ("bin_brand", "bin_card_type", "bin_country", "bin_issuer")
 class SiphonCliAdapter(BaseAdapter):
     """Adapter for the Siphon DLP scanner.
 
-    Supports two transports selected by the ``transport`` extra config key:
+    Supports three transports selected by the ``transport`` extra config key:
 
     ``cli`` (default)
         Spawns ``siphon scan-text`` / ``siphon scan`` as a subprocess.
@@ -54,6 +54,12 @@ class SiphonCliAdapter(BaseAdapter):
         Requires ``siphon serve`` (or the ``siphon-api`` binary) to be running.
         Point it at the server with ``base_url`` / ``--url`` and authenticate
         with ``api_key`` / ``--api-key``.
+
+    ``auto``
+        Probes the configured ``base_url`` (default ``http://localhost:8080``)
+        during :meth:`setup`.  Selects ``http`` if reachable, ``cli`` otherwise.
+        Useful for configs that run in both laptop-dev and CI environments
+        without editing ``evadex.yaml``.
     """
 
     name = "siphon-cli"
@@ -67,6 +73,8 @@ class SiphonCliAdapter(BaseAdapter):
         self._min_confidence = float(extra.get("min_confidence", 0.0))
         self._categories = list(extra.get("categories", []))
 
+        exe = extra.get("executable", "siphon")
+        cmd_style = extra.get("cmd_style", "binary")
         if self._transport == "http":
             self._http_client: SiphonHttpClient | None = SiphonHttpClient(
                 base_url=self.config.base_url or "http://localhost:8080",
@@ -74,10 +82,13 @@ class SiphonCliAdapter(BaseAdapter):
                 timeout=self.config.timeout,
             )
             self._client: SiphonCliClient | None = None
-        else:
-            self._http_client = None
-            exe = extra.get("executable", "siphon")
-            cmd_style = extra.get("cmd_style", "binary")
+        elif self._transport == "auto":
+            # Both clients created upfront; setup() resolves which to use.
+            self._http_client = SiphonHttpClient(
+                base_url=self.config.base_url or "http://localhost:8080",
+                api_key=self.config.api_key,
+                timeout=self.config.timeout,
+            )
             self._client = SiphonCliClient(
                 executable=exe,
                 cmd_style=cmd_style,
@@ -86,6 +97,33 @@ class SiphonCliAdapter(BaseAdapter):
                 min_confidence=self._min_confidence,
                 categories=self._categories,
             )
+        else:
+            self._http_client = None
+            self._client = SiphonCliClient(
+                executable=exe,
+                cmd_style=cmd_style,
+                timeout=self.config.timeout,
+                require_context=self._require_context,
+                min_confidence=self._min_confidence,
+                categories=self._categories,
+            )
+
+    async def setup(self) -> None:
+        """Resolve ``auto`` transport by probing the HTTP endpoint."""
+        if self._transport != "auto":
+            return
+        try:
+            reachable = await self._http_client.health_check()  # type: ignore[union-attr]
+        except Exception:
+            reachable = False
+        if reachable:
+            self._transport = "http"
+            self._client = None
+        else:
+            self._transport = "cli"
+            if self._http_client is not None:
+                await self._http_client.close()
+            self._http_client = None
 
     async def teardown(self) -> None:
         if self._transport == "http" and self._http_client is not None:

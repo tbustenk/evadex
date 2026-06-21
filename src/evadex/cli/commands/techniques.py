@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import collections
 import csv
 import io
+import json
 import sys
+from pathlib import Path
 from typing import Optional
 
 import click
@@ -19,6 +22,67 @@ from evadex.feedback.technique_history import (
 
 
 err_console = Console(stderr=True)
+
+
+def _load_category_history(
+    audit_log: str, last_n: int = 10
+) -> dict[str, dict]:
+    """Load audit log and aggregate detection rates by payload category.
+
+    Returns a dict of {category: {'latest': float, 'avg': float, 'runs': int, 'trend': float|None}}.
+    """
+    path = Path(audit_log)
+    if not path.exists():
+        return {}
+
+    # Each entry in the audit log has 'results' list with {payload.category, severity}
+    entries = []
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entries.append(json.loads(line))
+                except Exception:
+                    continue
+    except OSError:
+        return {}
+
+    if not entries:
+        return {}
+
+    # Use last N entries
+    entries = entries[-last_n:]
+
+    # Per-entry, per-category pass rate
+    cat_runs: dict[str, list[float]] = collections.defaultdict(list)
+    for entry in entries:
+        results = entry.get("results") or []
+        if not results:
+            continue
+        cat_counts: dict[str, dict] = collections.defaultdict(lambda: {"pass": 0, "total": 0})
+        for r in results:
+            cat = (r.get("payload") or {}).get("category") or r.get("category") or "unknown"
+            cat_counts[cat]["total"] += 1
+            if (r.get("severity") or r.get("status")) == "PASS":
+                cat_counts[cat]["pass"] += 1
+        for cat, counts in cat_counts.items():
+            if counts["total"] > 0:
+                cat_runs[cat].append(counts["pass"] / counts["total"])
+
+    out = {}
+    for cat, rates in cat_runs.items():
+        if not rates:
+            continue
+        latest = rates[-1]
+        avg = sum(rates) / len(rates)
+        trend = None
+        if len(rates) >= 2:
+            trend = rates[-1] - rates[-2]
+        out[cat] = {"latest": latest, "avg": avg, "runs": len(rates), "trend": trend}
+    return out
 
 
 def _trend_arrow(delta: Optional[float]) -> str:
@@ -85,6 +149,13 @@ def _trend_arrow(delta: Optional[float]) -> str:
     metavar="PATH",
     help="Export technique data as CSV to PATH.",
 )
+@click.option(
+    "--by-category",
+    "by_category",
+    is_flag=True,
+    default=False,
+    help="Show detection rate per payload category instead of per technique.",
+)
 def techniques(
     audit_log: str,
     last_n: int,
@@ -93,6 +164,7 @@ def techniques(
     min_runs: int,
     compare_labels: Optional[tuple[str, str]],
     export_path: Optional[str],
+    by_category: bool,
 ) -> None:
     """Show per-technique scanner-detection success rates from history.
 
@@ -116,6 +188,49 @@ def techniques(
             "weighted/adversarial[/cyan] will fall back to random selection."
         )
         sys.exit(0)
+
+    if by_category:
+        cat_stats = _load_category_history(audit_log, last_n=last_n)
+        if not cat_stats:
+            err_console.print(
+                "[yellow]No category history found in "
+                f"{audit_log}.[/yellow]\n"
+                "Run a few scans first to build history."
+            )
+            sys.exit(0)
+
+        rows = sorted(cat_stats.items(), key=lambda x: x[1]["latest"])
+        if top:
+            rows = rows[:top]
+
+        def _trend_arrow_cat(trend) -> str:
+            if trend is None:
+                return "[dim]—[/dim]"
+            pct = trend * 100
+            if pct > 0.5:
+                return f"[green]↑ +{pct:.1f}%[/green]"
+            if pct < -0.5:
+                return f"[red]↓ {pct:+.1f}%[/red]"
+            return f"[yellow]→ {pct:+.1f}%[/yellow]"
+
+        table = Table(
+            title=f"Category detection rates  (last {last_n} runs, {len(rows)} categories)"
+        )
+        table.add_column("Category", style="cyan", no_wrap=True)
+        table.add_column("Latest", justify="right")
+        table.add_column("7d Avg", justify="right")
+        table.add_column("Runs", justify="right")
+        table.add_column("Trend", justify="right")
+        for cat, s in rows:
+            table.add_row(
+                cat,
+                f"{s['latest'] * 100:.1f}%",
+                f"{s['avg'] * 100:.1f}%",
+                str(s["runs"]),
+                _trend_arrow_cat(s["trend"]),
+            )
+        Console().print(table)
+        return
 
     # ── Compare mode ──────────────────────────────────────────────────────────
     if compare_labels is not None:

@@ -35,9 +35,9 @@ from pathlib import Path
 from typing import Optional
 
 try:
-    from fastapi import Depends, FastAPI, Header, HTTPException
+    from fastapi import Depends, FastAPI, Header, HTTPException, Request
     from fastapi.middleware.cors import CORSMiddleware
-    from fastapi.responses import FileResponse, JSONResponse
+    from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 except ImportError as exc:  # pragma: no cover — handled by CLI command
     raise ImportError(
         "evadex bridge requires FastAPI. Install with: pip install evadex[bridge]"
@@ -603,6 +603,47 @@ def create_app() -> FastAPI:
         if rec is None:
             raise HTTPException(status_code=404, detail=f"unknown run_id {run_id!r}")
         return {"run_id": run_id, **rec}
+
+    # ── GET /v1/evadex/run/{run_id}/stream ──────────────────────
+    # SSE stream for live run progress. Emits status ticks at 1-second
+    # cadence until the run reaches a terminal state or the client
+    # disconnects. Each frame is a JSON-encoded run view identical to
+    # GET /v1/evadex/run/{run_id}.
+    @app.get("/v1/evadex/run/{run_id}/stream", dependencies=[Depends(_require_api_key)])
+    async def stream_run(run_id: str, request: Request) -> StreamingResponse:
+        import asyncio
+        import json as _json
+
+        if not _RUN_ID_RE.match(run_id):
+            raise HTTPException(
+                status_code=400, detail=f"invalid run_id format: {run_id!r}"
+            )
+        if runs_mod.get_run(run_id) is None:
+            raise HTTPException(status_code=404, detail=f"unknown run_id {run_id!r}")
+
+        async def _event_gen():
+            while True:
+                if await request.is_disconnected():
+                    break
+                rec = runs_mod.get_run(run_id)
+                if rec is None:
+                    break
+                data = _json.dumps({"run_id": run_id, **rec})
+                yield f"data: {data}\n\n"
+                status = rec.get("status", "")
+                if status in (
+                    runs_mod.STATUS_COMPLETED,
+                    runs_mod.STATUS_FAILED,
+                    runs_mod.STATUS_CANCELLED,
+                ):
+                    break
+                await asyncio.sleep(1.0)
+
+        return StreamingResponse(
+            _event_gen(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
 
     # ── DELETE /v1/evadex/run/{run_id} ──────────────────────────
     # Cancel a running scan. SIGTERM first, SIGKILL after the grace
