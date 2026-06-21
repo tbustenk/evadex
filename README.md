@@ -147,6 +147,17 @@ tier: northam
 concurrency: 32
 ```
 
+To connect to any DLP scanner with a JSON HTTP API (no Siphon binary required):
+
+```yaml
+tool: http_generic
+url: https://my-dlp.example.com/scan
+request_field: text          # JSON key for the input text (default: "text")
+response_path: findings      # dot-path to the findings list (default: "findings")
+auth_header: "X-Api-Key: {api_key}"
+api_key: "secret"
+```
+
 CLI flags override config values. `evadex.yaml` is auto-discovered from the working directory.
 
 ---
@@ -190,6 +201,22 @@ evadex cache clear --yes
 # Resume an interrupted scan from a saved checkpoint
 evadex scan --resume
 evadex scan --tier northam --resume --scanner-label post-patch
+```
+
+## CI/CD quality gate (v3.31.0)
+
+```bash
+# Exit 0 when detection ≥ threshold, 1 when below, 2 on scanner error.
+# Designed for GitHub Actions, GitLab CI, Jenkins, etc.
+evadex ci --min-detection 30                              # default northam tier
+evadex ci --min-detection 30 --max-fp 20 --fast           # fast mode + FP gate
+evadex ci --transport http --url http://localhost:8080 --min-detection 40
+```
+
+```yaml
+# GitHub Actions example
+- name: DLP quality gate
+  run: evadex ci --min-detection 30
 ```
 
 ## Advanced commands (Siphon-specific)

@@ -615,6 +615,7 @@ def compare(files, fmt, output, label_a, label_b, since_str, baseline, c2_url, c
         else:
             click.echo(rendered)
         from evadex.reporters.c2_reporter import push_comparison, resolve_c2_config
+
         _c2_url, _c2_key = resolve_c2_config(c2_url, c2_key)
         if _c2_url:
             push_comparison(_c2_url, _c2_key, comparison=comparison)

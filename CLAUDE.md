@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `evadex` is a scanner-agnostic DLP (data loss prevention) evasion test suite. It takes a sensitive value (credit card, SSN, IBAN, AWS key, etc.), runs it through a battery of evasion techniques (unicode tricks, delimiter swaps, encoding, regional digits, splitting, morse, etc.), embeds each variant in plain text and in real document formats (DOCX/PDF/XLSX/...), submits everything to a configured DLP scanner via an adapter, and reports what slipped through. Python 3.11+, distributed on PyPI, CLI-first (`evadex = evadex.cli.app:main`).
 
-Current version: **3.29.1** (see `pyproject.toml`; CHANGELOG is the user-facing release notes). Test suite: **1141 unit + 300 integration = 1441** total; **all 1441 tests pass**. CI runs `tests/unit` on Python 3.11 and 3.13 plus a Docker image-build step (`.github/workflows/ci.yml`).
+Current version: **3.31.0** (see `pyproject.toml`; CHANGELOG is the user-facing release notes). Test suite: **1168 unit + 300 integration = 1468** total; **all 1468 tests pass**. CI runs `tests/unit` on Python 3.11 and 3.13 plus a Docker image-build step (`.github/workflows/ci.yml`).
 
 ## Common commands
 

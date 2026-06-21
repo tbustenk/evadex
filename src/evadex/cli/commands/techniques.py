@@ -24,9 +24,7 @@ from evadex.feedback.technique_history import (
 err_console = Console(stderr=True)
 
 
-def _load_category_history(
-    audit_log: str, last_n: int = 10
-) -> dict[str, dict]:
+def _load_category_history(audit_log: str, last_n: int = 10) -> dict[str, dict]:
     """Load audit log and aggregate detection rates by payload category.
 
     Returns a dict of {category: {'latest': float, 'avg': float, 'runs': int, 'trend': float|None}}.
@@ -62,9 +60,15 @@ def _load_category_history(
         results = entry.get("results") or []
         if not results:
             continue
-        cat_counts: dict[str, dict] = collections.defaultdict(lambda: {"pass": 0, "total": 0})
+        cat_counts: dict[str, dict] = collections.defaultdict(
+            lambda: {"pass": 0, "total": 0}
+        )
         for r in results:
-            cat = (r.get("payload") or {}).get("category") or r.get("category") or "unknown"
+            cat = (
+                (r.get("payload") or {}).get("category")
+                or r.get("category")
+                or "unknown"
+            )
             cat_counts[cat]["total"] += 1
             if (r.get("severity") or r.get("status")) == "PASS":
                 cat_counts[cat]["pass"] += 1

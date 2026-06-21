@@ -166,9 +166,10 @@ def test_scan_stream_flag_accepted():
     with patch("evadex.cli.commands.scan.Engine") as ME, \
          patch.object(DlpscanCliAdapter, "health_check", new_callable=AsyncMock, return_value=True):
         ME.return_value.run.return_value = [result_obj]
-        r = runner.invoke(main, [
-            "scan", "--input", "4532015112830366", "--strategy", "text", "--stream",
-        ])
+        with runner.isolated_filesystem():
+            r = runner.invoke(main, [
+                "scan", "--input", "4532015112830366", "--strategy", "text", "--stream",
+            ])
     assert r.exit_code == 0, r.output
 
 
@@ -187,9 +188,10 @@ def test_scan_no_stream_flag_accepted():
     with patch("evadex.cli.commands.scan.Engine") as ME, \
          patch.object(DlpscanCliAdapter, "health_check", new_callable=AsyncMock, return_value=True):
         ME.return_value.run.return_value = [result_obj]
-        r = runner.invoke(main, [
-            "scan", "--input", "4532015112830366", "--strategy", "text", "--no-stream",
-        ])
+        with runner.isolated_filesystem():
+            r = runner.invoke(main, [
+                "scan", "--input", "4532015112830366", "--strategy", "text", "--no-stream",
+            ])
     assert r.exit_code == 0, r.output
 
 
@@ -208,9 +210,10 @@ def test_scan_no_stream_passes_streaming_false_to_engine():
     with patch("evadex.cli.commands.scan.Engine") as ME, \
          patch.object(DlpscanCliAdapter, "health_check", new_callable=AsyncMock, return_value=True):
         ME.return_value.run.return_value = [result_obj]
-        runner.invoke(main, [
-            "scan", "--input", "4532015112830366", "--strategy", "text", "--no-stream",
-        ])
+        with runner.isolated_filesystem():
+            runner.invoke(main, [
+                "scan", "--input", "4532015112830366", "--strategy", "text", "--no-stream",
+            ])
         # Engine must have been constructed with streaming=False
         assert ME.call_args is not None
         assert ME.call_args.kwargs.get("streaming") is False

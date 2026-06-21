@@ -166,8 +166,16 @@ async def _watch_loop(
             else:
                 # For sliding, compare current run vs sliding baseline of PREVIOUS window
                 if baseline_mode == "sliding":
-                    prev_window = recent_rates[-(window+1):-1] if len(recent_rates) > window else recent_rates[:-1]
-                    compare_baseline = sum(prev_window) / len(prev_window) if prev_window else current_baseline
+                    prev_window = (
+                        recent_rates[-(window + 1) : -1]
+                        if len(recent_rates) > window
+                        else recent_rates[:-1]
+                    )
+                    compare_baseline = (
+                        sum(prev_window) / len(prev_window)
+                        if prev_window
+                        else current_baseline
+                    )
                 else:
                     compare_baseline = current_baseline
                 drop = compare_baseline - rate
@@ -177,7 +185,9 @@ async def _watch_loop(
                         f"{baseline_label} [cyan]{compare_baseline:.1f}%[/cyan] → "
                         f"current [red]{rate:.1f}%[/red] (−{drop:.1f}pp)"
                     )
-                    await _send_webhook(webhook, scanner_label, tier, compare_baseline, rate, drop)
+                    await _send_webhook(
+                        webhook, scanner_label, tier, compare_baseline, rate, drop
+                    )
                 else:
                     _console.print(
                         f"[green]✓[/green] run #{run_count}: OK — "
