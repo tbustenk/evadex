@@ -28,6 +28,10 @@ from evadex.cli.commands.status import status
 from evadex.cli.commands.cache import cache
 from evadex.cli.commands.watch import watch
 from evadex.cli.commands.ci import ci
+from evadex.cli.commands.score import score
+from evadex.cli.commands.leaderboard import leaderboard
+from evadex.cli.commands.explain import explain
+from evadex.cli.commands.coverage import coverage
 
 # Ensure stdout/stderr use UTF-8 on Windows so that Rich tables with Unicode
 # box-drawing characters and special symbols render without codec errors.
@@ -79,3 +83,7 @@ main.add_command(status)
 main.add_command(cache)
 main.add_command(watch)
 main.add_command(ci)
+main.add_command(score)
+main.add_command(leaderboard)
+main.add_command(explain)
+main.add_command(coverage)

@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.33.0] — 2026-06-23
+
+### Added
+
+- **`evadex score`** — composite 0-100 scanner quality score from audit history; weighted breakdown: detection rate (40%), FP rate inverted (30%), category coverage breadth (20%), response time (10%); letter grades A/B/C/D/F; `--json` flag for machine-readable output; actionable recommendations when components fall below threshold.
+- **`evadex leaderboard`** — ranked comparison table of all scanner labels from audit history; shows score, grade, detection rate, FP rate, coverage, scan count, and last-seen date; higher composite score = higher rank.
+- **`evadex explain`** — per-category/technique breakdown: shows the sample value, all variants the generator produces, the evasion rationale, and the recommended scanner fix; `--technique` filters to one generator family; `--sample` overrides the built-in fixture value.
+- **`evadex coverage`** — gap analysis for a tier: shows which payload categories have been tested at least once and which are untested; `--missing-only` shows only gaps; `--show-all` shows every category with status, last-tested date, scan count, and average detection rate; `--scanner-label` filters by scanner.
+
+### Tests
+
+- **1189/1189 pass** (1160 unit + 29 new unit). New test file: `tests/unit/test_score_cmd.py` (29 tests covering all four new commands).
+
 ## [3.31.0] — 2026-06-21
 
 ### Added
