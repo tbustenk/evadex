@@ -1,6 +1,6 @@
 # evadex Backlog
 
-Last updated: 2026-06-21
+Last updated: 2026-06-23
 
 ## Ready to build
 
@@ -8,9 +8,10 @@ Last updated: 2026-06-21
 - [x] `evadex export --format parquet` — dump audit log to Parquet for BI tool ingestion (v3.32.0)
 
 ### Detection coverage gaps (from recent evadex data)
-- [ ] Morse code bypass — ~50% evasion rate; target <30%
-- [ ] Regional digits bypass (Thai, Extended Arabic-Indic) — high bypass rate in northam tier
-- [ ] Context injection technique — `evadex watch` now surfaces regressions, but context_injection variants still weak
+- [ ] Morse code remaining bypass — ~29% evasion rate (down from ~50%); remaining failures are SSN/SIN/AU_TFN/DE_TAX_ID/FR_INSEE (context-required patterns skipped in Siphon alt path by design — see dlpscan-rs BACKLOG.md for rationale)
+- [x] Regional digits bypass — Thai (U+0E50), Extended Arabic-Indic (U+06F0), Arabic-Indic (U+0660) all PASS; Siphon HOMOGLYPH_MAP already covered them
+- [x] Context injection technique — all 7 tested context_injection variants PASS in Siphon
+- [x] Morse IBAN bypass — all 4 evadex variants (space/nosep/newline/slash sep) now detected in Siphon 2.1.4; slash variant fixed by slash decoder accepting multi-char alpha tokens
 
 ## In progress
 - (none)
