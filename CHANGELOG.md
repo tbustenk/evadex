@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.36.0] — 2026-07-04
+
+### Added
+
+- **`evadex mutate`** — adaptive, genetic-style generation that *evolves* the variants which survived a past scan into new evasion candidates. Where `evadex scan` regenerates variants from a fixed catalogue and `evadex replay` re-runs the exact survivors, `mutate` sits between them: it reads a scan JSON, selects the variants that **bypassed** the scanner (not detected, no adapter error — same "genuine survivor" rule as `replay --failed-only`), and breeds new candidates from them via four transformation families:
+  - **perturbation** — a small tweak to a survivor (swap the delimiter, shift digits into a non-Latin numeral script, inject zero-width joiners, randomise base64 case);
+  - **intensification** — turn up the pressure on what already worked (heavier leet map, single re-encode);
+  - **combination** — chain two/three byte-preserving encodings on one value (base64 → hex, base64 → ROT13 → hex);
+  - **crossover** (`--crossover`) — splice two *different* survivors so their lineages mix.
+
+  Each generation breeds `--mutations-per-variant` offspring per candidate, dedupes globally by value (the same string is never bred or tested twice), and `--generations N` evolves the *next* round from *this* round's fresh offspring so pressure compounds. `--test` immediately submits every bred variant to the current scanner (adapter wiring shared verbatim with `evadex replay`: `--tool`, `--exe`, `--transport`, `--url`, `--cmd-style`, auto `wrap_context` for the Rust scanners, PATH auto-discovery) and reports a bypass rate — answering "does the scanner have a *neighbourhood* of blind spots around each survivor, not just the exact strings it already missed?". `--seed` makes breeding fully reproducible; `--category` / `--limit` filter the breeding stock; `--format table|summary|json`; and `-o/--output` writes a **scan-format** JSON (generator stamped `mutate`) so bred candidates flow straight into `evadex compare` / `evadex replay`. New engine module `src/evadex/mutate/` (`MutationEngine`, `MutationCandidate`, `MutatedVariant`) is pure/decoupled — no scanner, filesystem or Click deps — with the CLI in `src/evadex/cli/commands/mutate.py`. Registered in `src/evadex/cli/app.py`.
+
+### Tests
+
+- **1258/1258 unit pass** (+30 new in `tests/unit/cli/test_mutate_command.py`, covering each of the 8 mutation strategies and their applicability guards, digit/zero-width round-trip invariants, dedup / skip-unchanged, seed reproducibility and divergence, crossover lineage mixing, candidate payload/generation propagation across generations, the CLI-layer helpers (`_select_bypassed`, `_evolve` growth, `_to_scan_results`, `_test_summary`), and end-to-end CLI runs for summary/table/json/output-file plus a `--test` bypass-rate path against an in-memory adapter). `ruff check` / `ruff format` clean.
+- **Verified** end-to-end against the real 21,693-variant `siphon-northam-daily` scan and the live Siphon binary: breeding 12 surviving credit-card variants × 5 mutations produced 44 candidates, of which **~82–89% still bypassed** the current Siphon build. Detection was **non-uniform within a technique family** — Siphon caught *some* `delimiter_regroup` / `zero_width` / `base32` instances while adjacent perturbations (notably `base64_mixed_case`, 8/8) slipped through, confirming the "neighbourhood of blind spots" the command is designed to surface.
+
 ## [3.35.0] — 2026-07-04
 
 ### Added

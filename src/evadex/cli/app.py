@@ -33,6 +33,7 @@ from evadex.cli.commands.leaderboard import leaderboard
 from evadex.cli.commands.explain import explain
 from evadex.cli.commands.coverage import coverage
 from evadex.cli.commands.replay import replay
+from evadex.cli.commands.mutate import mutate
 
 # Ensure stdout/stderr use UTF-8 on Windows so that Rich tables with Unicode
 # box-drawing characters and special symbols render without codec errors.
@@ -89,3 +90,4 @@ main.add_command(leaderboard)
 main.add_command(explain)
 main.add_command(coverage)
 main.add_command(replay)
+main.add_command(mutate)
