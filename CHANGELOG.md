@@ -1,5 +1,28 @@
 # Changelog
 
+## [3.34.1] — 2026-07-04
+
+### Fixed
+
+- **`evadex scan --tool` help text** now lists the `http_generic` and `netskope` adapters (added in v3.31.0 and v3.32.0). Both were registered and fully working but omitted from the option help string.
+
+### Changed
+
+- **README** — documented the v3.33 scoring/coverage commands (`evadex score`, `leaderboard`, `explain`, `coverage`) under a new "Scoring & coverage" section.
+
+### Docs
+
+- **CHANGELOG** — backfilled the missing **v3.32.0** section (parquet export, Netskope adapter, capital-markets evasion variants).
+- **CLAUDE.md** — refreshed adapter table (adds `http_generic`, `netskope`) and version/test-count line.
+
+### Security
+
+- Audited all v3.31–3.34 code: no `shell=True` / `os.system` / `os.popen`, no `eval`/`exec`/unsafe deserialization, no secret logging. The `netskope` and `http_generic` adapters pass API keys via headers only (never logged) and use TLS-verifying `httpx` clients.
+
+### Tests
+
+- **1504/1504 pass** (1204 unit + 300 integration, unchanged). `ruff check` / `ruff format` clean; `pip-audit` reports no known vulnerabilities.
+
 ## [3.34.0] — 2026-07-04
 
 ### Added
@@ -26,6 +49,22 @@
 ### Tests
 
 - **1189/1189 pass** (1160 unit + 29 new unit). New test file: `tests/unit/test_score_cmd.py` (29 tests covering all four new commands).
+
+## [3.32.0] — 2026-06-22
+
+### Added
+
+- **Parquet export** — `evadex export --format parquet` alongside `csv`/`markdown`. Columns: `category`, `sub_category`, `technique`, `strategy`, `value`, `detected`, `confidence`, `scanner`, `elapsed_ms`. Defaults to `evadex_export.parquet` when `--output` is not given. Uses pandas + pyarrow (already in deps).
+- **Netskope DLP adapter** (`tool: netskope`, `src/evadex/adapters/netskope/`) — submits each variant to `POST /api/v1/events/dataprotection/scan` and reads violations from `data.violations` / `violations` / `findings`. Auth via the `Netskope-Api-Token` header, sourced from `NETSKOPE_API_KEY` env var or `api_key:` in `evadex.yaml`; the key is never logged. `netskope_tenant: mycompany` is shorthand for `https://mycompany.goskope.com`. Registered as `"netskope"`.
+- **Capital-markets evasion variants** (`src/evadex/variants/capital_markets.py`) — a `capital_markets` generator targeting ISIN, CUSIP, SEDOL, LEI, FIGI, REUTERS_RIC, TICKER_SYMBOL, MT103_REF, and CHIPS_UID. Techniques: `slash_before_check`, `hyphen_at_third`, `space_after_prefix`, `space_before_check`, `lowercase_all`, `mixed_case_alt`, `zwsp_mid`, `zwsp_block4`, `padded_spaces`, `noisy_prefix_reference`, `noisy_suffix_prospectus`, `truncate_check`, `reversed`.
+
+### Changed
+
+- `ruff format` applied to `compare`, `doctor`, `techniques`, and `watch` commands (pre-existing style drift).
+
+### Tests
+
+- **1160/1160 unit pass**; `ruff check` clean. New/updated: `tests/unit/variants/test_capital_markets.py` (100 lines) and `tests/unit/test_export.py` (parquet export cases).
 
 ## [3.31.0] — 2026-06-21
 

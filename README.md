@@ -161,6 +161,30 @@ evadex doctor                        # environment health check
 evadex benchmark                     # measure generate/scan performance
 ```
 
+## Scoring & coverage (v3.33)
+
+```bash
+# Composite 0-100 scanner quality score from audit history (detection,
+# false-positive rate, category coverage, response time) with a letter grade
+evadex score
+evadex score --json                  # machine-readable output
+
+# Ranked comparison of every scanner label seen in the audit log
+evadex leaderboard
+
+# Per-category / per-technique breakdown: sample value, variants produced,
+# evasion rationale, and the recommended scanner fix
+evadex explain --category credit_card
+evadex explain --category ssn --technique splitting
+evadex explain --category iban --sample GB33BUKB20201555555555
+
+# Gap analysis for a tier: which payload categories have been tested and which
+# are untested
+evadex coverage --tier northam
+evadex coverage --missing-only
+evadex coverage --show-all --scanner-label post-patch
+```
+
 ## Result commands (v3.27–3.28)
 
 ```bash

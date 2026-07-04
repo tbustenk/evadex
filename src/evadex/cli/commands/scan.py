@@ -337,7 +337,7 @@ def _print_summary(results, err_console):
     default="dlpscan-cli",
     show_default=True,
     help="DLP adapter to use. Built-in adapters: dlpscan-cli, siphon-cli, "
-    "siphon, dlpscan, presidio.",
+    "siphon, dlpscan, presidio, http_generic, netskope.",
 )
 @click.option(
     "--input",

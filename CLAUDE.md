@@ -6,7 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `evadex` is a scanner-agnostic DLP (data loss prevention) evasion test suite. It takes a sensitive value (credit card, SSN, IBAN, AWS key, etc.), runs it through a battery of evasion techniques (unicode tricks, delimiter swaps, encoding, regional digits, splitting, morse, etc.), embeds each variant in plain text and in real document formats (DOCX/PDF/XLSX/...), submits everything to a configured DLP scanner via an adapter, and reports what slipped through. Python 3.11+, distributed on PyPI, CLI-first (`evadex = evadex.cli.app:main`).
 
-Current version: **3.34.0** (see `pyproject.toml`; CHANGELOG is the user-facing release notes). Test suite: **1204 unit + 300 integration = 1504** total; **all 1504 tests pass**. CI runs `tests/unit` on Python 3.11 and 3.13 plus a Docker image-build step (`.github/workflows/ci.yml`).
+Current version: **3.34.1** (see `pyproject.toml`; CHANGELOG is the user-facing release notes). Test suite: **1204 unit + 300 integration = 1504** total; **all 1504 tests pass**. CI runs `tests/unit` on Python 3.11 and 3.13 plus a Docker image-build step (`.github/workflows/ci.yml`).
+
+Scanner adapters (name → `--tool` value): `siphon`, `siphon-cli`, `dlpscan`, `dlpscan-cli`, `presidio`, `http_generic` (any JSON HTTP scan endpoint, v3.31.0), `netskope` (Netskope inline DLP API, v3.32.0). Recent analysis commands: `score`, `leaderboard`, `explain`, `coverage` (v3.33.0), `ci` (v3.31.0).
 
 ## Common commands
 
@@ -68,7 +70,7 @@ Lookup is by name: `get_generator("unicode_encoding")`, `get_adapter("siphon-cli
 | Interface | Base class | Subclasses live in |
 |---|---|---|
 | Generate evasion variants of a value | `evadex.variants.base.BaseVariantGenerator` (yields `Variant`s from `generate(value)`) | `src/evadex/variants/` — one file per technique family |
-| Submit a variant to a scanner | `evadex.adapters.base.BaseAdapter` (async `submit()`, plus optional `setup`/`teardown`/`health_check`) | `src/evadex/adapters/{siphon,siphon_cli,dlpscan,dlpscan_cli,presidio}/` |
+| Submit a variant to a scanner | `evadex.adapters.base.BaseAdapter` (async `submit()`, plus optional `setup`/`teardown`/`health_check`) | `src/evadex/adapters/{siphon,siphon_cli,dlpscan,dlpscan_cli,presidio,http_generic,netskope}/` |
 
 Generators may set `applicable_categories: set[PayloadCategory]` to restrict themselves (e.g. `morse_code` only applies to numeric IDs); the engine skips inapplicable (gen, payload) pairs. `auto_applicable=False` excludes a generator from random/auto runs so it only fires when explicitly requested via `--technique-group` (used for barcode image transforms).
 
