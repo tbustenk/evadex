@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.35.0] — 2026-07-04
+
+### Added
+
+- **`evadex replay`** — re-run the *exact* payloads from a past scan against the current scanner. Where `evadex scan` regenerates variants from the built-in generators, `replay` reads a previous scan's JSON, reconstructs every `(Payload, Variant)` pair verbatim (same obfuscated value, same generator / technique / **strategy**) via `ScanResult.from_dict`, and re-submits each one. It then diffs the old outcome against the new one and classifies every variant as:
+  - **newly-detected** — bypassed before, caught now (fix confirmed)
+  - **still-bypassing** — bypassed before and now (not yet fixed)
+  - **newly-failing** — caught before, bypassed now (regression)
+  - **unchanged-detected** — caught before and now
+
+  Key flags: `--failed-only` (replay only the variants that bypassed originally — the CI-friendly "did my fix work?" mode), `--category` / `--technique` / `--limit` filters, `--format table|summary|json`, and `-o/--output` which writes a **scan-format** JSON so the result can be diffed with `evadex compare <original> <replay>` directly. Adapter selection mirrors `evadex scan` (`--tool`, `--exe`, `--transport`, `--url`, `--cmd-style`, auto `wrap_context` for the Rust scanners, PATH auto-discovery of the scanner binary). Exits non-zero when `--failed-only` is set and any variant is still bypassing, so it drops into a CI gate. Concurrency and per-variant error handling mirror `core.engine.Engine`. Registered in `src/evadex/cli/app.py`; implementation in `src/evadex/cli/commands/replay.py`.
+
+### Tests
+
+- **1228/1228 unit pass** (+22 new in `tests/unit/cli/test_replay_command.py`, covering outcome classification, scan-file reconstruction / corrupt-row skipping / strategy preservation, all filters, the still-bypassing CI exit code, regression reporting, adapter-error handling, valid JSON output, and a round-trip that feeds the replay JSON straight into `evadex compare`). `ruff check` / `ruff format` clean.
+- **Verified** end-to-end against the real 21,693-variant `siphon_nap_run.json` archive: all 21,693 records reconstruct, 14,483 classified as bypassed (matches `meta.fail`), and a `--failed-only --category credit_card` replay of 291 variants produced a correct newly-detected / still-bypassing split with the expected non-zero exit and a `compare`-consumable output file.
+
 ## [3.34.1] — 2026-07-04
 
 ### Fixed
