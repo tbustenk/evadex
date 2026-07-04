@@ -67,10 +67,14 @@ def _load_scan(scan_file: str) -> dict:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        err_console.print(f"[red]Scan file not found: {scan_file}[/red]", soft_wrap=True)
+        err_console.print(
+            f"[red]Scan file not found: {scan_file}[/red]", soft_wrap=True
+        )
         raise SystemExit(1)
     except json.JSONDecodeError as e:
-        err_console.print(f"[red]Scan file is not valid JSON: {e}[/red]", soft_wrap=True)
+        err_console.print(
+            f"[red]Scan file is not valid JSON: {e}[/red]", soft_wrap=True
+        )
         raise SystemExit(1)
     if not isinstance(data, dict) or "results" not in data:
         # soft_wrap keeps the message on one logical line so it isn't hard-
