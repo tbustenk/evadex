@@ -67,15 +67,24 @@ def _load_scan(scan_file: str) -> dict:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        err_console.print(f"[red]Scan file not found: {scan_file}[/red]")
+        err_console.print(
+            f"[red]Scan file not found: {scan_file}[/red]", soft_wrap=True
+        )
         raise SystemExit(1)
     except json.JSONDecodeError as e:
-        err_console.print(f"[red]Scan file is not valid JSON: {e}[/red]")
+        err_console.print(
+            f"[red]Scan file is not valid JSON: {e}[/red]", soft_wrap=True
+        )
         raise SystemExit(1)
     if not isinstance(data, dict) or "results" not in data:
+        # soft_wrap keeps the message on one logical line so it isn't hard-
+        # wrapped mid-sentence at the console's width (80 cols when stderr is
+        # not a TTY, e.g. under CI / CliRunner), which would split the phrase
+        # tests grep for across a newline.
         err_console.print(
             f"[red]{scan_file} does not look like an evadex scan file "
-            f"(missing 'results' key). Produce one with: evadex scan ... -o <file>[/red]"
+            f"(missing 'results' key). Produce one with: evadex scan ... -o <file>[/red]",
+            soft_wrap=True,
         )
         raise SystemExit(1)
     return data

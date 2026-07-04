@@ -2,6 +2,7 @@
 import csv
 import io
 import json
+import pytest
 from click.testing import CliRunner
 from evadex.cli.app import main
 
@@ -127,6 +128,14 @@ class TestExportMarkdown:
 
 
 class TestExportParquet:
+    @pytest.fixture(autouse=True)
+    def _require_parquet_deps(self):
+        # Parquet export lives behind the optional `data-formats` extra
+        # (pyarrow + pandas). The default `.[dev]` CI install omits it, so
+        # skip these cases cleanly instead of failing with ModuleNotFoundError.
+        pytest.importorskip("pandas")
+        pytest.importorskip("pyarrow")
+
     def test_parquet_creates_file(self, tmp_path):
         scan = _make_scan_file(tmp_path, [_make_result(True), _make_result(False)])
         out = str(tmp_path / "out.parquet")
