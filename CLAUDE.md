@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `evadex` is a scanner-agnostic DLP (data loss prevention) evasion test suite. It takes a sensitive value (credit card, SSN, IBAN, AWS key, etc.), runs it through a battery of evasion techniques (unicode tricks, delimiter swaps, encoding, regional digits, splitting, morse, etc.), embeds each variant in plain text and in real document formats (DOCX/PDF/XLSX/...), submits everything to a configured DLP scanner via an adapter, and reports what slipped through. Python 3.11+, distributed on PyPI, CLI-first (`evadex = evadex.cli.app:main`).
 
-Current version: **3.35.0** (see `pyproject.toml`; CHANGELOG is the user-facing release notes). Test suite: **1228 unit + 300 integration = 1528** total; **all tests pass**. CI runs `tests/unit` on Python 3.11 and 3.13 plus a Docker image-build step (`.github/workflows/ci.yml`).
+Current version: **3.36.0** (see `pyproject.toml`; CHANGELOG is the user-facing release notes). Test suite: **1258 unit + 300 integration = 1558** total; **all tests pass**. CI runs `tests/unit` on Python 3.11 and 3.13 plus a Docker image-build step (`.github/workflows/ci.yml`).
 
-Scanner adapters (name → `--tool` value): `siphon`, `siphon-cli`, `dlpscan`, `dlpscan-cli`, `presidio`, `http_generic` (any JSON HTTP scan endpoint, v3.31.0), `netskope` (Netskope inline DLP API, v3.32.0). Recent analysis commands: `replay` (re-run exact payloads from a past scan against the current scanner, v3.35.0), `score`, `leaderboard`, `explain`, `coverage` (v3.33.0), `ci` (v3.31.0).
+Scanner adapters (name → `--tool` value): `siphon`, `siphon-cli`, `dlpscan`, `dlpscan-cli`, `presidio`, `http_generic` (any JSON HTTP scan endpoint, v3.31.0), `netskope` (Netskope inline DLP API, v3.32.0). Recent analysis commands: `mutate` (evolve bypassing variants from a past scan into new candidates, v3.36.0), `replay` (re-run exact payloads from a past scan against the current scanner, v3.35.0), `score`, `leaderboard`, `explain`, `coverage` (v3.33.0), `ci` (v3.31.0).
 
 ## Common commands
 
@@ -120,6 +120,16 @@ Several Python scripts at the repo root (`evadex_regressions.py`, `check_*.py`, 
 ## Recent additions and gotchas
 
 These are behaviours added in recent point releases that aren't obvious from the code structure alone. Knowing them avoids re-deriving the same questions.
+
+### `evadex mutate` — adaptive breeding engine (v3.36.0)
+`src/evadex/mutate/engine.py` is a **pure** module (no scanner / filesystem / Click imports): `MutationEngine` breeds `MutatedVariant`s from a `MutationCandidate` (a bypassing `ScanResult` wrapped so the original `Payload` rides along). Eight strategies live in `_registry`; `mutate()` draws N without replacement, skips inapplicable/unchanged/duplicate results, and stamps `source_payload` onto each offspring. `crossover()` splices two candidates. The CLI (`src/evadex/cli/commands/mutate.py`) **imports replay's `_load_scan` / `_reconstruct` / `_resolve_adapter_config` / `_auto_detect_exe`** rather than duplicating them — so any change to replay's adapter resolution flows through to `mutate --test` automatically (and vice-versa; don't fork them). Key facts:
+- Breeding stock = survivors only (`not detected and not error`), same rule as `replay --failed-only`. Errored originals are excluded.
+- `_evolve` dedupes **globally** by variant value across all generations (`seen_values`) — the same string is never bred or submitted twice. Generation N+1 evolves from N's fresh offspring, so a small `--generations` count fans out fast (12 survivors × 5 → gen1=44, gen2≈500).
+- Encoding strategies operate on `_core()` (the **alphanumeric** skeleton), not just digits, so alphanumeric IDs (driver's licences, tickers, ISINs — which dominate real bypass sets) mutate too. `_mutate_separator` / `_mutate_regional_script` still require ASCII digits and return `None` otherwise.
+- Bred `Variant`s carry `generator="mutate"` (`MUTATE_GENERATOR`), so they never masquerade as first-class scan variants in reports.
+- `-o/--output` emits **scan-format** JSON via `JsonReporter` → feeds `evadex compare` / `evadex replay`. Untested candidates are honestly recorded `detected=False`.
+- JSON goes to **stdout**, all banners/progress/summaries to **stderr** (`err_console`) — tests must read `res.stdout` (not `res.output`) to parse `--format json`.
+- `source_payload` holds the **plaintext secret** and is deliberately excluded from `MutatedVariant.to_dict()` — never serialise it.
 
 ### Bridge push-results-to-siphon (v3.29.1)
 On successful scan completion, `_execute()` in `src/evadex/bridge/runs.py` fires
