@@ -571,7 +571,94 @@ def _recommendations(scan: dict, fp: dict | None) -> str:
     return f'<ul class="rec-list">{items}</ul>'
 
 
-def _render_html(scan: dict, falsepos: dict | None, raw_combined: dict) -> str:
+def _trend_section(audit_path: Path, scanner: str | None) -> str:
+    """Inline-SVG sparkline of detection rate across historical scan runs.
+
+    Reads the audit log written by ``evadex scan`` / ``evadex falsepos``.
+    When a *scanner* label is given we prefer runs from that same scanner so
+    the trend reflects one configuration over time; if that yields fewer than
+    two points we fall back to all scan runs. Returns an empty string when
+    there is not enough history to draw a line (needs ≥ 2 points).
+    """
+    from evadex.audit import read_audit_entries
+
+    entries = [e for e in read_audit_entries(audit_path) if e.get("type") == "scan"]
+    if scanner:
+        same = [e for e in entries if e.get("scanner_label") == scanner]
+        if len(same) >= 2:
+            entries = same
+    points = [
+        (e.get("timestamp", ""), float(e["pass_rate"]))
+        for e in entries
+        if isinstance(e.get("pass_rate"), (int, float))
+    ]
+    if len(points) < 2:
+        return ""
+
+    points = points[-15:]  # most recent runs only — keep the chart legible
+    rates = [r for _, r in points]
+    latest, previous = rates[-1], rates[-2]
+    delta = round(latest - previous, 1)
+    if delta > 0:
+        arrow, dklass, verb = "▲", "good", "improved"
+    elif delta < 0:
+        arrow, dklass, verb = "▼", "bad", "regressed"
+    else:
+        arrow, dklass, verb = "▬", "warn", "held steady"
+
+    # Build an inline SVG polyline. viewBox is fixed; points are scaled into
+    # it so the file stays self-contained (no JS, no external chart lib).
+    w, h, pad = 640, 160, 12
+    lo = max(0.0, min(rates) - 5)
+    hi = min(100.0, max(rates) + 5)
+    span = (hi - lo) or 1.0
+    n = len(points)
+
+    def _x(i: int) -> float:
+        return pad + i * (w - 2 * pad) / (n - 1)
+
+    def _y(v: float) -> float:
+        return pad + (1 - (v - lo) / span) * (h - 2 * pad)
+
+    poly = " ".join(f"{_x(i):.1f},{_y(v):.1f}" for i, v in enumerate(rates))
+    dots = "".join(
+        f'<circle cx="{_x(i):.1f}" cy="{_y(v):.1f}" r="3" fill="#39ff14"/>'
+        for i, v in enumerate(rates)
+    )
+    first_lbl = _escape(points[0][0][:10])
+    last_lbl = _escape(points[-1][0][:10])
+    svg = (
+        f'<svg viewBox="0 0 {w} {h}" width="100%" '
+        f'style="background:#141a23;border:1px solid #1f2733;border-radius:6px" '
+        f'preserveAspectRatio="none" role="img" '
+        f'aria-label="Detection rate trend across {n} runs">'
+        f'<polyline fill="none" stroke="#39ff14" stroke-width="2" '
+        f'points="{poly}"/>{dots}'
+        f'<text x="{pad}" y="{h - 2}" fill="#7a8596" '
+        f'font-size="10" font-family="monospace">{first_lbl}</text>'
+        f'<text x="{w - pad}" y="{h - 2}" fill="#7a8596" font-size="10" '
+        f'font-family="monospace" text-anchor="end">{last_lbl}</text>'
+        f"</svg>"
+    )
+    delta_card = (
+        f'<div class="card {dklass}" style="display:inline-block;margin-bottom:12px">'
+        f'<div class="lbl">Since previous run</div>'
+        f'<div class="val">{arrow} {abs(delta)}%</div>'
+        f'<div class="meta" style="font-size:11px;margin-top:4px">'
+        f"detection {verb}</div></div>"
+    )
+    return (
+        f"{delta_card}"
+        f'<p class="meta" style="margin:4px 0 10px">Detection rate across the '
+        f"last {n} scan run(s) in history "
+        f"(latest <strong>{latest}%</strong>, previous {previous}%).</p>"
+        f"{svg}"
+    )
+
+
+def _render_html(
+    scan: dict, falsepos: dict | None, raw_combined: dict, trend_html: str = ""
+) -> str:
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     meta = scan["meta"]
     scanner = _escape(meta.get("scanner", "unknown"))
@@ -583,6 +670,10 @@ def _render_html(scan: dict, falsepos: dict | None, raw_combined: dict) -> str:
     fp_section = ""
     if falsepos is not None:
         fp_section = "<h2>False Positive Rate</h2>" + _falsepos_section(falsepos)
+
+    trend_block = ""
+    if trend_html:
+        trend_block = "<h2>Detection Trend</h2>" + trend_html
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -621,6 +712,8 @@ def _render_html(scan: dict, falsepos: dict | None, raw_combined: dict) -> str:
 
 <h2>Detection Rate</h2>
 {_render_cards(scan)}
+
+{trend_block}
 
 <h2>Per-Category Breakdown</h2>
 {_category_table(scan)}
@@ -662,17 +755,28 @@ window.__evadexRawJson = "{raw_b64}";
     type=click.Path(),
     help="Output HTML file path.",
 )
-def report(inputs: tuple[str, ...], output: str) -> None:
+@click.option(
+    "--history",
+    "history",
+    default=None,
+    type=click.Path(dir_okay=False),
+    help="Path to audit.jsonl for the Detection Trend section. "
+    "Auto-discovered next to the scan file and in ./results when omitted.",
+)
+def report(inputs: tuple[str, ...], output: str, history: str | None) -> None:
     """Generate a professional HTML report from scan results.
 
     \b
     The resulting HTML is self-contained — no external CSS, no external
-    JS — and suitable for emailing to a CISO or compliance team.
+    JS — and suitable for emailing to a CISO or compliance team. When an
+    audit log with two or more past scan runs is available, a Detection
+    Trend sparkline is added automatically.
 
     \b
     Examples:
       evadex report results/scan.json                    # scan results only
       evadex report results/scan.json results/fp.json    # include false positive data
+      evadex report results/scan.json --history results/audit.jsonl
       evadex report results/scan.json --output my_report.html
     """
     scan: dict | None = None
@@ -699,7 +803,25 @@ def report(inputs: tuple[str, ...], output: str) -> None:
         )
         raise SystemExit(1)
 
-    html = _render_html(scan, falsepos, raw_combined)
+    # Resolve the audit log for the Detection Trend section. An explicit
+    # --history wins; otherwise probe next to the first scan input and the
+    # conventional ./results/audit.jsonl. Missing/short history → no section.
+    audit_candidates: list[Path] = []
+    if history:
+        audit_candidates.append(Path(history))
+    else:
+        first_scan = Path(inputs[0])
+        audit_candidates.append(first_scan.parent / "audit.jsonl")
+        audit_candidates.append(first_scan.parent.parent / "audit.jsonl")
+        audit_candidates.append(Path("results") / "audit.jsonl")
+    trend_html = ""
+    for cand in audit_candidates:
+        if cand.exists():
+            trend_html = _trend_section(cand, scan["meta"].get("scanner"))
+            if trend_html:
+                break
+
+    html = _render_html(scan, falsepos, raw_combined, trend_html)
     out_path = Path(output)
     if not out_path.parent.exists():
         err_console.print(

@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.34.0] — 2026-07-04
+
+### Added
+
+- **HTML report: Detection Trend section** — when an audit log with two or more past scan runs is available, `evadex report` now renders an inline-SVG sparkline of detection rate across the most recent runs (up to 15), plus a "Since previous run" delta card (▲ improved / ▼ regressed / ▬ steady). The audit log is auto-discovered next to the scan file, in its parent directory, and in `./results/audit.jsonl`; a `--history PATH` flag overrides discovery. When a scanner label is present the trend prefers runs from that same scanner and falls back to all runs. The section is omitted when fewer than two data points exist. Fully self-contained — no external chart library, no JS.
+- **Capital-markets evasion variants** (`src/evadex/variants/capital_markets.py`) — three new techniques targeting securities identifiers:
+  - `grouped_spaces_3` — CUSIP print grouping (`037833100` → `037 833 100`), space every 3 chars, applied to identifiers 6–16 chars long.
+  - `country_prefix_noise` — bracketed ISO country-code prefix prepended for ISIN-style values with a 2-letter head (`US0378331005` → `[US] US0378331005`), shifting the span past exact-prefix anchors.
+  - `bloomberg_suffix` — Bloomberg market-sector qualifier appended (`AAPL` → `AAPL US Equity`), defeating exact-length anchors.
+
+### Tests
+
+- **1504/1504 pass** (1204 unit + 300 integration). New: `tests/unit/cli/test_report_cmd.py` (11 tests — risk rating, trend SVG rendering, regression arrows, label fallback, end-to-end CLI) and 4 new cases in `tests/unit/variants/test_capital_markets.py` for the three new techniques.
+
 ## [3.33.0] — 2026-06-23
 
 ### Added

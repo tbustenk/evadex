@@ -125,6 +125,39 @@ class CapitalMarketsGenerator(BaseVariantGenerator):
             "Trailing parenthetical to shift span offset",
         )
 
+        # -- Print-formatting: grouped triple-spacing --
+        # CUSIPs are commonly rendered "037 833 100" on trade tickets and
+        # confirmations. A scanner anchored on 9 contiguous chars misses it.
+        if 6 <= n <= 16 and " " not in value:
+            grouped = " ".join(value[i : i + 3] for i in range(0, n, 3))
+            if grouped != value:
+                yield self._make_variant(
+                    grouped,
+                    "grouped_spaces_3",
+                    "Space every 3 chars (CUSIP print grouping)",
+                )
+
+        # -- ISO country-prefix noise (ISIN) --
+        # Restate the leading 2-char country code as a bracketed context hint.
+        # Keyword gating still sees a country token, but the identifier span
+        # shifts and any exact-prefix anchor (^[A-Z]{2}) no longer aligns.
+        if n > 4 and value[:2].isalpha():
+            yield self._make_variant(
+                f"[{value[:2].upper()}] {value}",
+                "country_prefix_noise",
+                "Bracketed ISO country-code prefix prepended",
+            )
+
+        # -- Bloomberg market-sector suffix --
+        # Real Bloomberg tickers carry a sector qualifier (" US Equity",
+        # " Corp"). Appending it both shifts the match span and defeats
+        # detectors that anchor on the identifier's exact length.
+        yield self._make_variant(
+            value + " US Equity",
+            "bloomberg_suffix",
+            "Bloomberg market-sector suffix appended",
+        )
+
         # -- Partial truncation --
         if n > 4:
             yield self._make_variant(

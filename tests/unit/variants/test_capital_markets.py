@@ -91,6 +91,30 @@ class TestCapitalMarketsVariants:
         rev_var = next(v for v in variants if v.technique == "reversed")
         assert rev_var.value == isin[::-1]
 
+    def test_grouped_spaces_3_variant(self, generator):
+        cusip = "037833100"
+        variants = list(generator.generate(cusip))
+        grouped = next(v for v in variants if v.technique == "grouped_spaces_3")
+        assert grouped.value == "037 833 100"
+
+    def test_country_prefix_noise_variant(self, generator):
+        isin = "US0378331005"
+        variants = list(generator.generate(isin))
+        noise = next(v for v in variants if v.technique == "country_prefix_noise")
+        assert noise.value == "[US] US0378331005"
+
+    def test_country_prefix_noise_skipped_for_numeric_cusip(self, generator):
+        # CUSIP has no alpha country prefix — technique should not fire.
+        variants = list(generator.generate("037833100"))
+        techniques = {v.technique for v in variants}
+        assert "country_prefix_noise" not in techniques
+
+    def test_bloomberg_suffix_variant(self, generator):
+        ticker = "AAPL"
+        variants = list(generator.generate(ticker))
+        bbg = next(v for v in variants if v.technique == "bloomberg_suffix")
+        assert bbg.value == "AAPL US Equity"
+
     def test_all_variants_have_technique(self, generator):
         for v in generator.generate("US0378331005"):
             assert v.technique, f"Variant missing technique: {v}"
