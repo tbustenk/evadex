@@ -1,6 +1,6 @@
 # evadex Backlog
 
-Last updated: 2026-06-23
+Last updated: 2026-07-04
 
 ## Ready to build
 
@@ -13,10 +13,27 @@ Last updated: 2026-06-23
 - [x] Context injection technique — all 7 tested context_injection variants PASS in Siphon
 - [x] Morse IBAN bypass — all 4 evadex variants (space/nosep/newline/slash sep) now detected in Siphon 2.1.4; slash variant fixed by slash decoder accepting multi-char alpha tokens
 
-## In progress
-- (none)
+## In progress (open PRs — both superseded by direct-to-main releases)
+- [ ] #13 — feat: auto transport, SSE stream, regression watch (v3.30.0) — **stale**, already on main; close/rebase
+- [ ] #12 — feat(bridge): push completed scan results to siphon-api postgres (v3.29.1) — **stale**, already on main; close
+
+## Resumption notes (for when you come back)
+
+Start here:
+1. Check open PRs — #12 and #13 are stale (their features already shipped to
+   main via later releases). Close or rebase; don't re-merge.
+2. Run evadex against the latest Siphon for a fresh baseline
+   (`python -m evadex scan --transport http --url http://localhost:8080/api --tier northam --fast`).
+3. Tackle context-injection variants (still weak) and the morse bypass gap
+   (~29% residual — coordinate with Siphon PR #349).
+4. Consider a SaaS / hosted version of evadex for commercial potential; add a
+   new scanner adapter (Forcepoint / McAfee) to broaden coverage.
+
+See `HANDOFF.md` for full state, versions, and commands.
 
 ## Recently completed
+- [x] v3.34.0 — HTML report Detection-Trend sparkline + delta card; capital-markets evasion variants (grouped-spaces CUSIP, ISIN country-prefix noise, Bloomberg suffix)
+- [x] v3.33.0 — `score`, `leaderboard`, `explain`, `coverage` commands (composite scanner quality + gap analysis)
 - [x] v3.32.0 — parquet export, Netskope adapter, capital-markets evasion variants (ISIN/CUSIP/SEDOL/LEI/FIGI/RIC)
 - [x] v3.31.0 — `evadex ci` quality gate command, generic HTTP adapter, HTML report risk rating + compliance mapping (PR #15)
 - [x] v3.30.1 — compare --baseline auto, techniques --by-category, doctor scans/sec, watch sliding baseline
