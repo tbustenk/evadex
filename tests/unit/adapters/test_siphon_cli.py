@@ -233,3 +233,29 @@ def test_adapter_propagates_require_context_flag():
     adapter = SiphonCliAdapter({"require_context": True})
     cmd = adapter._client.build_scan_text_command()
     assert "--require-context" in cmd
+
+
+# ── Category-relevant detection (issue #18) ────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_submit_unrelated_finding_is_not_detected(cc_payload, text_variant):
+    adapter = SiphonCliAdapter({})
+    sedol = {"category": "Securities Identifiers", "sub_category": "SEDOL"}
+    with patch.object(adapter._client, "scan_text", new=AsyncMock(return_value=[sedol])):
+        result = await adapter.submit(cc_payload, text_variant)
+
+    assert result.detected is False
+    assert result.detected_any is True
+
+
+@pytest.mark.asyncio
+async def test_submit_unmapped_category_any_finding_counts(text_variant):
+    adapter = SiphonCliAdapter({})
+    payload = Payload("123456789", PayloadCategory.US_PASSPORT, "passport")
+    other = {"category": "Securities Identifiers", "sub_category": "SEDOL"}
+    with patch.object(adapter._client, "scan_text", new=AsyncMock(return_value=[other])):
+        result = await adapter.submit(payload, text_variant)
+
+    assert result.detected is True
+    assert result.detected_any is True

@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.37.0] — 2026-10-13
+
+### Changed
+
+- **A variant counts as detected only when the scanner reports a finding relevant to the payload's category** (#18). The `siphon-cli` and `dlpscan-cli` adapters used `detected = len(matches) > 0`, so a credit-card variant counted as caught when a SEDOL, AWS-key or loan-ID rule fired on a fragment of its encoding. A 7-digit `partial_first_half` of the Amex test card scored as detected this way. Detection now uses the same category-relevance map `evadex falsepos` already used (`RELEVANT_SCANNER_LABELS`, moved to `evadex.core.relevance` and re-exported from `evadex.falsepos.generators`). Categories with no map entry keep the any-finding rule, so behaviour only changes where the map says what counts.
+- **New `detected_any` field** on `ScanResult` and in scan JSON, holding the old any-finding result, so new runs can be compared with old ones. It is omitted when the adapter doesn't set it, so other adapters' JSON is unchanged.
+- **Historical rates are not directly comparable.** On a 2026-10-13 Siphon `credit_card` text scan (887 variants), the reported rate moves 83.0% → 81.4% (main), 89.5% → 87.9% (siphon-core 2.9.3) and 93.9% → 92.8% (2.9.4). `detected_any` reproduces the old figure.
+
+### Not changed
+
+- The `siphon`, `dlpscan`, `http_generic`, `netskope` and `presidio` adapters. Their responses carry no per-match category in a common shape, so they still count any finding.
+
+### Tests
+
+- `tests/unit/core/test_relevance.py`: relevant, unrelated, mixed and empty matches; unmapped-category fallback; case-insensitive category fallback; the falsepos re-export is the same function; `detected_any` round-trips and is omitted when unset.
+- `test_siphon_cli.py`: an unrelated finding is `detected=False, detected_any=True`; an unmapped category still counts any finding.
+- Full suite: 1568 unit + integration pass.
+
 ## [3.36.1] — 2026-10-13
 
 ### Fixed
