@@ -6,6 +6,7 @@ import os
 from evadex.adapters.base import BaseAdapter
 from evadex.adapters.dlpscan.file_builder import FileBuilder
 from evadex.core.registry import register_adapter
+from evadex.core.relevance import classify_detection
 from evadex.core.result import Payload, Variant, ScanResult
 from evadex.generate.filler import get_keyword_sentence
 
@@ -56,11 +57,12 @@ class DlpscanCliAdapter(BaseAdapter):
             data, _ = FileBuilder.build(variant.value, strategy)
             matches = await self._scan_bytes_async(data, strategy)
 
-        detected = len(matches) > 0
+        detected, detected_any = classify_detection(payload.category.value, matches)
         return ScanResult(
             payload=payload,
             variant=variant,
             detected=detected,
+            detected_any=detected_any,
             raw_response={"matches": matches},
         )
 
