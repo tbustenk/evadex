@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.36.1] — 2026-10-13
+
+### Fixed
+
+- **`evadex falsepos` phone values were mostly valid phone numbers.** `generate_false_phones` drew area codes from a list where 10 of 18 entries are well-formed NANP codes — real geographic (`201`), toll-free and premium (`800`, `900`), non-geographic (`500`/`600`/`700`), unassigned-but-well-formed (`200`/`300`/`400`), and `555`, which is fictional only as an *exchange* (`555-01XX`), not as an area code. A scanner that correctly accepts those shapes was scored as a false positive, which was the entire ~53% phone false-positive rate reported against Siphon. Values now break a NANP structural rule a scanner can actually check: area code starting with 0/1, an N11 service code as the area code, or an exchange starting with 0/1. Against the same Siphon build, phone false positives went from 159/300 to 0/100. **Historical phone false-positive rates are not comparable with new ones.**
+
+### Tests
+
+- `test_false_phones_structurally_invalid` (every value breaks a NANP rule, 500 samples) and `test_false_phones_cover_each_invalidity` (all three invalidity kinds are generated), replacing the test that pinned the old area-code list.
+
 ## [3.36.0] — 2026-07-04
 
 ### Added
