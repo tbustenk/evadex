@@ -1,5 +1,28 @@
 # Changelog
 
+## [3.38.0] — 2026-10-14
+
+### Changed
+
+- **Category-relevance map extended to the whole `northam` tier.** `RELEVANT_SCANNER_LABELS` covered 7 of the 102 northam categories, so for the other 95 any finding still counted as a detection. All but 4 are now mapped to their Siphon sub_categories, so a variant counts as caught only when the right rule fires. Notable choices:
+  - Canadian provincial DLs and health cards count only their own province's rule. A Quebec DL tripping Florida DL is a format collision, not a catch.
+  - `us_dl` counts any state's DL rule plus `Generic US DL`, since its payloads span every state.
+  - `card_track` / `card_track2` also count a PAN or card-brand finding, because track data embeds the PAN.
+  - `cins_num` counts `CUSIP` (same 9-character layout); `ca_gst_hst` counts `Canada BN` (a GST/HST account is the BN plus an RT suffix).
+- **Still unfiltered:** `ca_bank_account`, `mifid_tx_id`, `reuters_ric`, `wkn_num`. Siphon has no rule for them, so they keep the any-finding rule.
+- The map change also applies to `evadex falsepos` for these categories, which shares it.
+
+### Verified
+
+- Every new label exists as a Siphon sub_category in `crates/siphon-core/src/patterns/mod.rs`.
+- Unmutated northam seeds against Siphon (each value raw and in 3 keyword sentences, 700 texts): 29 that counted as detected no longer do, all format collisions — `us_dl` 16 (US phone / UK NIN / SEDOL), `reg_sar` 4 (VIN), `ca_bc_carecard` 3 and `mt103_ref` 3 (US phone), and 1 each for `ca_qc_drivers` (Florida DL), `ca_passport` (New Zealand passport) and `valor_num` (SEDOL). **Northam detection rates from earlier releases are not directly comparable;** `detected_any` reproduces the old figure.
+
+### Tests
+
+- `test_relevance.py`: map keys are real payload categories; every northam category is mapped except the four with no Siphon rule; observed collisions (SAR→VIN, Quebec DL→Florida DL, BC CareCard→US phone) are not detections; state DL, PAN-in-track-2, CINS→CUSIP and GST/HST→BN are.
+- The unmapped-category tests now use `wkn_num` (`us_passport` is mapped).
+- Unit suite: 1273 pass.
+
 ## [3.37.0] — 2026-10-13
 
 ### Changed
