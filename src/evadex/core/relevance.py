@@ -67,7 +67,9 @@ _US_DL_LABELS = {f"{s} dl" for s in _US_DL_STATES} | {"generic us dl"}
 
 RELEVANT_SCANNER_LABELS: dict[str, set[str]] = {
     "credit_card": _CARD_LABELS,
-    "ssn": {"usa ssn", "north america - united states"},
+    # Sub-category only: the category label "North America - United States"
+    # also covers US phone numbers and every state DL, which are not SSNs.
+    "ssn": {"usa ssn"},
     "sin": {"canada sin"},
     "iban": _IBAN_LABELS,
     "email": {"email address", "email"},
@@ -107,7 +109,7 @@ RELEVANT_SCANNER_LABELS: dict[str, set[str]] = {
     "ca_pr_card": {"canada pr card"},
     "ca_nexus": _TRAVELLER_LABELS,
     # A GST/HST account is the 9-digit BN plus an RT program suffix.
-    "ca_business_number": {"canada bn"},
+    "ca_business_number": {"canada bn", "canada bn root"},
     "ca_gst_hst": {"canada bn"},
     "ca_postal_code": {"canada postal code"},
     "ca_transit_number": {"canada transit number", "canada bank code"},

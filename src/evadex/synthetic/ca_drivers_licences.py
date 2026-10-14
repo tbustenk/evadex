@@ -30,17 +30,27 @@ def _n_letters(rng: random.Random, n: int) -> str:
 
 @register_synthetic(PayloadCategory.CA_MB_DRIVERS)
 class MBDriversSyntheticGenerator(BaseSyntheticGenerator):
-    """Manitoba driver's licence: LL-NNN-NNN-NNN."""
+    """Manitoba driver's licence: 13 characters, ``AKKKKAKXX9XX9``.
+
+    Layout from the FMCSA Canadian licence reference: A is a letter, K a
+    letter or ``*`` (padding when the surname is shorter than five letters),
+    X a letter or digit, 9 a digit. The leading letters derive from the
+    holder's name.
+    """
 
     def generate(self, count: int, seed: Optional[int] = None) -> list[str]:
         rng = random.Random(seed)
+        alnum = string.ascii_uppercase + string.digits
         results = []
         for _ in range(count):
-            letters = _n_letters(rng, 2)
-            d1 = _n_digits(rng, 3)
-            d2 = _n_digits(rng, 3)
-            d3 = _n_digits(rng, 3)
-            results.append(f"{letters}-{d1}-{d2}-{d3}")
+            surname = _n_letters(rng, rng.randint(2, 5)).ljust(5, "*")
+            first = _n_letters(rng, 1)
+            middle = rng.choice([_n_letters(rng, 1), "*"])
+            x1 = "".join(rng.choice(alnum) for _ in range(2))
+            x2 = "".join(rng.choice(alnum) for _ in range(2))
+            results.append(
+                f"{surname}{first}{middle}{x1}{_n_digits(rng, 1)}{x2}{_n_digits(rng, 1)}"
+            )
         return results
 
 

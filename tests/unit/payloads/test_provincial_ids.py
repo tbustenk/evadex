@@ -39,8 +39,8 @@ def test_nb_health_payload_format():
     payloads = get_payloads({PayloadCategory.CA_NB_HEALTH})
     assert payloads
     for p in payloads:
-        assert p.value.isdigit() and len(p.value) == 10, (
-            f"NB health card should be 10 digits: {p.value!r}"
+        assert p.value.isdigit() and len(p.value) == 9, (
+            f"NB health card should be 9 digits: {p.value!r}"
         )
 
 
@@ -48,8 +48,8 @@ def test_pei_health_payload_format():
     payloads = get_payloads({PayloadCategory.CA_PEI_HEALTH})
     assert payloads
     for p in payloads:
-        assert p.value.isdigit() and len(p.value) == 12, (
-            f"PEI health card should be 12 digits: {p.value!r}"
+        assert p.value.isdigit() and len(p.value) == 8, (
+            f"PEI health card should be 8 digits: {p.value!r}"
         )
 
 
@@ -57,8 +57,8 @@ def test_nl_health_payload_format():
     payloads = get_payloads({PayloadCategory.CA_NL_HEALTH})
     assert payloads
     for p in payloads:
-        assert p.value.isdigit() and len(p.value) == 10, (
-            f"NL health card should be 10 digits: {p.value!r}"
+        assert p.value.isdigit() and len(p.value) == 12, (
+            f"NL health card should be 12 digits: {p.value!r}"
         )
 
 
@@ -67,10 +67,10 @@ def test_nl_health_payload_format():
 def test_mb_drivers_payload_format():
     payloads = get_payloads({PayloadCategory.CA_MB_DRIVERS})
     assert payloads
-    pattern = re.compile(r'^[A-Z]{2}-\d{3}-\d{3}-\d{3}$')
+    pattern = re.compile(r'^[A-Z][A-Z*]{4}[A-Z][A-Z*][A-Z0-9]{2}\d[A-Z0-9]{2}\d$')
     for p in payloads:
         assert pattern.match(p.value), (
-            f"MB driver's licence should be LL-NNN-NNN-NNN: {p.value!r}"
+            f"MB driver's licence should be AKKKKAKXX9XX9: {p.value!r}"
         )
 
 
@@ -223,9 +223,9 @@ def _get_synthetic(cat):
 @pytest.mark.parametrize("cat,expected_len,strip_spaces", [
     (PayloadCategory.CA_MB_HEALTH, 9, True),
     (PayloadCategory.CA_SK_HEALTH, 9, True),
-    (PayloadCategory.CA_NB_HEALTH, 10, True),
-    (PayloadCategory.CA_PEI_HEALTH, 12, True),
-    (PayloadCategory.CA_NL_HEALTH, 10, True),
+    (PayloadCategory.CA_NB_HEALTH, 9, True),
+    (PayloadCategory.CA_PEI_HEALTH, 8, True),
+    (PayloadCategory.CA_NL_HEALTH, 12, True),
 ])
 def test_health_card_synthetic_digit_length(cat, expected_len, strip_spaces):
     gen = _get_synthetic(cat)
@@ -250,7 +250,7 @@ def test_ns_health_synthetic_format():
 def test_mb_drivers_synthetic_format():
     gen = _get_synthetic(PayloadCategory.CA_MB_DRIVERS)
     assert gen is not None
-    pattern = re.compile(r'^[A-Z]{2}-\d{3}-\d{3}-\d{3}$')
+    pattern = re.compile(r'^[A-Z][A-Z*]{4}[A-Z][A-Z*][A-Z0-9]{2}\d[A-Z0-9]{2}\d$')
     for v in gen.generate(20, seed=2):
         assert pattern.match(v), f"MB driver's licence format mismatch: {v!r}"
 

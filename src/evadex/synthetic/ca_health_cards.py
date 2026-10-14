@@ -56,26 +56,26 @@ class NSHealthSyntheticGenerator(BaseSyntheticGenerator):
 
 @register_synthetic(PayloadCategory.CA_NB_HEALTH)
 class NBHealthSyntheticGenerator(BaseSyntheticGenerator):
-    """New Brunswick health card: 10 random digits."""
+    """New Brunswick Medicare number: 9 random digits."""
 
     def generate(self, count: int, seed: Optional[int] = None) -> list[str]:
         rng = random.Random(seed)
-        return [_n_digits(rng, 10) for _ in range(count)]
+        return [_n_digits(rng, 9) for _ in range(count)]
 
 
 @register_synthetic(PayloadCategory.CA_PEI_HEALTH)
 class PEIHealthSyntheticGenerator(BaseSyntheticGenerator):
-    """PEI health card: 12 random digits."""
+    """PEI health card: 8 random digits."""
 
     def generate(self, count: int, seed: Optional[int] = None) -> list[str]:
         rng = random.Random(seed)
-        return [_n_digits(rng, 12) for _ in range(count)]
+        return [_n_digits(rng, 8) for _ in range(count)]
 
 
 @register_synthetic(PayloadCategory.CA_NL_HEALTH)
 class NLHealthSyntheticGenerator(BaseSyntheticGenerator):
-    """Newfoundland health card: 10 random digits."""
+    """Newfoundland MCP number: 12 random digits."""
 
     def generate(self, count: int, seed: Optional[int] = None) -> list[str]:
         rng = random.Random(seed)
-        return [_n_digits(rng, 10) for _ in range(count)]
+        return [_n_digits(rng, 12) for _ in range(count)]

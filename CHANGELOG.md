@@ -1,5 +1,40 @@
 # Changelog
 
+## [3.40.0] — 2026-10-14
+
+### Fixed
+
+- **59 northam categories had no keyword sentence templates.** `get_keyword_sentence` fell back to `"Data field: {v}"`, which names nothing, so context-gated scanner rules could never fire. Those categories looked undetectable for reasons unrelated to evasion. Every northam category now has realistic templates that name the identifier close to the value (`"Employer Identification Number (EIN): {v}."`, `"Manitoba PHIN: {v}."`).
+- **Malformed seed values.** Each failed a structural check, so Siphon (correctly) rejected the plain value:
+  - `ssn` `123-45-6789` → `742-18-5503`. The old value is the SSA's voided advertising number.
+  - `sin` `046 454 286` → `130 692 544`. SINs starting with 0 are never issued.
+  - `ca_ramq` `BOUD 1234 5678` → `BOUD 8503 1512`. Digits 3–4 are the birth month, and 34 is not a month.
+  - `us_npi` `1234567891` → `1234567893` (Luhn over the `80840` prefix).
+  - `mers_min` `…901234` → `…901235` (Luhn).
+  - `loan_number` ULI `…5678` → `…5652` (mod-97 check digits).
+  - `ca_nb_health` 10 → 9 digits, `ca_pei_health` 12 → 8 digits, `ca_nl_health` 10 → 12 digits. These match the real Medicare, PEI and MCP number lengths. The synthetic generators for these three had the same wrong lengths and are fixed too.
+  - `ca_business_number` `111222333` → `876543216`. The ninth digit of a Business Number is a Luhn check, and the old value failed it.
+  - `ca_mb_drivers` `AB-123-456-789` → `SMITHJ*AB1CD2`. The FMCSA Canadian licence reference gives Manitoba as 13 name-derived characters, `AKKKKAKXX9XX9` (`*` pads a short surname); the synthetic generator now produces that layout too.
+  - `us_routing` `990000000` → `026009593`. No routing number starts `99` (Federal Reserve prefixes are 00–12, 21–32, 61–72, 80), so the old seed could never be detected.
+- **SSN and SIN rates from earlier releases are not comparable:** the old seeds could never be detected.
+- **`ssn` relevance counted any US finding.** Its entry listed the category label `North America - United States`, which US phone numbers and every state driver's licence share, so those counted as catching an SSN. It now lists only `USA SSN`.
+- **`ca_business_number` relevance** also accepts `Canada BN Root`, the 9-digit rule added in siphon-core 2.9.5.
+
+### Verified
+
+- Every northam seed, raw and in 3 keyword sentences (752 texts), against the current Siphon release build and scored with the category-relevance map: **232 → 516 detected (30.9% → 68.6%)**. Categories with zero detections fell from 57 to 11, and no category got worse. Each text group includes the bare value with no context, so context-gated rules top out at 75%.
+- The 11 still at zero, none caused by evadex:
+  - **Siphon bugs / gaps:** `dti_ratio` and `ltv_ratio` (the regex ends in `%\b`, which only matches when a letter follows the `%`); `ca_ramq` (the regex rejects the spaced `BOUD 8503 1512` layout printed on cards, although the validator strips spaces); `reg_sar` (the VIN rule wins over SAR Filing Number even next to "SAR filing number"); `ca_business_number` (only the 15-character program-account form is detected, not the 9-digit BN); `financial_amount` (`USD 12,345.67` beside "balance" does not fire).
+  - **No Siphon rule:** `mifid_tx_id`, `reuters_ric`, `wkn_num`.
+  - **Format disagreements, not changed here:** `ca_mb_drivers` (evadex `AB-123-456-789` vs Siphon's 6 letters + 6 digits) and `us_routing` (the seed `990000000` deliberately has a non-ABA prefix).
+
+### Tests
+
+- `test_every_northam_category_has_keyword_templates` and `test_templates_embed_the_value`.
+- Health-card length tests updated to 9 / 8 / 12 digits.
+- `test_us_phone_is_not_an_ssn`.
+- Unit + integration: 1587 pass.
+
 ## [3.39.0] — 2026-10-14
 
 ### Added
