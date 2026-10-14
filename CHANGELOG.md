@@ -1,5 +1,26 @@
 # Changelog
 
+## [3.39.0] — 2026-10-14
+
+### Added
+
+- **`evadex matches <scan.json>`** shows what the scanner matched on, grouped by confidence. It reads the per-match detail already stored in a scan's `raw_response.matches`, so nothing is rescanned. The overview gives matches, variants and distinct rules per band: high (>= 0.9), medium (>= 0.6) and low. Each band then lists the rules that fired with:
+  - the scanner category, match and variant counts, and confidence range;
+  - the payload categories the rule fired on;
+  - relevance to the payload's category from `evadex.core.relevance`: `relevant`, `collision` (wrong rule), or `unmapped` (no map entry);
+  - one example of matched text and its evasion technique. Zero-width, bidi and control characters show as `·`, so an evasion no longer looks like the plain value.
+- Options: `--bands HIGH,MEDIUM` (thresholds), `--category`, `--min-confidence`, `--top N` (rules per band, 0 = all), `--no-examples`, and `--format json` (JSON to stdout).
+- Only `siphon-cli` scans carry per-match detail. Other adapters' scans report zero matches, with a note saying why.
+
+### Verified
+
+- On the 2026-10-13 Siphon `credit_card` scan (887 variants): 855 had a match. There were 788 high-confidence matches (all card-brand rules, 0.95–1.0), 108 medium (mostly brand rules at 0.81) and 15 low. All 15 low matches were collisions: US phone at 0.4 on a timestamp fragment, and SEDOL at 0.5 on a partial Amex.
+
+### Tests
+
+- `tests/unit/cli/test_matches_command.py`: band counts, relevance verdicts, per-rule detail, custom bands, category and min-confidence filters, invisible-character display, JSON and table output, bad `--bands`, and a non-scan file.
+- Unit suite: 1284 pass.
+
 ## [3.38.0] — 2026-10-14
 
 ### Changed
