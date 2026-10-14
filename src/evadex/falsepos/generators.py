@@ -490,7 +490,7 @@ def wrap_with_context(cat_name: str, value: str) -> str:
 
 # Moved to evadex.core.relevance so scan-side detection uses the same map;
 # re-exported here for existing imports.
-from evadex.core.relevance import (  # noqa: F401, I001
+from evadex.core.relevance import (  # noqa: E402, F401, I001
     RELEVANT_SCANNER_LABELS,
     is_match_relevant,
 )
