@@ -1413,22 +1413,12 @@ BUILTIN_PAYLOADS = [
         "8I5DZWZKVSZI1NUHU748", PayloadCategory.LEI_NUM, "LEI — JPMorgan Chase & Co"
     ),
     Payload("R0MUWSFPU8MPRO8K5P83", PayloadCategory.LEI_NUM, "LEI — BNP Paribas SA"),
-    # Ticker symbols — exchange-qualified and bare
-    Payload(
-        "$AAPL", PayloadCategory.TICKER_SYMBOL, "Ticker — Apple (Nasdaq, $ prefix)"
-    ),
-    Payload(
-        "AAPL",
-        PayloadCategory.TICKER_SYMBOL,
-        "Ticker — Apple bare symbol (context req)",
-    ),
-    Payload("JPM", PayloadCategory.TICKER_SYMBOL, "Ticker — JPMorgan Chase (NYSE)"),
-    Payload(
-        "RY.TO", PayloadCategory.TICKER_SYMBOL, "Ticker — Royal Bank of Canada (TSX)"
-    ),
-    Payload(
-        "BRK.A", PayloadCategory.TICKER_SYMBOL, "Ticker — Berkshire Hathaway A (NYSE)"
-    ),
+    # Ticker symbols — cashtag form only. A bare 1-5 letter symbol (`JPM`,
+    # `AAPL`) cannot be told from an acronym without a market-data feed, and
+    # `RY.TO` / `BRK.A` are Reuters RICs, tested under REUTERS_RIC.
+    Payload("$AAPL", PayloadCategory.TICKER_SYMBOL, "Ticker — Apple (cashtag)"),
+    Payload("$MSFT", PayloadCategory.TICKER_SYMBOL, "Ticker — Microsoft (cashtag)"),
+    Payload("$JPM", PayloadCategory.TICKER_SYMBOL, "Ticker — JPMorgan Chase (cashtag)"),
     # Reuters RIC — ticker + exchange suffix
     Payload("AAPL.O", PayloadCategory.REUTERS_RIC, "Reuters RIC — Apple on Nasdaq"),
     Payload("JPM.N", PayloadCategory.REUTERS_RIC, "Reuters RIC — JPMorgan on NYSE"),

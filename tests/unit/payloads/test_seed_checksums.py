@@ -72,3 +72,9 @@ def test_business_number_root_passes_luhn(category):
 def test_sin_seed_passes_luhn():
     for value in _seeds(PayloadCategory.SIN):
         assert _luhn(_digits(value)), value
+
+
+def test_ticker_seeds_are_cashtags():
+    # A bare symbol is indistinguishable from an acronym; dotted forms are RICs.
+    for value in _seeds(PayloadCategory.TICKER_SYMBOL):
+        assert value.startswith("$") and "." not in value, value
