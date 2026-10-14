@@ -25,7 +25,7 @@ pytest tests/unit/variants/test_unicode_encoding.py::test_zero_width_injection  
 ```
 `tests/conftest.py` has a session-scoped autouse fixture that calls `load_builtins()`, so adapter/generator decorators have fired in every test.
 
-Lint (CI runs these but tolerates failures — `|| true`):
+Lint (CI runs these as a hard gate; the rule set is pinned in `pyproject.toml` `[tool.ruff.lint]` so a Ruff release cannot change it):
 ```
 ruff check src/
 ruff format --check src/
