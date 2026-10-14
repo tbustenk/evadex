@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.40.3] — 2026-10-14
+
+### Changed
+
+- **`ticker_symbol` seeds are cashtags only: `$AAPL`, `$MSFT`, `$JPM`.** The bare symbols `AAPL` and `JPM` were removed: a 1–5 letter symbol cannot be told from an acronym without a market-data feed, so a scanner that matched them would flag every acronym beside the word "ticker". `RY.TO` and `BRK.A` were removed as well: they are Reuters RICs, and `reuters_ric` already tests `RY.TO`. Siphon's `Ticker Symbol` rule matches the cashtag form. The 2.9.5 baseline caught 11 of 527 ticker variants, and nearly all of the misses were variants of seeds no format-based scanner could catch. Payload counts: 593 total, 515 structured.
+
+### Tests
+
+- `test_ticker_seeds_are_cashtags`; integration payload counts updated.
+
 ## [3.40.2] — 2026-10-14
 
 ### Changed
