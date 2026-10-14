@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.40.4] — 2026-10-14
+
+### Fixed
+
+- **Five of the six `ticker_symbol` templates named no identifier** (`Position: long {v}, 5,000 shares…`). Siphon's `Ticker Symbol` rule is context-gated, so those sentences could never detect, and the category scored 7.5% on the 2.10.0 baseline for reasons unrelated to evasion. Every template now names the identifier beside the value (`ticker`, `stock symbol`, `NASDAQ symbol`), as the other categories do since 3.40.0. All 12 template × seed sentences detect against siphon-core 2.10.0.
+
 ## [3.40.3] — 2026-10-14
 
 ### Changed

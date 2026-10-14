@@ -335,13 +335,16 @@ _TEMPLATES: dict[PayloadCategory, list[str]] = {
         "KYC onboarding: entity LEI {v} confirmed active.",
         "MiFID II counterparty LEI: {v}.",
     ],
+    # Each names the identifier beside the value, like every other category
+    # here: a cashtag with no "ticker"/"symbol"/exchange word nearby is a
+    # keyword-coverage gap, not an evasion.
     PayloadCategory.TICKER_SYMBOL: [
         "Stock ticker {v} added to watchlist.",
-        "Position: long {v}, 5,000 shares, avg cost $142.10.",
-        "Alert: {v} crossed 52-week high of $189.30.",
-        "Options activity: {v} Jan 2025 $200 calls, volume 12,400.",
-        "Portfolio weight: {v} 8.2% as of end of month.",
-        "Earnings release for {v} beats consensus by $0.18 EPS.",
+        "Position: long ticker {v}, 5,000 shares, avg cost $142.10.",
+        "Alert: NASDAQ symbol {v} crossed 52-week high of $189.30.",
+        "Options activity: ticker {v} Jan 2025 $200 calls, volume 12,400.",
+        "Portfolio weight: stock symbol {v} 8.2% as of end of month.",
+        "Earnings release for NYSE ticker {v} beats consensus by $0.18 EPS.",
     ],
     PayloadCategory.REUTERS_RIC: [
         "Reuters RIC {v} — real-time quote on Refinitiv.",
