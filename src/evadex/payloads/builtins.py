@@ -12,8 +12,8 @@ BUILTIN_PAYLOADS = [
     Payload("6250941006528599", PayloadCategory.CREDIT_CARD, "UnionPay 16-digit"),
     Payload("30569309025904", PayloadCategory.CREDIT_CARD, "Diners Club 14-digit"),
     # --- National IDs / government ---
-    Payload("123-45-6789", PayloadCategory.SSN, "US SSN"),
-    Payload("046 454 286", PayloadCategory.SIN, "Canada SIN"),
+    Payload("742-18-5503", PayloadCategory.SSN, "US SSN"),
+    Payload("130 692 544", PayloadCategory.SIN, "Canada SIN"),
     Payload(
         "340000136", PayloadCategory.US_PASSPORT, "US Passport number"
     ),  # fires as CUSIP (9-digit collision); context_required for USA Passport pattern
@@ -111,7 +111,7 @@ BUILTIN_PAYLOADS = [
     Payload("test.user@example.com", PayloadCategory.EMAIL, "Email address"),
     Payload("+1-555-867-5309", PayloadCategory.PHONE, "US phone number"),
     # --- Canadian regional IDs ---
-    Payload("BOUD 1234 5678", PayloadCategory.CA_RAMQ, "Quebec RAMQ health card"),
+    Payload("BOUD 8503 1512", PayloadCategory.CA_RAMQ, "Quebec RAMQ health card"),
     Payload(
         "1234-567-890-AB", PayloadCategory.CA_ONTARIO_HEALTH, "Ontario health card"
     ),
@@ -133,9 +133,9 @@ BUILTIN_PAYLOADS = [
     Payload("987654321", PayloadCategory.CA_MB_HEALTH, "Manitoba health card"),
     Payload("234567890", PayloadCategory.CA_SK_HEALTH, "Saskatchewan health card"),
     Payload("1234 567 890", PayloadCategory.CA_NS_HEALTH, "Nova Scotia health card"),
-    Payload("1234567890", PayloadCategory.CA_NB_HEALTH, "New Brunswick health card"),
-    Payload("123456789012", PayloadCategory.CA_PEI_HEALTH, "PEI health card"),
-    Payload("9876543210", PayloadCategory.CA_NL_HEALTH, "Newfoundland health card"),
+    Payload("123456789", PayloadCategory.CA_NB_HEALTH, "New Brunswick health card"),
+    Payload("12345678", PayloadCategory.CA_PEI_HEALTH, "PEI health card"),
+    Payload("123456789012", PayloadCategory.CA_NL_HEALTH, "Newfoundland health card"),
     # --- Remaining provincial driver's licences ---
     Payload(
         "AB-123-456-789",
@@ -344,7 +344,7 @@ BUILTIN_PAYLOADS = [
     ),
     Payload("1:24-cv-12345", PayloadCategory.LEGAL_CASE, "Federal civil case number"),
     Payload(
-        "ABCD00123456789012345678",
+        "ABCD00123456789012345652",
         PayloadCategory.LOAN_NUMBER,
         "Loan/mortgage identifier",
     ),
@@ -1234,7 +1234,7 @@ BUILTIN_PAYLOADS = [
         "LOAN12345", PayloadCategory.LOAN_NUM_SHORT, "Loan number (8-15 alphanumeric)"
     ),
     Payload("35.5%", PayloadCategory.LTV_RATIO, "LTV ratio (context req)"),
-    Payload("100012345678901234", PayloadCategory.MERS_MIN, "MERS MIN (18 digits)"),
+    Payload("100012345678901235", PayloadCategory.MERS_MIN, "MERS MIN (18 digits)"),
     # ── Medical ──────────────────────────────────────────────────────────────
     Payload(
         "AB1234568",
@@ -1310,7 +1310,7 @@ BUILTIN_PAYLOADS = [
     ),
     Payload("1234567891", PayloadCategory.US_DOD_ID, "US DoD ID (10 digits)"),
     Payload("123456790", PayloadCategory.US_KTN, "US Known Traveler Number (9 digits)"),
-    Payload("1234567891", PayloadCategory.US_NPI, "US NPI (1/2 + 9 digits)"),
+    Payload("1234567893", PayloadCategory.US_NPI, "US NPI (1/2 + 9 digits)"),
     Payload(
         "C12345679", PayloadCategory.US_PASSPORT_CARD, "US passport card (C + 8 digits)"
     ),
