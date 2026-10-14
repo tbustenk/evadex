@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.40.2] — 2026-10-14
+
+### Changed
+
+- **`mifid_tx_id` is now a heuristic category.** A MiFID II transaction reference (TRN) is assigned by the reporting firm in any layout up to 52 characters, so no scanner can match it by format. It was the one northam category scored as a structured-pattern miss although no structured rule could exist. Default scans now skip it, the same as other heuristic categories; `--include-heuristic` brings it back. A default northam run goes from 188 to 187 payloads.
+
+### Known issue
+
+- `HEURISTIC_CATEGORIES` (which the default payload filter reads) and `CATEGORY_TYPES` (which labels categories) have drifted apart. 56 categories are typed `HEURISTIC` but still run by default: API keys and tokens, private keys, connection strings, and the classification/privilege/supervisory labels. Deriving one list from the other would drop all 56 from default `core`/`regional`/`full` runs and break comparisons with earlier baselines, so it is left as a separate decision.
+
+### Tests
+
+- `tests/unit/payloads/test_heuristic_filter.py`.
+
 ## [3.40.1] — 2026-10-14
 
 ### Fixed

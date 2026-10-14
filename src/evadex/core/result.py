@@ -1146,7 +1146,10 @@ CATEGORY_TYPES: dict[PayloadCategory, CategoryType] = {
     PayloadCategory.CINS_NUM: CategoryType.STRUCTURED,
     PayloadCategory.FIGI_NUM: CategoryType.STRUCTURED,
     PayloadCategory.LEI_NUM: CategoryType.STRUCTURED,
-    PayloadCategory.MIFID_TX_ID: CategoryType.STRUCTURED,
+    # A MiFID II transaction reference (TRN) is assigned by the reporting
+    # firm in any layout up to 52 characters; there is no format a scanner
+    # could match without context, so a miss is not a structured-pattern miss.
+    PayloadCategory.MIFID_TX_ID: CategoryType.HEURISTIC,
     PayloadCategory.MT103_REF: CategoryType.STRUCTURED,
     PayloadCategory.REUTERS_RIC: CategoryType.STRUCTURED,
     PayloadCategory.SEDOL_NUM: CategoryType.STRUCTURED,
