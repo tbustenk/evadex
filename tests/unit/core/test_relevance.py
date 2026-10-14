@@ -103,3 +103,14 @@ def test_detected_any_round_trips():
     # Absent when the adapter does not set it — old JSON stays byte-identical.
     r.detected_any = None
     assert "detected_any" not in r.to_dict()
+
+
+def test_us_phone_is_not_an_ssn():
+    # The ssn entry used to list the category label, which every US rule
+    # shares, so a phone number counted as catching an SSN.
+    phone = {
+        "category": "North America - United States",
+        "sub_category": "US Phone Number",
+    }
+    assert not is_match_relevant("ssn", phone)
+    assert is_match_relevant("ssn", {"sub_category": "USA SSN"})

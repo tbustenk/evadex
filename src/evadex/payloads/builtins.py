@@ -155,7 +155,7 @@ BUILTIN_PAYLOADS = [
     ),
     # --- Canadian corporate identifiers ---
     Payload(
-        "111222333", PayloadCategory.CA_BUSINESS_NUMBER, "Canadian Business Number (BN)"
+        "876543216", PayloadCategory.CA_BUSINESS_NUMBER, "Canadian Business Number (BN)"
     ),
     Payload(
         "111222333RT0001", PayloadCategory.CA_GST_HST, "Canadian GST/HST registration"
