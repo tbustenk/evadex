@@ -1565,6 +1565,7 @@ def _luhn_check(number: str) -> bool:
 
 HEURISTIC_CATEGORIES = {
     PayloadCategory.JWT,
+    PayloadCategory.MIFID_TX_ID,
     PayloadCategory.AWS_KEY,
     PayloadCategory.GITHUB_TOKEN,
     PayloadCategory.STRIPE_KEY,

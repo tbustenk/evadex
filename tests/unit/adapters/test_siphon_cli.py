@@ -252,7 +252,7 @@ async def test_submit_unrelated_finding_is_not_detected(cc_payload, text_variant
 @pytest.mark.asyncio
 async def test_submit_unmapped_category_any_finding_counts(text_variant):
     adapter = SiphonCliAdapter({})
-    payload = Payload("865985", PayloadCategory.WKN_NUM, "wkn")
+    payload = Payload("12345678", PayloadCategory.CA_BANK_ACCOUNT, "bank account")
     other = {"category": "Securities Identifiers", "sub_category": "SEDOL"}
     with patch.object(adapter._client, "scan_text", new=AsyncMock(return_value=[other])):
         result = await adapter.submit(payload, text_variant)

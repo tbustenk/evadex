@@ -31,7 +31,7 @@ def test_no_matches():
 
 
 def test_unmapped_category_keeps_any_finding_rule():
-    assert classify_detection("wkn_num", [SEDOL]) == (True, True)
+    assert classify_detection("ca_bank_account", [SEDOL]) == (True, True)
 
 
 def test_map_keys_are_payload_categories():
@@ -42,7 +42,7 @@ def test_map_keys_are_payload_categories():
 
 def test_northam_tier_is_mapped():
     # Siphon has no rule for these, so they stay unfiltered.
-    no_siphon_rule = {"ca_bank_account", "mifid_tx_id", "reuters_ric", "wkn_num"}
+    no_siphon_rule = {"ca_bank_account", "mifid_tx_id"}
     northam = {c.value for c in get_tier_categories("northam")}
     assert northam - set(RELEVANT_SCANNER_LABELS) == no_siphon_rule
 
