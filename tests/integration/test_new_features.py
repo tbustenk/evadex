@@ -146,7 +146,7 @@ def test_list_payloads_filter_structured():
     runner = CliRunner()
     result = runner.invoke(main, ["list-payloads", "--type", "structured"])
     assert result.exit_code == 0
-    assert "518 payload" in result.output
+    assert "517 payload" in result.output
     assert "AWS Access Key" not in result.output
 
 
@@ -156,7 +156,7 @@ def test_list_payloads_filter_heuristic():
     assert result.exit_code == 0
     assert "AWS Access Key" in result.output
     assert "Visa 16-digit" not in result.output
-    assert "75 payload" in result.output
+    assert "76 payload" in result.output
 
 
 # ── list-techniques ───────────────────────────────────────────────────────────
