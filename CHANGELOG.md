@@ -14,6 +14,8 @@
   - `loan_number` ULI `…5678` → `…5652` (mod-97 check digits).
   - `ca_nb_health` 10 → 9 digits, `ca_pei_health` 12 → 8 digits, `ca_nl_health` 10 → 12 digits. These match the real Medicare, PEI and MCP number lengths. The synthetic generators for these three had the same wrong lengths and are fixed too.
   - `ca_business_number` `111222333` → `876543216`. The ninth digit of a Business Number is a Luhn check, and the old value failed it.
+  - `ca_mb_drivers` `AB-123-456-789` → `SMITHJ*AB1CD2`. The FMCSA Canadian licence reference gives Manitoba as 13 name-derived characters, `AKKKKAKXX9XX9` (`*` pads a short surname); the synthetic generator now produces that layout too.
+  - `us_routing` `990000000` → `026009593`. No routing number starts `99` (Federal Reserve prefixes are 00–12, 21–32, 61–72, 80), so the old seed could never be detected.
 - **SSN and SIN rates from earlier releases are not comparable:** the old seeds could never be detected.
 - **`ssn` relevance counted any US finding.** Its entry listed the category label `North America - United States`, which US phone numbers and every state driver's licence share, so those counted as catching an SSN. It now lists only `USA SSN`.
 - **`ca_business_number` relevance** also accepts `Canada BN Root`, the 9-digit rule added in siphon-core 2.9.5.
