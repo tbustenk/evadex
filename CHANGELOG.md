@@ -1,5 +1,102 @@
 # Changelog
 
+## [3.40.0] — 2026-10-14
+
+### Fixed
+
+- **59 northam categories had no keyword sentence templates.** `get_keyword_sentence` fell back to `"Data field: {v}"`, which names nothing, so context-gated scanner rules could never fire. Those categories looked undetectable for reasons unrelated to evasion. Every northam category now has realistic templates that name the identifier close to the value (`"Employer Identification Number (EIN): {v}."`, `"Manitoba PHIN: {v}."`).
+- **Malformed seed values.** Each failed a structural check, so Siphon (correctly) rejected the plain value:
+  - `ssn` `123-45-6789` → `742-18-5503`. The old value is the SSA's voided advertising number.
+  - `sin` `046 454 286` → `130 692 544`. SINs starting with 0 are never issued.
+  - `ca_ramq` `BOUD 1234 5678` → `BOUD 8503 1512`. Digits 3–4 are the birth month, and 34 is not a month.
+  - `us_npi` `1234567891` → `1234567893` (Luhn over the `80840` prefix).
+  - `mers_min` `…901234` → `…901235` (Luhn).
+  - `loan_number` ULI `…5678` → `…5652` (mod-97 check digits).
+  - `ca_nb_health` 10 → 9 digits, `ca_pei_health` 12 → 8 digits, `ca_nl_health` 10 → 12 digits. These match the real Medicare, PEI and MCP number lengths. The synthetic generators for these three had the same wrong lengths and are fixed too.
+  - `ca_business_number` `111222333` → `876543216`. The ninth digit of a Business Number is a Luhn check, and the old value failed it.
+  - `ca_mb_drivers` `AB-123-456-789` → `SMITHJ*AB1CD2`. The FMCSA Canadian licence reference gives Manitoba as 13 name-derived characters, `AKKKKAKXX9XX9` (`*` pads a short surname); the synthetic generator now produces that layout too.
+  - `us_routing` `990000000` → `026009593`. No routing number starts `99` (Federal Reserve prefixes are 00–12, 21–32, 61–72, 80), so the old seed could never be detected.
+- **SSN and SIN rates from earlier releases are not comparable:** the old seeds could never be detected.
+- **`ssn` relevance counted any US finding.** Its entry listed the category label `North America - United States`, which US phone numbers and every state driver's licence share, so those counted as catching an SSN. It now lists only `USA SSN`.
+- **`ca_business_number` relevance** also accepts `Canada BN Root`, the 9-digit rule added in siphon-core 2.9.5.
+
+### Verified
+
+- Every northam seed, raw and in 3 keyword sentences (752 texts), against the current Siphon release build and scored with the category-relevance map: **232 → 516 detected (30.9% → 68.6%)**. Categories with zero detections fell from 57 to 11, and no category got worse. Each text group includes the bare value with no context, so context-gated rules top out at 75%.
+- The 11 still at zero, none caused by evadex:
+  - **Siphon bugs / gaps:** `dti_ratio` and `ltv_ratio` (the regex ends in `%\b`, which only matches when a letter follows the `%`); `ca_ramq` (the regex rejects the spaced `BOUD 8503 1512` layout printed on cards, although the validator strips spaces); `reg_sar` (the VIN rule wins over SAR Filing Number even next to "SAR filing number"); `ca_business_number` (only the 15-character program-account form is detected, not the 9-digit BN); `financial_amount` (`USD 12,345.67` beside "balance" does not fire).
+  - **No Siphon rule:** `mifid_tx_id`, `reuters_ric`, `wkn_num`.
+  - **Format disagreements, not changed here:** `ca_mb_drivers` (evadex `AB-123-456-789` vs Siphon's 6 letters + 6 digits) and `us_routing` (the seed `990000000` deliberately has a non-ABA prefix).
+
+### Tests
+
+- `test_every_northam_category_has_keyword_templates` and `test_templates_embed_the_value`.
+- Health-card length tests updated to 9 / 8 / 12 digits.
+- `test_us_phone_is_not_an_ssn`.
+- Unit + integration: 1587 pass.
+
+## [3.39.0] — 2026-10-14
+
+### Added
+
+- **`evadex matches <scan.json>`** shows what the scanner matched on, grouped by confidence. It reads the per-match detail already stored in a scan's `raw_response.matches`, so nothing is rescanned. The overview gives matches, variants and distinct rules per band: high (>= 0.9), medium (>= 0.6) and low. Each band then lists the rules that fired with:
+  - the scanner category, match and variant counts, and confidence range;
+  - the payload categories the rule fired on;
+  - relevance to the payload's category from `evadex.core.relevance`: `relevant`, `collision` (wrong rule), or `unmapped` (no map entry);
+  - one example of matched text and its evasion technique. Zero-width, bidi and control characters show as `·`, so an evasion no longer looks like the plain value.
+- Options: `--bands HIGH,MEDIUM` (thresholds), `--category`, `--min-confidence`, `--top N` (rules per band, 0 = all), `--no-examples`, and `--format json` (JSON to stdout).
+- Only `siphon-cli` scans carry per-match detail. Other adapters' scans report zero matches, with a note saying why.
+
+### Verified
+
+- On the 2026-10-13 Siphon `credit_card` scan (887 variants): 855 had a match. There were 788 high-confidence matches (all card-brand rules, 0.95–1.0), 108 medium (mostly brand rules at 0.81) and 15 low. All 15 low matches were collisions: US phone at 0.4 on a timestamp fragment, and SEDOL at 0.5 on a partial Amex.
+
+### Tests
+
+- `tests/unit/cli/test_matches_command.py`: band counts, relevance verdicts, per-rule detail, custom bands, category and min-confidence filters, invisible-character display, JSON and table output, bad `--bands`, and a non-scan file.
+- Unit suite: 1284 pass.
+
+## [3.38.0] — 2026-10-14
+
+### Changed
+
+- **Category-relevance map extended to the whole `northam` tier.** `RELEVANT_SCANNER_LABELS` covered 7 of the 102 northam categories, so for the other 95 any finding still counted as a detection. All but 4 are now mapped to their Siphon sub_categories, so a variant counts as caught only when the right rule fires. Notable choices:
+  - Canadian provincial DLs and health cards count only their own province's rule. A Quebec DL tripping Florida DL is a format collision, not a catch.
+  - `us_dl` counts any state's DL rule plus `Generic US DL`, since its payloads span every state.
+  - `card_track` / `card_track2` also count a PAN or card-brand finding, because track data embeds the PAN.
+  - `cins_num` counts `CUSIP` (same 9-character layout); `ca_gst_hst` counts `Canada BN` (a GST/HST account is the BN plus an RT suffix).
+- **Still unfiltered:** `ca_bank_account`, `mifid_tx_id`, `reuters_ric`, `wkn_num`. Siphon has no rule for them, so they keep the any-finding rule.
+- The map change also applies to `evadex falsepos` for these categories, which shares it.
+
+### Verified
+
+- Every new label exists as a Siphon sub_category in `crates/siphon-core/src/patterns/mod.rs`.
+- Unmutated northam seeds against Siphon (each value raw and in 3 keyword sentences, 700 texts): 29 that counted as detected no longer do, all format collisions — `us_dl` 16 (US phone / UK NIN / SEDOL), `reg_sar` 4 (VIN), `ca_bc_carecard` 3 and `mt103_ref` 3 (US phone), and 1 each for `ca_qc_drivers` (Florida DL), `ca_passport` (New Zealand passport) and `valor_num` (SEDOL). **Northam detection rates from earlier releases are not directly comparable;** `detected_any` reproduces the old figure.
+
+### Tests
+
+- `test_relevance.py`: map keys are real payload categories; every northam category is mapped except the four with no Siphon rule; observed collisions (SAR→VIN, Quebec DL→Florida DL, BC CareCard→US phone) are not detections; state DL, PAN-in-track-2, CINS→CUSIP and GST/HST→BN are.
+- The unmapped-category tests now use `wkn_num` (`us_passport` is mapped).
+- Unit suite: 1273 pass.
+
+## [3.37.0] — 2026-10-13
+
+### Changed
+
+- **A variant counts as detected only when the scanner reports a finding relevant to the payload's category** (#18). The `siphon-cli` and `dlpscan-cli` adapters used `detected = len(matches) > 0`, so a credit-card variant counted as caught when a SEDOL, AWS-key or loan-ID rule fired on a fragment of its encoding. A 7-digit `partial_first_half` of the Amex test card scored as detected this way. Detection now uses the same category-relevance map `evadex falsepos` already used (`RELEVANT_SCANNER_LABELS`, moved to `evadex.core.relevance` and re-exported from `evadex.falsepos.generators`). Categories with no map entry keep the any-finding rule, so behaviour only changes where the map says what counts.
+- **New `detected_any` field** on `ScanResult` and in scan JSON, holding the old any-finding result, so new runs can be compared with old ones. It is omitted when the adapter doesn't set it, so other adapters' JSON is unchanged.
+- **Historical rates are not directly comparable.** On a 2026-10-13 Siphon `credit_card` text scan (887 variants), the reported rate moves 83.0% → 81.4% (main), 89.5% → 87.9% (siphon-core 2.9.3) and 93.9% → 92.8% (2.9.4). `detected_any` reproduces the old figure.
+
+### Not changed
+
+- The `siphon`, `dlpscan`, `http_generic`, `netskope` and `presidio` adapters. Their responses carry no per-match category in a common shape, so they still count any finding.
+
+### Tests
+
+- `tests/unit/core/test_relevance.py`: relevant, unrelated, mixed and empty matches; unmapped-category fallback; case-insensitive category fallback; the falsepos re-export is the same function; `detected_any` round-trips and is omitted when unset.
+- `test_siphon_cli.py`: an unrelated finding is `detected=False, detected_any=True`; an unmapped category still counts any finding.
+- Full suite: 1568 unit + integration pass.
+
 ## [3.36.1] — 2026-10-13
 
 ### Fixed

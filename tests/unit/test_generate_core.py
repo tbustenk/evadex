@@ -267,3 +267,23 @@ def test_filler_reproducible():
     a = get_keyword_sentence(rng_a, PayloadCategory.SSN, "123-45-6789")
     b = get_keyword_sentence(rng_b, PayloadCategory.SSN, "123-45-6789")
     assert a == b
+
+
+def test_every_northam_category_has_keyword_templates():
+    # Without its own templates a category falls back to "Data field: {v}",
+    # which carries no keyword, so context-gated scanner rules can never
+    # fire and the category looks undetectable for reasons unrelated to
+    # evasion.
+    from evadex.generate.filler import _TEMPLATES
+    from evadex.payloads.tiers import get_tier_categories
+
+    missing = sorted(c.value for c in get_tier_categories("northam") if c not in _TEMPLATES)
+    assert missing == []
+
+
+def test_templates_embed_the_value():
+    from evadex.generate.filler import _TEMPLATES
+
+    for cat, templates in _TEMPLATES.items():
+        for t in templates:
+            assert "{v}" in t, (cat, t)

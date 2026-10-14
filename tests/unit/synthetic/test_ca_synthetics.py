@@ -75,9 +75,9 @@ _HEALTH_CASES = [
     (MBHealthSyntheticGenerator, r"\d{9}"),
     (SKHealthSyntheticGenerator, r"\d{9}"),
     (NSHealthSyntheticGenerator, r"\d{4} \d{3} \d{3}"),
-    (NBHealthSyntheticGenerator, r"\d{10}"),
-    (PEIHealthSyntheticGenerator, r"\d{12}"),
-    (NLHealthSyntheticGenerator, r"\d{10}"),
+    (NBHealthSyntheticGenerator, r"\d{9}"),
+    (PEIHealthSyntheticGenerator, r"\d{8}"),
+    (NLHealthSyntheticGenerator, r"\d{12}"),
 ]
 
 
@@ -105,10 +105,11 @@ def test_drivers_licence_generates_correct_count(cls):
     values = cls().generate(20, seed=6)
     assert len(values) == 20
     # All DLs are non-empty and use only ASCII chars commonly found
-    # in provincial DL formats (digits, uppercase letters, hyphens).
+    # in provincial DL formats (digits, uppercase letters, hyphens, and
+    # the '*' Manitoba pads short names with).
     for v in values:
         assert v
-        assert re.fullmatch(r"[A-Z0-9 -]+", v), v
+        assert re.fullmatch(r"[A-Z0-9 *-]+", v), v
 
 
 # ── Seeded reproducibility ──────────────────────────────────────────────────

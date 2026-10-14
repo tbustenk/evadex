@@ -1238,6 +1238,10 @@ class ScanResult:
     entropy_classification: Optional[str] = None
     validator: Optional[str] = None
     sub_category: Optional[str] = None
+    # Legacy rule: the scanner returned *any* finding. ``detected`` requires
+    # one relevant to the payload's category (see evadex.core.relevance);
+    # None when the adapter does not distinguish the two.
+    detected_any: Optional[bool] = None
 
     @property
     def severity(self) -> SeverityLevel:
@@ -1264,6 +1268,7 @@ class ScanResult:
             "entropy_classification",
             "validator",
             "sub_category",
+            "detected_any",
         ):
             val = getattr(self, key)
             if val is not None:
@@ -1302,4 +1307,5 @@ class ScanResult:
             entropy_classification=d.get("entropy_classification"),
             validator=d.get("validator"),
             sub_category=d.get("sub_category"),
+            detected_any=d.get("detected_any"),
         )

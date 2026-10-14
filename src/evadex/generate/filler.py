@@ -417,6 +417,304 @@ _TEMPLATES: dict[PayloadCategory, list[str]] = {
         "Nova Scotia dl: {v} verified.",
         "Nova Scotia driver's licence {v} confirmed.",
     ],
+    # ── northam categories that previously fell back to "Data field: {v}" ──
+    # Each template names the identifier close to the value, the way a real
+    # document would, so context-gated scanner rules get a fair chance.
+    PayloadCategory.CA_AB_DL: [
+        "Alberta driver's licence {v} presented at registry.",
+        "Identity check: Alberta DL {v}, class 5.",
+        "Applicant's Alberta driver's licence number is {v}.",
+    ],
+    PayloadCategory.CA_NB_DRIVERS: [
+        "New Brunswick driver's licence {v} verified.",
+        "Identity check: New Brunswick DL {v}, class 5.",
+        "Applicant's New Brunswick driver's licence number is {v}.",
+    ],
+    PayloadCategory.CA_PEI_DRIVERS: [
+        "PEI driver's licence {v} verified at the counter.",
+        "Identity check: Prince Edward Island DL {v}.",
+        "Applicant's PEI driver's licence number is {v}.",
+    ],
+    PayloadCategory.CA_SK_DRIVERS: [
+        "Saskatchewan driver's licence {v} verified by SGI.",
+        "Identity check: Saskatchewan DL {v}, class 5.",
+        "Applicant's Saskatchewan driver's licence number is {v}.",
+    ],
+    PayloadCategory.CA_MB_DRIVERS: [
+        "Manitoba driver's licence {v} verified by MPI.",
+        "Identity check: Manitoba DL {v}, class 5.",
+        "Applicant's Manitoba driver's licence number is {v}.",
+    ],
+    PayloadCategory.CA_NU_DL: [
+        "Nunavut driver's licence {v} verified in Iqaluit.",
+        "Identity check: Nunavut DL {v}.",
+        "Applicant's Nunavut driver's licence number is {v}.",
+    ],
+    PayloadCategory.CA_NWT_DL: [
+        "Northwest Territories driver's licence {v} verified.",
+        "Identity check: NWT DL {v}, class 5.",
+        "Applicant's Northwest Territories driver's licence number is {v}.",
+    ],
+    PayloadCategory.CA_YT_DL: [
+        "Yukon driver's licence {v} verified in Whitehorse.",
+        "Identity check: Yukon DL {v}, class 5.",
+        "Applicant's Yukon driver's licence number is {v}.",
+    ],
+    PayloadCategory.CA_MB_HEALTH: [
+        "Manitoba health card {v} on file for the patient.",
+        "Manitoba PHIN: {v}.",
+        "Personal Health Identification Number {v} (Manitoba).",
+    ],
+    PayloadCategory.CA_SK_HEALTH: [
+        "Saskatchewan health card {v} on file for the patient.",
+        "SK health services number: {v}.",
+        "Saskatchewan health number {v} verified at admission.",
+    ],
+    PayloadCategory.CA_NS_HEALTH: [
+        "Nova Scotia health card {v} on file for the patient.",
+        "MSI number: {v}.",
+        "Nova Scotia MSI card {v} verified at admission.",
+    ],
+    PayloadCategory.CA_NB_HEALTH: [
+        "New Brunswick health card {v} on file for the patient.",
+        "NB Medicare number: {v}.",
+        "New Brunswick Medicare {v} verified at admission.",
+    ],
+    PayloadCategory.CA_PEI_HEALTH: [
+        "PEI health card {v} on file for the patient.",
+        "Prince Edward Island health number: {v}.",
+        "PEI health card number {v} verified at admission.",
+    ],
+    PayloadCategory.CA_NL_HEALTH: [
+        "Newfoundland MCP number {v} on file for the patient.",
+        "MCP card: {v}.",
+        "NL health card {v} verified at admission (Medical Care Plan).",
+    ],
+    PayloadCategory.CA_NEXUS: [
+        "NEXUS card number {v}, expires 2029.",
+        "Trusted traveler PASS ID: {v}.",
+        "Applicant's NEXUS number is {v}.",
+    ],
+    PayloadCategory.CA_BUSINESS_NUMBER: [
+        "CRA business number {v} on the vendor form.",
+        "Business Number (BN): {v}.",
+        "Supplier registered under business number {v}.",
+    ],
+    PayloadCategory.CA_GST_HST: [
+        "GST/HST registration: business number {v}.",
+        "Invoice shows GST/HST account {v} (CRA business number).",
+        "Supplier GST/HST number {v} verified with CRA.",
+    ],
+    PayloadCategory.CA_TRANSIT_NUMBER: [
+        "Transit number {v} for the branch deposit.",
+        "Canadian bank transit and institution number: {v}.",
+        "Direct deposit — bank transit {v}.",
+    ],
+    PayloadCategory.CA_BANK_ACCOUNT: [
+        "Canadian bank account number {v} for direct deposit.",
+        "Deposit to chequing account {v}.",
+        "Payroll account: {v} (Canadian bank).",
+    ],
+    PayloadCategory.US_DL: [
+        "Driver's license number {v} on the rental agreement.",
+        "Identity check: state driver license {v}.",
+        "DMV record for driver's license {v}.",
+    ],
+    PayloadCategory.US_EIN: [
+        "Employer Identification Number (EIN): {v}.",
+        "Vendor W-9 lists EIN {v}.",
+        "Federal tax ID (FEIN) {v} on the 1099.",
+    ],
+    PayloadCategory.US_ITIN: [
+        "ITIN {v} on the 1040 return.",
+        "Individual taxpayer identification number: {v}.",
+        "Filer's ITIN is {v}.",
+    ],
+    PayloadCategory.US_MBI: [
+        "Medicare Beneficiary Identifier (MBI): {v}.",
+        "Medicare number {v} on the claim.",
+        "Patient MBI {v} verified for eligibility.",
+    ],
+    PayloadCategory.US_NPI: [
+        "Rendering provider NPI: {v}.",
+        "National Provider Identifier {v} on the claim.",
+        "Referring physician NPI {v}.",
+    ],
+    PayloadCategory.US_DEA: [
+        "Prescriber DEA number {v} on the prescription.",
+        "DEA registration: {v}.",
+        "Controlled substance order signed under DEA number {v}.",
+    ],
+    PayloadCategory.US_KTN: [
+        "Known Traveler Number (KTN): {v}.",
+        "Global Entry KTN {v} added to the booking.",
+        "Passenger's known traveler number is {v}.",
+    ],
+    PayloadCategory.US_PASSPORT_CARD: [
+        "US passport card {v} presented at the land border.",
+        "Passport card number: {v}.",
+        "Identity check: USA passport card {v}.",
+    ],
+    PayloadCategory.US_PHONE: [
+        "Customer phone number: {v}.",
+        "Call back at {v} after 5 pm.",
+        "Mobile phone {v} verified by SMS.",
+    ],
+    PayloadCategory.US_ROUTING: [
+        "ABA routing number {v} for the ACH credit.",
+        "Routing number: {v}.",
+        "Wire to routing transit number {v}.",
+    ],
+    PayloadCategory.US_ZIP4: [
+        "Mailing address ZIP+4: {v}.",
+        "Ship to ZIP code {v}.",
+        "Billing zip {v} matched the card on file.",
+    ],
+    PayloadCategory.ACH_BATCH: [
+        "ACH batch number {v} submitted to the ODFI.",
+        "NACHA batch {v} released for settlement.",
+        "Payroll ACH file — batch ID {v}.",
+    ],
+    PayloadCategory.ACH_TRACE: [
+        "ACH trace number {v} for the returned item.",
+        "Trace number: {v}.",
+        "ACH payment trace {v} posted to the account.",
+    ],
+    PayloadCategory.WIRE_REF: [
+        "Wire reference {v} for the outgoing transfer.",
+        "Wire transfer reference number: {v}.",
+        "Payment reference {v} quoted by the beneficiary bank.",
+    ],
+    PayloadCategory.BANK_REF: [
+        "Internal reference {v} for the customer account.",
+        "Core banking ID: {v}.",
+        "Account reference {v} linked to the profile.",
+    ],
+    PayloadCategory.MICR: [
+        "MICR line on the cheque: {v}.",
+        "Scanned check MICR: {v}.",
+        "Cheque encoded with MICR {v}.",
+    ],
+    PayloadCategory.DE_IBAN: [
+        "IBAN for the German supplier: {v}.",
+        "Bankverbindung — IBAN {v}.",
+        "Remit to German bank account IBAN {v}.",
+    ],
+    PayloadCategory.ES_IBAN: [
+        "IBAN for the Spanish supplier: {v}.",
+        "Cuenta bancaria — IBAN {v}.",
+        "Remit to bank account IBAN {v}.",
+    ],
+    PayloadCategory.FR_IBAN: [
+        "IBAN for the French supplier: {v}.",
+        "Compte bancaire — IBAN {v}.",
+        "Remit to bank account IBAN {v}.",
+    ],
+    PayloadCategory.NL_IBAN: [
+        "IBAN for the Dutch supplier: {v}.",
+        "Bank account IBAN {v} for the refund.",
+        "Remit to bank account IBAN {v}.",
+    ],
+    PayloadCategory.MASKED_PAN: [
+        "Card number on the receipt: {v}.",
+        "Payment card PAN (masked) {v}.",
+        "Credit card ending {v} charged.",
+    ],
+    PayloadCategory.CARD_TRACK: [
+        "Track 1 data captured at the terminal: {v}",
+        "Magstripe track 1: {v}",
+        "Card swipe track data {v}",
+    ],
+    PayloadCategory.CARD_TRACK2: [
+        "Track 2 data captured at the terminal: {v}",
+        "Magstripe track 2: {v}",
+        "Card swipe track data {v}",
+    ],
+    PayloadCategory.PIN_BLOCK: [
+        "Encrypted PIN block {v} sent to the HSM.",
+        "ISO 9564 PIN block: {v}.",
+        "PIN block {v} logged in the switch trace.",
+    ],
+    PayloadCategory.ENCRYPTION_KEY: [
+        "Zone master key (ZMK) component: {v}.",
+        "Terminal master key {v} loaded on the PIN pad.",
+        "KEK {v} exchanged with the acquirer.",
+    ],
+    PayloadCategory.SESSION_ID: [
+        "Session ID {v} hijacked from the cookie.",
+        "JSESSIONID={v}",
+        "Session token {v} found in the access log.",
+    ],
+    PayloadCategory.BIOMETRIC_ID: [
+        "Biometric template ID {v} enrolled at the branch.",
+        "Fingerprint template {v} stored for the customer.",
+        "Facial template enrollment ID: {v}.",
+    ],
+    PayloadCategory.EMPLOYEE_ID: [
+        "Employee ID {v} badge access revoked.",
+        "Staff ID: {v}.",
+        "Personnel number {v} on the payroll register.",
+    ],
+    PayloadCategory.DATE_ISO: [
+        "Date of birth: {v}.",
+        "Customer DOB {v} matched the application.",
+        "Born on {v} per the passport scan.",
+    ],
+    PayloadCategory.FINANCIAL_AMOUNT: [
+        "Available balance: {v}.",
+        "Account balance {v} as of month end.",
+        "Total funds transferred: {v}.",
+    ],
+    PayloadCategory.DTI_RATIO: [
+        "Debt-to-income ratio: {v} at underwriting.",
+        "Borrower DTI {v} exceeds the guideline.",
+        "DTI ratio {v} approved by the credit officer.",
+    ],
+    PayloadCategory.LTV_RATIO: [
+        "Loan-to-value ratio: {v} at origination.",
+        "LTV {v} on the appraised value.",
+        "LTV ratio {v} requires mortgage insurance.",
+    ],
+    PayloadCategory.LOAN_NUMBER: [
+        "Universal Loan Identifier (ULI): {v}.",
+        "HMDA ULI {v} reported for the application.",
+        "Loan identifier {v} on the closing disclosure.",
+    ],
+    PayloadCategory.LOAN_NUM_SHORT: [
+        "Loan number {v} past due 30 days.",
+        "Loan ID: {v}.",
+        "Payment applied to loan account {v}.",
+    ],
+    PayloadCategory.MERS_MIN: [
+        "MERS MIN {v} registered at closing.",
+        "Mortgage Identification Number: {v}.",
+        "MERS registration — MIN number {v}.",
+    ],
+    PayloadCategory.AML_CASE_ID: [
+        "AML case {v} escalated to the BSA officer.",
+        "Anti-money laundering investigation: case {v}.",
+        "Money laundering alert opened as {v}.",
+    ],
+    PayloadCategory.REG_SAR: [
+        "SAR filing number {v} submitted to FinCEN.",
+        "Suspicious activity report {v} filed.",
+        "SAR {v} — continuing activity review.",
+    ],
+    PayloadCategory.REG_CTR: [
+        "Currency transaction report (CTR) {v} filed.",
+        "CTR number: {v}.",
+        "Cash transaction over $10,000 — CTR filing {v}.",
+    ],
+    PayloadCategory.REG_FINCEN: [
+        "FinCEN report number {v} acknowledged.",
+        "BSA filing to FinCEN: {v}.",
+        "FinCEN filing {v} accepted.",
+    ],
+    PayloadCategory.REG_COMPLIANCE_CASE: [
+        "Compliance case {v} opened by the second line.",
+        "Regulatory case number: {v}.",
+        "Audit case {v} assigned for review.",
+    ],
 }
 
 _TEMPLATES_FR_CA: dict[PayloadCategory, list[str]] = {
