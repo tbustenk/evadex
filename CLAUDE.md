@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `evadex` is a scanner-agnostic DLP (data loss prevention) evasion test suite. It takes a sensitive value (credit card, SSN, IBAN, AWS key, etc.), runs it through a battery of evasion techniques (unicode tricks, delimiter swaps, encoding, regional digits, splitting, morse, etc.), embeds each variant in plain text and in real document formats (DOCX/PDF/XLSX/...), submits everything to a configured DLP scanner via an adapter, and reports what slipped through. Python 3.11+, distributed on PyPI, CLI-first (`evadex = evadex.cli.app:main`).
 
-Current version: **3.40.0** (see `pyproject.toml`; CHANGELOG is the user-facing release notes). Test suite: **1258 unit + 300 integration = 1558** total; **all tests pass**. CI runs `tests/unit` on Python 3.11 and 3.13 plus a Docker image-build step (`.github/workflows/ci.yml`).
+Current version: **3.40.1** (see `pyproject.toml`; CHANGELOG is the user-facing release notes). Test suite: **1258 unit + 300 integration = 1558** total; **all tests pass**. CI runs `tests/unit` on Python 3.11 and 3.13 plus a Docker image-build step (`.github/workflows/ci.yml`).
 
 Scanner adapters (name → `--tool` value): `siphon`, `siphon-cli`, `dlpscan`, `dlpscan-cli`, `presidio`, `http_generic` (any JSON HTTP scan endpoint, v3.31.0), `netskope` (Netskope inline DLP API, v3.32.0). Recent analysis commands: `matches` (scanner findings grouped by confidence band, v3.39.0), `mutate` (evolve bypassing variants from a past scan into new candidates, v3.36.0), `replay` (re-run exact payloads from a past scan against the current scanner, v3.35.0), `score`, `leaderboard`, `explain`, `coverage` (v3.33.0), `ci` (v3.31.0).
 

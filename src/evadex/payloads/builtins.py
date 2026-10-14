@@ -158,7 +158,7 @@ BUILTIN_PAYLOADS = [
         "876543216", PayloadCategory.CA_BUSINESS_NUMBER, "Canadian Business Number (BN)"
     ),
     Payload(
-        "111222333RT0001", PayloadCategory.CA_GST_HST, "Canadian GST/HST registration"
+        "111222337RT0001", PayloadCategory.CA_GST_HST, "Canadian GST/HST registration"
     ),
     Payload(
         "12345-678",
@@ -994,7 +994,7 @@ BUILTIN_PAYLOADS = [
     Payload(
         "12010185A001", PayloadCategory.DE_SOCIAL_INS, "Germany social insurance number"
     ),
-    Payload("DE89370400440532013001", PayloadCategory.DE_IBAN, "Germany IBAN"),
+    Payload("DE44500105175407324931", PayloadCategory.DE_IBAN, "Germany IBAN"),
     # ── Europe — Greece ──────────────────────────────────────────────────────
     Payload("123456790", PayloadCategory.GR_AFM, "Greece AFM tax number (9 digits)"),
     Payload("AB123457", PayloadCategory.GR_DL, "Greece DL (2 letters + 6 digits)"),
@@ -1304,7 +1304,7 @@ BUILTIN_PAYLOADS = [
     Payload("GOMC780916A12", PayloadCategory.MX_RFC, "Mexico RFC tax ID"),
     # ── North America — United States (new sub-patterns) ──────────────────────
     Payload(
-        "AB1234568",
+        "AB1234563",
         PayloadCategory.US_DEA,
         "US DEA registration (2 letters + 7 digits)",
     ),
