@@ -13,7 +13,10 @@
   - `mers_min` `…901234` → `…901235` (Luhn).
   - `loan_number` ULI `…5678` → `…5652` (mod-97 check digits).
   - `ca_nb_health` 10 → 9 digits, `ca_pei_health` 12 → 8 digits, `ca_nl_health` 10 → 12 digits. These match the real Medicare, PEI and MCP number lengths. The synthetic generators for these three had the same wrong lengths and are fixed too.
+  - `ca_business_number` `111222333` → `876543216`. The ninth digit of a Business Number is a Luhn check, and the old value failed it.
 - **SSN and SIN rates from earlier releases are not comparable:** the old seeds could never be detected.
+- **`ssn` relevance counted any US finding.** Its entry listed the category label `North America - United States`, which US phone numbers and every state driver's licence share, so those counted as catching an SSN. It now lists only `USA SSN`.
+- **`ca_business_number` relevance** also accepts `Canada BN Root`, the 9-digit rule added in siphon-core 2.9.5.
 
 ### Verified
 
@@ -27,7 +30,8 @@
 
 - `test_every_northam_category_has_keyword_templates` and `test_templates_embed_the_value`.
 - Health-card length tests updated to 9 / 8 / 12 digits.
-- Unit + integration: 1586 pass.
+- `test_us_phone_is_not_an_ssn`.
+- Unit + integration: 1587 pass.
 
 ## [3.39.0] — 2026-10-14
 
