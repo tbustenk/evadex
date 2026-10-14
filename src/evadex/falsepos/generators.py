@@ -209,41 +209,48 @@ def generate_false_emails(count: int, seed: Optional[int] = None) -> list[str]:
 
 # ── Phone ─────────────────────────────────────────────────────────────────────
 
-# North American Numbering Plan (NANP) reserves area codes starting with 0 or 1,
-# and the 555 midrange is commonly used as a fictional/test number in the US.
-_INVALID_AREA_CODES = [
-    "000",
-    "001",
-    "011",
-    "100",
-    "101",
-    "111",
-    "200",
-    "201",
-    "211",
-    "300",
-    "400",
-    "500",
-    "555",
-    "600",
-    "700",
-    "800",
-    "900",
-    "911",
-]
+# NANP numbers are NPA-NXX-XXXX where both the area code (NPA) and the
+# exchange (NXX) must start with 2-9, and N11 codes (211, 311, ... 911) are
+# service codes, never area codes. Those are the only *structural* rules a
+# scanner can check. Unassigned-but-well-formed area codes (200, 300), toll-free
+# and premium codes (800, 900), real geographic codes (201) and 555 (fictional
+# only as an exchange, 555-01XX) are all valid shapes, so they are not used:
+# they once made up 10 of 18 entries here and were the entire ~53% phone
+# "false-positive" rate.
+_N11_CODES = [f"{n}11" for n in range(2, 10)]
+
+
+def _invalid_npa(rng: random.Random) -> str:
+    """Area code starting with 0 or 1, or an N11 service code."""
+    if rng.random() < 0.25:
+        return rng.choice(_N11_CODES)
+    return f"{rng.randint(0, 1)}{rng.randint(0, 99):02d}"
+
+
+def _valid_npa(rng: random.Random) -> str:
+    """Well-formed area code: N(2-9) X X, excluding N11."""
+    while True:
+        npa = f"{rng.randint(2, 9)}{rng.randint(0, 99):02d}"
+        if npa[1:] != "11":
+            return npa
 
 
 def generate_false_phones(count: int, seed: Optional[int] = None) -> list[str]:
-    """Phone-shaped +1-NPA-NXX-XXXX strings with invalid NANP area codes.
+    """Phone-shaped +1-NPA-NXX-XXXX strings that are structurally invalid NANP.
 
-    Uses area codes that are reserved, unassigned, or commonly flagged as
-    fictional (e.g. 555) in the North American Numbering Plan.
+    Each value breaks one rule a scanner can verify: the area code starts
+    with 0 or 1 or is an N11 service code, or (with a valid area code) the
+    exchange starts with 0 or 1.
     """
     rng = random.Random(seed)
     results = []
     for _ in range(count):
-        area = rng.choice(_INVALID_AREA_CODES)
-        exchange = f"{rng.randint(200, 999):03d}"  # NXX: N must be 2-9
+        if rng.random() < 0.7:
+            area = _invalid_npa(rng)
+            exchange = f"{rng.randint(200, 999):03d}"
+        else:
+            area = _valid_npa(rng)
+            exchange = f"{rng.randint(0, 1)}{rng.randint(0, 99):02d}"
         subscriber = f"{rng.randint(0, 9999):04d}"
         results.append(f"+1-{area}-{exchange}-{subscriber}")
     return results

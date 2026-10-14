@@ -145,13 +145,22 @@ def test_false_phones_start_with_plus1():
         assert v.startswith("+1-"), f"Expected +1- prefix in {v!r}"
 
 
-def test_false_phones_invalid_area_codes():
-    _INVALID = {"000", "001", "011", "100", "101", "111",
-                "200", "201", "211", "300", "400",
-                "500", "555", "600", "700", "800", "900", "911"}
-    for v in generate_false_phones(50, seed=13):
-        area = v.split("-")[1]
-        assert area in _INVALID, f"Expected invalid area code in {v!r}"
+def test_false_phones_structurally_invalid():
+    # Every value must break a NANP rule: NPA or NXX starting with 0/1, or an
+    # N11 area code. A well-formed number (201-456-7890, 800-...) is a real
+    # phone shape and would make the "false-positive" rate measure nothing.
+    for v in generate_false_phones(500, seed=13):
+        _, area, exchange, _ = v.split("-")
+        assert (
+            area[0] in "01" or area[1:] == "11" or exchange[0] in "01"
+        ), f"Expected a structurally invalid NANP number, got {v!r}"
+
+
+def test_false_phones_cover_each_invalidity():
+    vals = [v.split("-") for v in generate_false_phones(500, seed=14)]
+    assert any(a[0] in "01" for _, a, _, _ in vals)
+    assert any(a[1:] == "11" for _, a, _, _ in vals)
+    assert any(a[0] not in "01" and a[1:] != "11" and e[0] in "01" for _, a, e, _ in vals)
 
 
 # ── CA RAMQ ───────────────────────────────────────────────────────────────────
