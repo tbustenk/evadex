@@ -67,10 +67,10 @@ def test_nl_health_payload_format():
 def test_mb_drivers_payload_format():
     payloads = get_payloads({PayloadCategory.CA_MB_DRIVERS})
     assert payloads
-    pattern = re.compile(r'^[A-Z]{2}-\d{3}-\d{3}-\d{3}$')
+    pattern = re.compile(r'^[A-Z][A-Z*]{4}[A-Z][A-Z*][A-Z0-9]{2}\d[A-Z0-9]{2}\d$')
     for p in payloads:
         assert pattern.match(p.value), (
-            f"MB driver's licence should be LL-NNN-NNN-NNN: {p.value!r}"
+            f"MB driver's licence should be AKKKKAKXX9XX9: {p.value!r}"
         )
 
 
@@ -250,7 +250,7 @@ def test_ns_health_synthetic_format():
 def test_mb_drivers_synthetic_format():
     gen = _get_synthetic(PayloadCategory.CA_MB_DRIVERS)
     assert gen is not None
-    pattern = re.compile(r'^[A-Z]{2}-\d{3}-\d{3}-\d{3}$')
+    pattern = re.compile(r'^[A-Z][A-Z*]{4}[A-Z][A-Z*][A-Z0-9]{2}\d[A-Z0-9]{2}\d$')
     for v in gen.generate(20, seed=2):
         assert pattern.match(v), f"MB driver's licence format mismatch: {v!r}"
 

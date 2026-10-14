@@ -138,9 +138,9 @@ BUILTIN_PAYLOADS = [
     Payload("123456789012", PayloadCategory.CA_NL_HEALTH, "Newfoundland health card"),
     # --- Remaining provincial driver's licences ---
     Payload(
-        "AB-123-456-789",
+        "SMITHJ*AB1CD2",
         PayloadCategory.CA_MB_DRIVERS,
-        "Manitoba driver's licence (2 letters + dashes + 9 digits)",
+        "Manitoba driver's licence (13 chars, name-derived)",
     ),
     Payload("12345678", PayloadCategory.CA_SK_DRIVERS, "Saskatchewan driver's licence"),
     Payload(
@@ -431,9 +431,9 @@ BUILTIN_PAYLOADS = [
     Payload("1234567", PayloadCategory.ACH_BATCH, "ACH Batch Number (7 digits)"),
     # ── US additional identifiers ─────────────────────────────────────────────
     Payload(
-        "990000000",
+        "026009593",
         PayloadCategory.US_ROUTING,
-        "USA Routing Number (9-digit, non-ABA prefix)",
+        "USA Routing Number (9-digit)",
     ),
     Payload(
         "(555) 867-5309",
