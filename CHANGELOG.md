@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.40.1] — 2026-10-14
+
+### Fixed
+
+- **Three seeds failed their own check digit.** Siphon reported each one only through a looser sibling rule with no validator (`Germany IBAN`, `US DEA Number`, `Canada BN`). Once a scanner recovers an evaded value and requires the check digit, every evasion of these seeds counts as a miss even when the scanner is right.
+  - `de_iban` `DE89370400440532013001` → `DE44500105175407324931` (the old value fails mod-97; it is the well-known `…3000` example with its last digit changed).
+  - `us_dea` `AB1234568` → `AB1234563` (DEA check digit).
+  - `ca_gst_hst` `111222333RT0001` → `111222337RT0001` (the 9-digit BN root is Luhn-checked).
+
+### Tests
+
+- `tests/unit/payloads/test_seed_checksums.py` checks every IBAN-category seed against mod-97, the US DEA seed against its check digit, the BN and GST/HST roots against Luhn, and the SIN against Luhn.
+
 ## [3.40.0] — 2026-10-14
 
 ### Fixed
