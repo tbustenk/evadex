@@ -35,7 +35,7 @@ RESULTS = [
     _result("credit_card", "zero_width_zwj", [VISA, PHONE]),
     _result("credit_card", "plain", [VISA_MED]),
     _result("credit_card", "base64", []),
-    _result("wkn_num", "plain", [PHONE]),
+    _result("ca_bank_account", "plain", [PHONE]),
     # Adapters without per-match detail store a non-list or nothing.
     {"payload": {"category": "credit_card"}, "variant": {}, "raw_response": {}},
 ]
@@ -58,7 +58,7 @@ def test_relevance_verdicts():
     verdicts = {
         r["payload_categories"].popitem()[0]: r["relevance"] for r in s["rules"]["low"]
     }
-    assert verdicts == {"credit_card": "collision", "wkn_num": "unmapped"}
+    assert verdicts == {"credit_card": "collision", "ca_bank_account": "unmapped"}
 
 
 def test_rule_row_detail():
@@ -78,7 +78,7 @@ def test_custom_bands_move_matches():
 
 
 def test_category_and_min_confidence_filters():
-    s = summarize_matches(RESULTS, category="wkn_num")
+    s = summarize_matches(RESULTS, category="ca_bank_account")
     assert s["variants_scanned"] == 1
     s = summarize_matches(RESULTS, min_confidence=0.5)
     assert s["bands"]["low"]["matches"] == 0

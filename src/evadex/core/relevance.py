@@ -78,7 +78,7 @@ RELEVANT_SCANNER_LABELS: dict[str, set[str]] = {
     # ── northam tier ─────────────────────────────────────────────────────
     # Labels are Siphon sub_categories (crates/siphon-core/src/patterns).
     # Not mapped, because Siphon has no rule for them: ca_bank_account,
-    # mifid_tx_id, reuters_ric, wkn_num.
+    # mifid_tx_id (heuristic: a MiFID TRN has no fixed format).
     #
     # Canadian provincial IDs: the province's own rule only. A Quebec DL
     # that trips Florida DL is a format collision, not a catch.
@@ -173,6 +173,8 @@ RELEVANT_SCANNER_LABELS: dict[str, set[str]] = {
     "figi_num": {"figi"},
     "lei_num": {"lei"},
     "valor_num": {"valor"},
+    "wkn_num": {"wkn"},  # siphon-core 2.10.0
+    "reuters_ric": {"reuters ric"},  # siphon-core 2.10.0
     "ticker_symbol": {"ticker symbol"},
     # Regulatory
     "aml_case_id": {"aml case id"},
