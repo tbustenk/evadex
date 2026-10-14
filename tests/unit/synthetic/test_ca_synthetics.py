@@ -75,9 +75,9 @@ _HEALTH_CASES = [
     (MBHealthSyntheticGenerator, r"\d{9}"),
     (SKHealthSyntheticGenerator, r"\d{9}"),
     (NSHealthSyntheticGenerator, r"\d{4} \d{3} \d{3}"),
-    (NBHealthSyntheticGenerator, r"\d{10}"),
-    (PEIHealthSyntheticGenerator, r"\d{12}"),
-    (NLHealthSyntheticGenerator, r"\d{10}"),
+    (NBHealthSyntheticGenerator, r"\d{9}"),
+    (PEIHealthSyntheticGenerator, r"\d{8}"),
+    (NLHealthSyntheticGenerator, r"\d{12}"),
 ]
 
 
