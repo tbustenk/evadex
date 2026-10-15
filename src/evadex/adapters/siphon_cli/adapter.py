@@ -238,43 +238,46 @@ class SiphonCliAdapter(BaseAdapter):
             return await self._http_client.health_check()  # type: ignore[union-attr]
         return await self._client.health_check()  # type: ignore[union-attr]
 
+    def _submission_text(self, payload: Payload, variant: Variant) -> str:
+        """What the scanner is shown, for every strategy.
+
+        Under ``wrap_context`` the variant sits inside a keyword sentence so
+        context-gated rules can fire, as they would in a real document. The
+        same sentence goes into a DOCX/PDF/XLSX fixture as into a text
+        submission: until v3.41.0 the file strategies embedded the bare value,
+        so the same scanner scored 78.8% on text and 9–20% on files for no
+        reason but the fixture, and a gate on all four strategies measured
+        evadex rather than the scanner.
+        """
+        if not self._wrap_context:
+            return variant.value
+        return get_keyword_sentence(
+            sentence_rng(self._seed, payload.category, variant.value),
+            payload.category,
+            variant.value,
+        )
+
     async def submit(self, payload: Payload, variant: Variant) -> ScanResult:
         strategy = variant.strategy
+        text = self._submission_text(payload, variant)
 
         if self._transport == "http":
             # HTTP transport: always submits as text (siphon-api /scan endpoint).
             # File-format strategies are decoded to UTF-8 before submission —
             # adequate for regex-layer evasion tests; for file-extraction pipeline
             # tests use transport=cli which invokes ``siphon scan <file>``.
-            text = variant.value
-            if self._wrap_context:
-                text = get_keyword_sentence(
-                    sentence_rng(self._seed, payload.category, variant.value),
-                    payload.category,
-                    text,
-                )
             if strategy != "text":
-                data, _ = FileBuilder.build(variant.value, strategy)
+                data, _ = FileBuilder.build(text, strategy)
                 matches = await self._http_client.scan_file_bytes(data, f".{strategy}")  # type: ignore[union-attr]
             else:
                 matches = await self._http_client.scan_text(text)  # type: ignore[union-attr]
         elif strategy == "text":
-            text = variant.value
-            if self._wrap_context:
-                # Siphon's rules often require keyword context to fire. Wrap
-                # the bare variant in a realistic sentence so detection rates
-                # reflect what a scanner would see in real documents.
-                text = get_keyword_sentence(
-                    sentence_rng(self._seed, payload.category, variant.value),
-                    payload.category,
-                    text,
-                )
             if self._batcher is not None:
                 matches = await self._batcher.scan_text(text)
             else:
                 matches = await self._client.scan_text(text)  # type: ignore[union-attr]
         else:
-            data, _ = FileBuilder.build(variant.value, strategy)
+            data, _ = FileBuilder.build(text, strategy)
             if self._batcher is not None:
                 matches = await self._batcher.scan_bytes(data, f".{strategy}")
             else:

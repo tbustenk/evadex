@@ -12,6 +12,7 @@
 
 ### Fixed
 
+- **File-strategy fixtures carried the bare value; the text path carried a keyword sentence.** Under `--wrap-context` (default for Siphon) a text submission is `Please charge card 4532… for the order.` while the DOCX/PDF/XLSX fixture for the same variant held `4532…` alone, so context-gated rules could never fire on a file. On a seeded northam run the same scanner scored 78.8% on text and 20.4% / 16.0% / 9.2% on DOCX / PDF / XLSX, and Siphon's quality gate, which runs all four strategies, reported 31% for a scanner whose text path is at 79%. Both CLI adapters now build the fixture from the wrapped sentence. File-strategy numbers from before 3.41.0 are not comparable with those after.
 - **`transport: http` silently dropped `require_context`, `min_confidence` and `categories`.** `SiphonHttpClient` posted only `{"text": ...}`; siphon-api accepts those three under `options`. They are now forwarded, so the two transports grade under the same settings.
 - **`evadex ci --max-fp` never measured anything.** It read `meta["false_positive_rate"]` from the scan output, a key `evadex scan` has never written, so it defaulted to 0.0 and passed every gate, including Siphon's. `ci` now runs `evadex falsepos --format json --wrap-context` under the same config and grades `overall_false_positive_rate`. If the measurement cannot be taken the gate exits 2 rather than reporting a pass.
 
@@ -30,7 +31,7 @@
 - `tests/unit/cli/test_ci_command.py` (new; `ci` had no tests): thresholds, the error gate, the errors-excluded rate, the falsepos subprocess and its flags, seed forwarding, and the fallback for pre-3.41.0 scan output.
 - `tests/unit/adapters/test_wrap_context_seed.py` (new): the same seed gives the same sentence across adapter instances and across both CLI adapters; different seeds and different values give different draws; no seed still works.
 - `tests/unit/reporters/test_json_reporter_rates.py`, `tests/unit/test_config_seed.py`.
-- `tests/unit/adapters/test_siphon_cli_batch.py` (new): `scan-dir` command and output parsing, per-input error mapping, temp-dir cleanup, the batcher's size and time flushes, whole-batch and per-item failures, drain on teardown, and the adapter routing text submissions through one process. `tests/unit/adapters/test_siphon_http_options.py` (new), `tests/unit/test_config_batch.py` (new).
+- `tests/unit/adapters/test_siphon_cli_batch.py` (new): `scan-dir` command and output parsing, per-input error mapping, temp-dir cleanup, the batcher's size and time flushes, whole-batch and per-item failures, drain on teardown, and the adapter routing text submissions through one process. `tests/unit/adapters/test_siphon_http_options.py` (new), `tests/unit/test_config_batch.py` (new), `tests/unit/adapters/test_wrap_context_files.py` (new: file fixtures carry the sentence, same sentence for text and file under one seed, HTTP and dlpscan-cli paths too).
 
 ## [3.40.4] — 2026-10-14
 
