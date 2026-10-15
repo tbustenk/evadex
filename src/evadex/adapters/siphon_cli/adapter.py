@@ -25,15 +25,13 @@ categories      : restrict scanning to these categories (``--categories``)
 
 from __future__ import annotations
 
-import random
-
 from evadex.adapters.base import AdapterConfig, BaseAdapter
 from evadex.adapters.dlpscan.file_builder import FileBuilder
 from evadex.adapters.siphon_cli.client import SiphonCliClient, SiphonHttpClient
 from evadex.core.registry import register_adapter
 from evadex.core.relevance import classify_detection
 from evadex.core.result import Payload, ScanResult, Variant
-from evadex.generate.filler import get_keyword_sentence
+from evadex.generate.filler import get_keyword_sentence, sentence_rng
 
 
 _BIN_FIELDS = ("bin_brand", "bin_card_type", "bin_country", "bin_issuer")
@@ -70,6 +68,10 @@ class SiphonCliAdapter(BaseAdapter):
         extra = self.config.extra
         self._transport = extra.get("transport", "cli")
         self._wrap_context = bool(extra.get("wrap_context", False))
+        # Seed for the per-submission template draw under wrap_context. None
+        # keeps the pre-3.41.0 behaviour (a fresh unseeded RNG per call).
+        _seed = extra.get("seed")
+        self._seed: int | None = int(_seed) if _seed is not None else None
         self._require_context = bool(extra.get("require_context", False))
         self._min_confidence = float(extra.get("min_confidence", 0.0))
         self._categories = list(extra.get("categories", []))
@@ -145,7 +147,11 @@ class SiphonCliAdapter(BaseAdapter):
             # tests use transport=cli which invokes ``siphon scan <file>``.
             text = variant.value
             if self._wrap_context:
-                text = get_keyword_sentence(random.Random(), payload.category, text)
+                text = get_keyword_sentence(
+                    sentence_rng(self._seed, payload.category, variant.value),
+                    payload.category,
+                    text,
+                )
             if strategy != "text":
                 data, _ = FileBuilder.build(variant.value, strategy)
                 matches = await self._http_client.scan_file_bytes(data, f".{strategy}")  # type: ignore[union-attr]
@@ -157,7 +163,11 @@ class SiphonCliAdapter(BaseAdapter):
                 # Siphon's rules often require keyword context to fire. Wrap
                 # the bare variant in a realistic sentence so detection rates
                 # reflect what a scanner would see in real documents.
-                text = get_keyword_sentence(random.Random(), payload.category, text)
+                text = get_keyword_sentence(
+                    sentence_rng(self._seed, payload.category, variant.value),
+                    payload.category,
+                    text,
+                )
             matches = await self._client.scan_text(text)  # type: ignore[union-attr]
         else:
             data, _ = FileBuilder.build(variant.value, strategy)

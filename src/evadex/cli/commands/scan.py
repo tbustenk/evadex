@@ -1,5 +1,6 @@
 import asyncio
 import json
+import random
 import sys
 import time
 from collections import defaultdict
@@ -268,13 +269,16 @@ def _find_last_baseline(scanner_label: str) -> str | None:
         return None
 
 
-def _print_summary(results, err_console):
+def _print_summary(results, err_console, seed=None):
     """Print a structured, human-readable summary to stderr."""
     total = len(results)
     passes = sum(1 for r in results if r.severity == SeverityLevel.PASS)
     fails = sum(1 for r in results if r.severity == SeverityLevel.FAIL)
     errors = sum(1 for r in results if r.severity == SeverityLevel.ERROR)
+    scored = passes + fails
     pass_rate = round(passes / total * 100, 1) if total else 0.0
+    detection_rate = round(passes / scored * 100, 1) if scored else 0.0
+    error_rate = round(errors / total * 100, 1) if total else 0.0
 
     err_console.print()
     err_console.print("[bold]=== Evadex Summary ===[/bold]")
@@ -282,8 +286,20 @@ def _print_summary(results, err_console):
     err_console.print(f"  [green]Detected:       {passes}[/green]")
     err_console.print(f"  [red]Bypassed:       {fails}[/red]")
     if errors:
-        err_console.print(f"  [yellow]Errors:         {errors}[/yellow]")
+        err_console.print(
+            f"  [yellow]Errors:         {errors}  "
+            f"({error_rate}% of submissions never got a verdict)[/yellow]"
+        )
     err_console.print(f"  Detection Rate: {pass_rate}%")
+    if errors:
+        # An errored submission is not a bypass: the scanner never answered.
+        # Say what the rate is once those are set aside, so a flaky transport
+        # cannot read as a scanner regression.
+        err_console.print(f"  Detection Rate: {detection_rate}%  (errors excluded)")
+    if seed is not None:
+        err_console.print(
+            f"  Seed:           {seed}  (pass --seed {seed} to repeat this run)"
+        )
     err_console.print()
 
     # Group by generator (technique category)
@@ -475,6 +491,14 @@ def _print_summary(results, err_console):
     "For CI/CD pipeline integration.",
 )
 @click.option(
+    "--seed",
+    default=None,
+    type=int,
+    help="Seed for the keyword-sentence draw made for every submission under "
+    "--wrap-context. The same seed reproduces the same sentences run to run; "
+    "without it a seed is drawn and printed so any run can be repeated.",
+)
+@click.option(
     "--baseline",
     "save_baseline",
     default=None,
@@ -637,6 +661,7 @@ def scan(
     transport,
     cmd_style,
     min_detection_rate,
+    seed,
     save_baseline,
     compare_baseline,
     audit_log,
@@ -723,6 +748,8 @@ def scan(
             cmd_style = cfg.cmd_style
         if _is_default("min_detection_rate") and cfg.min_detection_rate is not None:
             min_detection_rate = cfg.min_detection_rate
+        if _is_default("seed") and cfg.seed is not None:
+            seed = cfg.seed
         if _is_default("audit_log") and cfg.audit_log is not None:
             audit_log = cfg.audit_log
         if _is_default("require_context") and cfg.require_context is not None:
@@ -889,8 +916,13 @@ def scan(
             if _cargo.exists():
                 executable = str(_cargo)
 
+    # Every run is reproducible: draw a seed when none was given and report
+    # it, so a surprising number can be re-run with the same sentences.
+    if seed is None:
+        seed = random.SystemRandom().randrange(1, 2**31)
+
     # Resolve adapter
-    config = {"base_url": url, "api_key": api_key, "timeout": timeout}
+    config = {"base_url": url, "api_key": api_key, "timeout": timeout, "seed": seed}
     if executable:
         config["executable"] = executable
     if transport and transport != "cli":
@@ -1241,7 +1273,9 @@ def scan(
         pass
 
     # Summary
-    total, passes, fails, errors, pass_rate = _print_summary(results, err_console)
+    total, passes, fails, errors, pass_rate = _print_summary(
+        results, err_console, seed=seed
+    )
 
     # v3.21.0: confidence-score distribution for detected matches. Skip the
     # section entirely when the adapter never surfaces a confidence score.
@@ -1259,7 +1293,9 @@ def scan(
 
     # Report
     reporter = (
-        HtmlReporter() if fmt == "html" else JsonReporter(scanner_label=scanner_label)
+        HtmlReporter()
+        if fmt == "html"
+        else JsonReporter(scanner_label=scanner_label, seed=seed)
     )
     rendered = reporter.render(results)
 
@@ -1372,7 +1408,9 @@ def scan(
 
     # --baseline: save a copy of the JSON result as a reference file
     if save_baseline:
-        baseline_rendered = JsonReporter(scanner_label=scanner_label).render(results)
+        baseline_rendered = JsonReporter(scanner_label=scanner_label, seed=seed).render(
+            results
+        )
         try:
             with open(save_baseline, "w", encoding="utf-8") as f:
                 f.write(baseline_rendered)
@@ -1406,7 +1444,7 @@ def scan(
             )
             sys.exit(1)
         current_data = json.loads(
-            JsonReporter(scanner_label=scanner_label).render(results)
+            JsonReporter(scanner_label=scanner_label, seed=seed).render(results)
         )
         try:
             comp = build_comparison(baseline_data, current_data)

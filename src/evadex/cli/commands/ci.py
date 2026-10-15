@@ -17,7 +17,14 @@ Exit codes
 ----------
 0   All thresholds met.
 1   One or more thresholds violated.
-2   Scan failed (adapter error, scanner unreachable, etc.).
+2   Inconclusive: the scan failed to run, more than --max-error-rate of the
+    submissions errored instead of returning a verdict, or the false-positive
+    measurement could not be taken. Not a verdict on the scanner.
+
+The detection rate is measured over submissions that got a verdict. An
+errored submission (timeout, unreachable scanner) is not a bypass; it is
+reported and gated separately, so a flaky transport cannot read as a scanner
+regression and cannot hide one either.
 """
 
 from __future__ import annotations
@@ -55,6 +62,29 @@ _CROSS = "✗"  # ✗
     default=None,
     type=float,
     help="Maximum allowed false-positive rate (0–100). Checked only when set.",
+)
+@click.option(
+    "--max-error-rate",
+    type=float,
+    default=5.0,
+    show_default=True,
+    help="Exit 2 (inconclusive) when more than this percentage of submissions "
+    "errored instead of returning a verdict. Errored submissions are not "
+    "bypasses and are excluded from the detection rate.",
+)
+@click.option(
+    "--seed",
+    type=int,
+    default=None,
+    help="Seed forwarded to `evadex scan --seed` and `evadex falsepos --seed` so "
+    "the gate is reproducible run to run.",
+)
+@click.option(
+    "--fp-count",
+    type=int,
+    default=100,
+    show_default=True,
+    help="Invalid values per category submitted for the --max-fp check.",
 )
 @click.option(
     "--tier",
@@ -113,6 +143,9 @@ _CROSS = "✗"  # ✗
 def ci(
     min_detection: float,
     max_fp: float | None,
+    max_error_rate: float,
+    seed: int | None,
+    fp_count: int,
     tier: str,
     fast: bool,
     scanner_label: str | None,
@@ -162,6 +195,8 @@ def ci(
         cmd.extend(["--concurrency", str(concurrency)])
     if config_path:
         cmd.extend(["--config", config_path])
+    if seed is not None:
+        cmd.extend(["--seed", str(seed)])
 
     console.print(f"[dim]Running: {' '.join(cmd[:6])} ...[/dim]")
 
@@ -215,7 +250,35 @@ def ci(
             sys.exit(2)
 
     meta = scan_data.get("meta", {})
-    detection_rate = float(meta.get("pass_rate", 0.0))
+    total = int(meta.get("total") or 0)
+    errors = int(meta.get("error") or 0)
+    if "error_rate" in meta:
+        error_rate = float(meta["error_rate"])
+    else:
+        error_rate = round(errors / total * 100, 1) if total else 0.0
+    # `detection_rate` (v3.41.0) excludes errored submissions. Older scan
+    # output has only `pass_rate`, which counted them as misses.
+    detection_rate = float(meta.get("detection_rate", meta.get("pass_rate", 0.0)))
+    if meta.get("seed") is not None:
+        console.print(
+            f"[dim]Seed: {meta['seed']} (pass --seed {meta['seed']} to repeat)[/dim]"
+        )
+
+    # ── Error gate: inconclusive before it is a verdict ──────────────────
+    err_ok = error_rate <= max_error_rate
+    err_sym = _CHECK if err_ok else _CROSS
+    err_color = "green" if err_ok else "red"
+    console.print(
+        f"[{err_color}]{err_sym}[/{err_color}] Errored submissions: "
+        f"[bold]{errors}/{total}[/bold] ({error_rate:.1f}%, max {max_error_rate:.0f}%)"
+    )
+    if not err_ok:
+        console.print()
+        console.print(
+            "[bold red]Inconclusive: too many submissions errored; "
+            "this run says nothing about detection.[/bold red]"
+        )
+        sys.exit(2)
 
     # ── Threshold checks ─────────────────────────────────────────────────
     checks_passed = True
@@ -232,9 +295,18 @@ def ci(
         f"(threshold: {min_detection:.0f}%)"
     )
 
-    # False-positive rate check (optional)
+    # False-positive rate check (optional): a second measurement, not a
+    # field of the scan output. `evadex scan` submits only true positives and
+    # has never written a false-positive rate; reading one from its meta
+    # defaulted to 0.0 and passed every gate before v3.41.0.
     if max_fp is not None:
-        fp_rate = float(meta.get("false_positive_rate", 0.0))
+        fp_rate = _measure_false_positive_rate(
+            config_path=config_path,
+            url=url,
+            concurrency=concurrency,
+            count=fp_count,
+            seed=seed,
+        )
         fp_ok = fp_rate <= max_fp
         if not fp_ok:
             checks_passed = False
@@ -253,3 +325,72 @@ def ci(
     else:
         console.print("[bold red]One or more thresholds violated.[/bold red]")
         sys.exit(1)
+
+
+def _measure_false_positive_rate(
+    *,
+    config_path: str | None,
+    url: str | None,
+    concurrency: int | None,
+    count: int,
+    seed: int | None,
+) -> float:
+    """Run ``evadex falsepos`` under the same config and return its rate.
+
+    Values are wrapped in keyword sentences (``--wrap-context``) so the
+    measurement matches the conditions ``evadex scan`` grades detection
+    under. Exits 2 when the measurement cannot be taken: a gate that cannot
+    measure must not report a pass.
+    """
+    cmd: list[str] = [
+        sys.executable,
+        "-m",
+        "evadex",
+        "falsepos",
+        "--format",
+        "json",
+        "--count",
+        str(count),
+        "--wrap-context",
+    ]
+    if config_path:
+        cmd.extend(["--config", config_path])
+    if url:
+        cmd.extend(["--url", url])
+    if concurrency:
+        cmd.extend(["--concurrency", str(concurrency)])
+    if seed is not None:
+        cmd.extend(["--seed", str(seed)])
+
+    console.print(f"[dim]Running: {' '.join(cmd[:6])} ...[/dim]")
+    try:
+        proc = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+    except Exception as exc:
+        console.print(f"[red]False-positive check failed to start: {exc}[/red]")
+        sys.exit(2)
+
+    raw = proc.stdout.decode("utf-8", "replace").strip() if proc.stdout else ""
+    report = None
+    if raw:
+        try:
+            report = json.loads(raw)
+        except json.JSONDecodeError:
+            report = None
+    if (
+        proc.returncode != 0
+        or not isinstance(report, dict)
+        or "overall_false_positive_rate" not in report
+    ):
+        console.print(
+            f"[red]False-positive check failed (falsepos exit {proc.returncode}); "
+            "the gate cannot report a pass without it.[/red]"
+        )
+        if proc.stderr:
+            console.print(f"[dim]{proc.stderr.decode('utf-8', 'replace')[:500]}[/dim]")
+        sys.exit(2)
+    return float(report["overall_false_positive_rate"])

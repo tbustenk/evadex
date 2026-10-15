@@ -895,6 +895,25 @@ _FALLBACK_TEMPLATES_FR_CA = [
 ]
 
 
+def sentence_rng(
+    seed: "int | None",
+    cat: PayloadCategory,
+    value: str,
+) -> random.Random:
+    """Return the RNG for one submission's template draw.
+
+    With a seed, the draw is a pure function of ``(seed, category, value)``:
+    the same variant gets the same sentence on every run, whatever order the
+    async engine happens to finish submissions in. Seeding from a string is
+    stable across Python versions (``random.seed`` version 2 hashes it with
+    SHA-512), so a recorded seed reproduces a run on another machine too.
+    Without a seed, a fresh unseeded generator, as before v3.41.0.
+    """
+    if seed is None:
+        return random.Random()
+    return random.Random(f"{seed}|{cat.value}|{value}")
+
+
 def get_keyword_sentence(
     rng: random.Random,
     cat: PayloadCategory,

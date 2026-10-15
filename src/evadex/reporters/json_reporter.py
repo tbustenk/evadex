@@ -121,14 +121,16 @@ def _enrich_by_category(
 
 
 class JsonReporter(BaseReporter):
-    def __init__(self, scanner_label: str = ""):
+    def __init__(self, scanner_label: str = "", seed: "int | None" = None):
         self.scanner_label = scanner_label
+        self.seed = seed
 
     def render(self, results: list[ScanResult]) -> str:
         total = len(results)
         passes = sum(1 for r in results if r.severity == SeverityLevel.PASS)
         fails = sum(1 for r in results if r.severity == SeverityLevel.FAIL)
         errors = sum(1 for r in results if r.severity == SeverityLevel.ERROR)
+        scored = passes + fails
 
         by_category: dict = defaultdict(lambda: {"pass": 0, "fail": 0, "error": 0})
         by_generator: dict = defaultdict(lambda: {"pass": 0, "fail": 0, "error": 0})
@@ -154,6 +156,13 @@ class JsonReporter(BaseReporter):
             "fail": fails,
             "error": errors,
             "pass_rate": round(passes / total * 100, 1) if total else 0.0,
+            # v3.41.0: `pass_rate` counts an errored submission as a miss and
+            # is kept for consumers that compare against older runs. The two
+            # keys below separate "the scanner saw it and missed" from "the
+            # scanner never answered", which `evadex ci` gates on separately.
+            "detection_rate": round(passes / scored * 100, 1) if scored else 0.0,
+            "error_rate": round(errors / total * 100, 1) if total else 0.0,
+            "seed": self.seed,
             "summary_by_category": dict(sorted(enriched_by_category.items())),
             "summary_by_generator": dict(sorted(by_generator.items())),
             "summary_by_technique": dict(sorted(enriched_by_technique.items())),

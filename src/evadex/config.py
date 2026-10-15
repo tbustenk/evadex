@@ -40,6 +40,7 @@ KNOWN_KEYS = {
     "tool",
     "strategy",
     "min_detection_rate",
+    "seed",
     "scanner_label",
     "exe",
     "cmd_style",
@@ -131,6 +132,9 @@ class EvadexConfig:
     tool: Optional[str] = None
     strategy: Optional[list[str]] = None
     min_detection_rate: Optional[float] = None
+    # Seed for the per-submission keyword-sentence draw (v3.41.0). Every run
+    # prints the seed it used, so a run is repeated by writing it here.
+    seed: Optional[int] = None
     scanner_label: Optional[str] = None
     exe: Optional[str] = None
     cmd_style: Optional[str] = None
@@ -244,6 +248,15 @@ def load_config(path: "str | Path") -> EvadexConfig:
                     f"Config 'min_detection_rate' must be from 0 to 100, got: {val}"
                 )
             cfg.min_detection_rate = float(val)
+
+    if "seed" in raw:
+        val = raw["seed"]
+        if val is not None:
+            if isinstance(val, bool) or not isinstance(val, int):
+                raise click.UsageError(
+                    f"Config 'seed' must be an integer, got: {val!r}"
+                )
+            cfg.seed = int(val)
 
     if "scanner_label" in raw:
         val = raw["scanner_label"]
