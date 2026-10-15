@@ -87,6 +87,16 @@ _CROSS = "✗"  # ✗
     help="Invalid values per category submitted for the --max-fp check.",
 )
 @click.option(
+    "--fp-category",
+    "fp_categories",
+    multiple=True,
+    help="Restrict the --max-fp check to these falsepos categories (repeat for "
+    "several). Default: every category falsepos supports. The `entropy` "
+    "category submits random high-entropy strings, which an entropy detector "
+    "is meant to flag; a gate that wants the structured-value rate lists the "
+    "others.",
+)
+@click.option(
     "--tier",
     "tier",
     default="northam",
@@ -146,6 +156,7 @@ def ci(
     max_error_rate: float,
     seed: int | None,
     fp_count: int,
+    fp_categories: tuple,
     tier: str,
     fast: bool,
     scanner_label: str | None,
@@ -306,6 +317,7 @@ def ci(
             concurrency=concurrency,
             count=fp_count,
             seed=seed,
+            categories=list(fp_categories),
         )
         fp_ok = fp_rate <= max_fp
         if not fp_ok:
@@ -334,6 +346,7 @@ def _measure_false_positive_rate(
     concurrency: int | None,
     count: int,
     seed: int | None,
+    categories: list | None = None,
 ) -> float:
     """Run ``evadex falsepos`` under the same config and return its rate.
 
@@ -361,6 +374,8 @@ def _measure_false_positive_rate(
         cmd.extend(["--concurrency", str(concurrency)])
     if seed is not None:
         cmd.extend(["--seed", str(seed)])
+    for cat in categories or []:
+        cmd.extend(["--category", cat])
 
     console.print(f"[dim]Running: {' '.join(cmd[:6])} ...[/dim]")
     try:
