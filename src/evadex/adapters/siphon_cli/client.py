@@ -282,7 +282,10 @@ def _parse_dir_results(stdout_text: str) -> dict:
     for obj in parsed:
         if not isinstance(obj, dict) or not isinstance(obj.get("file_path"), str):
             continue
-        stem = os.path.splitext(os.path.basename(obj["file_path"]))[0]
+        # Either separator: the scanner may run on Windows and report
+        # backslash paths, and os.path.basename on Linux would not split them.
+        name = obj["file_path"].replace("\\", "/").rsplit("/", 1)[-1]
+        stem = os.path.splitext(name)[0]
         matches = obj.get("matches")
         out[stem] = (matches if isinstance(matches, list) else [], obj.get("error"))
     return out
