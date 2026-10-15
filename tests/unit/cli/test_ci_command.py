@@ -178,6 +178,31 @@ def test_falsepos_invocation_flags(fake_run):
     assert cmd[cmd.index("--url") + 1] == "http://x:1"
 
 
+def test_fp_category_forwarded_once_per_value(fake_run):
+    fake = fake_run(scan_out=_scan_json(), fp_out=_fp_json(0.0))
+    _invoke(
+        [
+            "--min-detection",
+            "10",
+            "--max-fp",
+            "5",
+            "--fp-category",
+            "ssn",
+            "--fp-category",
+            "iban",
+        ]
+    )
+    cmd = fake.fp_cmd
+    cats = [cmd[i + 1] for i, tok in enumerate(cmd) if tok == "--category"]
+    assert cats == ["ssn", "iban"]
+
+
+def test_no_fp_category_means_falsepos_default_set(fake_run):
+    fake = fake_run(scan_out=_scan_json(), fp_out=_fp_json(0.0))
+    _invoke(["--min-detection", "10", "--max-fp", "5"])
+    assert "--category" not in fake.fp_cmd
+
+
 def test_falsepos_failure_is_inconclusive_not_a_pass(fake_run):
     fake_run(scan_out=_scan_json(), fp_out="", fp_rc=1)
     res = _invoke(["--min-detection", "10", "--max-fp", "5"])
