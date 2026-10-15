@@ -93,7 +93,7 @@ parquet · sqlite · zip · 7z · mbox · png · jpg
 
 ## Evasion techniques
 
-evadex tests 13 technique families:
+evadex tests 17 technique families:
 
 | Technique | Examples |
 |---|---|
@@ -107,6 +107,15 @@ evadex tests 13 technique families:
 | `bidirectional` | Unicode RLO/LRO/RLE control characters |
 | `soft_hyphen` | U+00AD invisible separator at group boundaries |
 | `morse_code` | Digits encoded as International Morse Code |
+| `unicode_whitespace` | Non-ASCII spaces (NBSP, thin, hair, ideographic) between groups |
+| `encoding_chains` | Nested encodings: base64 of hex, ROT13 of base64, double base64 |
+| `structural` | Case changes, reversal, padding, truncation, prefix and suffix noise |
+| `entropy_evasion` | Padding aimed at entropy thresholds (explicit `--variant-group` only) |
+| `archive_evasion` | Values inside ZIP, nested ZIP and 7z containers |
+| `barcode_evasion` | QR and 1D/2D barcode images (`pip install evadex[barcodes]`) |
+| `capital_markets` | CUSIP/ISIN/SEDOL spacing, country-prefix noise, Bloomberg suffix |
+
+The full list of technique names each family can emit is in [docs/techniques.md](docs/techniques.md#technique-index).
 
 ---
 
@@ -230,7 +239,7 @@ evadex bridge --port 9191                   # start HTTP API bridge
 ## Requirements
 
 - Python 3.11+
-- A DLP scanner (Siphon recommended, dlpscan-rs supported, any CLI scanner via adapter)
+- A DLP scanner: Siphon (the `dlpscan-rs` scanner) through its CLI or HTTP API, Presidio, Netskope, or any JSON HTTP scanner via the `http_generic` adapter
 
 Optional extras:
 
@@ -248,8 +257,8 @@ pip install evadex[bridge]        # HTTP API bridge (FastAPI)
 See [docs/REFERENCE.md](docs/REFERENCE.md) for the complete CLI reference:
 
 - All flags and options for every command
-- Payload coverage by region (593 payloads, 501 categories)
-- Adapter configuration (Siphon, dlpscan-rs, Presidio)
+- Payload coverage by region (593 payloads, 503 categories)
+- Adapter configuration (`siphon-cli`, `dlpscan-cli`, `presidio`, `http_generic`, `netskope`)
 - Profile system and scheduling
 - Bridge/C2 integration
 - Architecture overview

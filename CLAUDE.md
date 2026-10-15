@@ -21,7 +21,7 @@ Test suite (CI runs `tests/unit` on Python 3.11 and 3.13):
 ```
 pytest tests/unit -v
 pytest tests/integration -v
-pytest tests/unit/variants/test_unicode_encoding.py::test_zero_width_injection   # single test
+pytest tests/unit/variants/test_unicode_encoding.py::test_zero_width_variants   # single test
 ```
 `tests/conftest.py` has a session-scoped autouse fixture that calls `load_builtins()`, so adapter/generator decorators have fired in every test.
 
@@ -115,7 +115,7 @@ When **adding a new payload category**: add to the enum, add to `CATEGORY_TYPES`
 
 ## Things in the working tree that are *not* part of the codebase
 
-Several Python scripts at the repo root (`evadex_regressions.py`, `check_*.py`, `inspect_results.py`) are untracked local analysis scratch files — they are not part of the package and are not run by tests or CI. Ignore them unless the user references them by name.
+Several Python scripts at the repo root (`evadex_regressions.py`, `check_*.py`, `inspect_results.py`) are local analysis scratch files, git-ignored since 3.41.0 along with `results/`, `test_output/`, `*.jsonl`, `*.csv` and `*.log` — they are not part of the package and are not run by tests or CI. Ignore them unless the user references them by name.
 
 ## Recent additions and gotchas
 
@@ -152,13 +152,13 @@ New bridge env vars:
 | Variable | Default | Notes |
 |---|---|---|
 | `SIPHON_API_URL` | — | siphon-api base URL, e.g. `http://localhost:8080`; push disabled when unset |
-| `SIPHON_API_KEY` | — | forwarded as `x-api-key` header; optional if siphon-api auth is off |
+| `SIPHON_API_KEY` | — | sent as `Authorization: Bearer`; optional if siphon-api auth is off |
 
 ### HTTP transport for siphon-cli (v3.29.0)
-`--transport http` / `transport: http` in `evadex.yaml` switches `SiphonCliAdapter` from subprocess mode to HTTP mode. Instead of spawning `siphon scan-text` per variant, it POSTs to a running `siphon serve` / `siphon-api` endpoint via `SiphonHttpClient` (`src/evadex/adapters/siphon_cli/client.py`). One persistent `httpx.AsyncClient` is shared across all variants; closed on `adapter.teardown()`. Three new `evadex.yaml` keys: `transport` (`cli`/`http`), `url` (default `http://localhost:8080`), `api_key`. The `EVADEX_API_KEY` env var also works as the api_key source. `evadex doctor` now shows transport mode and connectivity. **Benchmark caveat**: the siphon-api instance on this machine (ports 8090/8091) enforces a ~120 req/s rate limit that throttles evadex's async concurrency — run with `--concurrency 5` or lower to avoid 429s, or point at a rate-limit-free instance for accurate throughput numbers.
+`--transport http` / `transport: http` in `evadex.yaml` switches `SiphonCliAdapter` from subprocess mode to HTTP mode. Instead of spawning `siphon scan-text` per variant, it POSTs to a running `siphon serve` / `siphon-api` endpoint via `SiphonHttpClient` (`src/evadex/adapters/siphon_cli/client.py`). One persistent `httpx.AsyncClient` is shared across all variants; closed on `adapter.teardown()`. Three new `evadex.yaml` keys: `transport` (`cli`/`http`), `url` (default `http://localhost:8080`), `api_key`. The `EVADEX_API_KEY` env var also works as the api_key source. `evadex doctor` now shows transport mode and connectivity. **Benchmark caveat**: a siphon-api instance with rate limiting on (the local one is `http://localhost:8080`) enforces a ~120 req/s rate limit that throttles evadex's async concurrency — run with `--concurrency 5` or lower to avoid 429s, or point at a rate-limit-free instance for accurate throughput numbers.
 
 ### Unit tests that invoke the CLI must not pick up the local evadex.yaml (v3.29.0)
-The local `evadex.yaml` in the repo root sets `tool: siphon-cli`, `transport: http`, `url: http://localhost:8091`. Unit tests that use `CliRunner` without `isolated_filesystem()` or `monkeypatch.chdir()` pick up this file and fail when the siphon-api is not running. The four tests in `test_streaming_engine.py` and `test_northam_tier.py` exhibit this when run from the repo root — run them from a neutral directory (`cd ~ && pytest /path/to/tests/unit`) or wrap with `with runner.isolated_filesystem():`. CI always passes because it has no local `evadex.yaml`.
+The local `evadex.yaml` in the repo root sets `tool: siphon-cli`, `transport: http`, `url: http://localhost:8080`. Unit tests that use `CliRunner` without `isolated_filesystem()` or `monkeypatch.chdir()` pick up this file and fail when the siphon-api is not running. The four tests in `test_streaming_engine.py` and `test_northam_tier.py` exhibit this when run from the repo root — run them from a neutral directory (`cd ~ && pytest /path/to/tests/unit`) or wrap with `with runner.isolated_filesystem():`. CI always passes because it has no local `evadex.yaml`.
 
 ### Integration tests must run from a clean cwd (v3.26.2)
 `tests/integration/conftest.py` installs an autouse fixture (`_isolate_cwd_from_repo_config`) that `monkeypatch.chdir(tmp_path)` for every integration test. The CLI auto-discovers `evadex.yaml` from `Path.cwd()` via `evadex.config.find_config`, so launching pytest from the repo root would otherwise leak the project's `tool: siphon-cli`, `min_detection_rate: 85`, and `output: results.json` into tests that mock `DlpscanCliAdapter` and read JSON from stdout. Tests that *do* want auto-discovery (e.g. `test_auto_discovery_loads_config`) write their own `evadex.yaml` inside a `runner.isolated_filesystem()` block, which chdir's again on top of the autouse chdir.

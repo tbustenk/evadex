@@ -30,6 +30,17 @@ htmlcov/
 # evadex config file — may contain internal paths or sensitive labels
 evadex.yaml
 
+# Local scan output and analysis scratch. results/*.md that were committed
+# before this rule stay tracked; nothing new under results/ is picked up.
+results/
+test_output/
+*.jsonl
+*.csv
+*.log
+/check_*.py
+/inspect_results.py
+/evadex_regressions.py
+
 # IDE
 .idea/
 .vscode/
