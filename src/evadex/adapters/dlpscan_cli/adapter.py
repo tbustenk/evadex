@@ -1,6 +1,5 @@
 import asyncio
 import json
-import random
 import tempfile
 import os
 from evadex.adapters.base import BaseAdapter
@@ -8,7 +7,7 @@ from evadex.adapters.dlpscan.file_builder import FileBuilder
 from evadex.core.registry import register_adapter
 from evadex.core.relevance import classify_detection
 from evadex.core.result import Payload, Variant, ScanResult
-from evadex.generate.filler import get_keyword_sentence
+from evadex.generate.filler import get_keyword_sentence, sentence_rng
 
 # cmd_style="python"  →  dlpscan -f json <file>         → bare list of matches
 # cmd_style="rust"    →  dlpscan --format json scan <file> → list of file objects with nested matches
@@ -23,6 +22,8 @@ class DlpscanCliAdapter(BaseAdapter):
         self._exe = self.config.extra.get("executable", "dlpscan")
         self._cmd_style = self.config.extra.get("cmd_style", "python")
         self._wrap_context = self.config.extra.get("wrap_context", False)
+        _seed = self.config.extra.get("seed")
+        self._seed = int(_seed) if _seed is not None else None
 
     async def health_check(self) -> bool:
         try:
@@ -51,7 +52,11 @@ class DlpscanCliAdapter(BaseAdapter):
                 # Embed the variant value in a realistic keyword sentence so that
                 # dlpscan-rs context requirements are satisfied.  The original
                 # variant.value is preserved in the result for reporting.
-                text = get_keyword_sentence(random.Random(), payload.category, text)
+                text = get_keyword_sentence(
+                    sentence_rng(self._seed, payload.category, variant.value),
+                    payload.category,
+                    text,
+                )
             matches = await self._scan_text_async(text)
         else:
             data, _ = FileBuilder.build(variant.value, strategy)

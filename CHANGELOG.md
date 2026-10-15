@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.41.0] — 2026-10-15
+
+### Added
+
+- **`evadex scan --seed N`** (and `seed:` in `evadex.yaml`). Under `--wrap-context`, which is on by default for Siphon, every submission draws a keyword sentence at random, and since most Siphon rules are context-gated the draw decides detection as much as the evasion does. The draw was a fresh unseeded `random.Random()` per submission, so no run could be repeated and a per-category swing could be the template, not the scanner. The sentence is now a pure function of `(seed, category, variant value)`, independent of the order the async engine finishes in. A run without `--seed` draws one, prints it in the summary and records it in `meta.seed`, so any run can be repeated exactly.
+- **`meta.detection_rate` and `meta.error_rate`** in scan JSON. `pass_rate` (unchanged) counts an errored submission as a miss. `detection_rate` is measured over submissions that got a verdict; `error_rate` is the share that never did. The summary prints both when errors occurred.
+- **`evadex ci --max-error-rate`** (default 5%): exit 2, *inconclusive*, when more submissions than that errored. A timeout is not a bypass, and a gate that cannot tell the two apart cannot see a regression behind a flaky transport. `ci` now grades `detection_rate` and prints the seed. **`--seed`** is forwarded to the scan and the false-positive run. **`--fp-count`** sizes the false-positive run.
+
+### Fixed
+
+- **`evadex ci --max-fp` never measured anything.** It read `meta["false_positive_rate"]` from the scan output, a key `evadex scan` has never written, so it defaulted to 0.0 and passed every gate, including Siphon's. `ci` now runs `evadex falsepos --format json --wrap-context` under the same config and grades `overall_false_positive_rate`. If the measurement cannot be taken the gate exits 2 rather than reporting a pass.
+
+### Tests
+
+- `tests/unit/cli/test_ci_command.py` (new; `ci` had no tests): thresholds, the error gate, the errors-excluded rate, the falsepos subprocess and its flags, seed forwarding, and the fallback for pre-3.41.0 scan output.
+- `tests/unit/adapters/test_wrap_context_seed.py` (new): the same seed gives the same sentence across adapter instances and across both CLI adapters; different seeds and different values give different draws; no seed still works.
+- `tests/unit/reporters/test_json_reporter_rates.py`, `tests/unit/test_config_seed.py`.
+
 ## [3.40.4] — 2026-10-14
 
 ### Fixed
