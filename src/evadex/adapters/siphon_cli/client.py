@@ -4,8 +4,13 @@ Two transport implementations are provided:
 
 ``SiphonCliClient`` (default)
     Spawns ``siphon scan-text`` / ``siphon scan`` as a subprocess and parses
-    its ``--format json`` output.  One process per variant — simple but with
-    ~50 ms spawn overhead per call.
+    its ``--format json`` output.  One process per variant by default. The
+    spawn is not the cost: on the release binary ``scan-text`` on 28 bytes
+    takes ~0.4 s, of which ~10 ms is scanning and the rest is building the
+    583 regexes and the keyword automaton, paid on every start and thrown
+    away on exit. :meth:`SiphonCliClient.scan_texts` amortises that by
+    writing many texts into one directory and running one ``siphon
+    scan-dir`` over it; the adapter's ``batch`` mode feeds it.
 
 ``SiphonHttpClient``
     POSTs to a running ``siphon serve`` / ``siphon-api`` HTTP endpoint.
@@ -29,6 +34,13 @@ from typing import Optional
 
 class SiphonCliError(RuntimeError):
     pass
+
+
+class SiphonCliNoResult(SiphonCliError):
+    """``scan-dir`` reported nothing for a file it was given (an extension it
+    does not read, for instance). The batcher falls back to ``siphon scan``
+    on that one file so a batched run answers exactly what a per-file run
+    would have."""
 
 
 class SiphonCliClient:
@@ -73,6 +85,9 @@ class SiphonCliClient:
 
     def build_scan_file_command(self, path: str) -> list:
         return self._base_command() + ["scan"] + self._common_flags() + [path]
+
+    def build_scan_dir_command(self, path: str) -> list:
+        return self._base_command() + ["scan-dir"] + self._common_flags() + [path]
 
     async def health_check(self) -> bool:
         cmd = self._base_command() + ["--version"]
@@ -158,6 +173,78 @@ class SiphonCliClient:
             except OSError:
                 pass
 
+    async def scan_batch(self, items: list) -> list:
+        """Scan many inputs with one scanner process.
+
+        *items* is a list of ``(data: bytes, suffix: str)``; each becomes
+        ``NNNNNN<suffix>`` in a private temp directory and one ``siphon
+        scan-dir --format json`` runs over it. ``scan-dir`` is the same file
+        pipeline ``siphon scan <file>`` uses, and for a ``.txt`` it reads,
+        normalises and matches exactly as ``scan-text`` reads stdin (verified
+        equal on plain, spaced, base64 and morse card values, and on a 720
+        variant delimiter+encoding run: identical verdicts).
+
+        Returns one entry per input, in input order: the list of match dicts,
+        a :class:`SiphonCliNoResult` when the scanner reported nothing for
+        that file, or a :class:`SiphonCliError` carrying the scanner's error
+        for it. A failure of the process itself raises.
+        """
+        if not items:
+            return []
+        with tempfile.TemporaryDirectory(prefix="evadex-batch-") as d:
+            for i, (data, suffix) in enumerate(items):
+                path = os.path.join(d, f"{i:06d}{suffix}")
+                with open(path, "wb") as f:
+                    f.write(data)
+                try:
+                    os.chmod(path, 0o600)
+                except OSError:
+                    pass
+            cmd = self.build_scan_dir_command(d)
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            # One start-up cost plus a little per file; the per-call timeout
+            # is for one file, so scale it by the batch rather than share it.
+            timeout = self._timeout + 0.1 * len(items)
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    proc.communicate(), timeout=timeout
+                )
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
+                raise SiphonCliError(
+                    f"siphon scan-dir over {len(items)} files timed out after {timeout:.0f}s"
+                )
+            if proc.returncode != 0:
+                raise SiphonCliError(
+                    f"siphon scan-dir exited {proc.returncode}: "
+                    f"{stderr.decode('utf-8', errors='replace').strip()}"
+                )
+            by_name = _parse_dir_results(stdout.decode("utf-8", errors="replace"))
+
+        out: list = []
+        for i in range(len(items)):
+            entry = by_name.get(f"{i:06d}")
+            if entry is None:
+                out.append(
+                    SiphonCliNoResult(
+                        f"siphon scan-dir returned no result for input {i}"
+                    )
+                )
+            elif entry[1]:
+                out.append(SiphonCliError(f"siphon scan error: {entry[1]}"))
+            else:
+                out.append(entry[0])
+        return out
+
+    async def scan_texts(self, texts: list) -> list:
+        """:meth:`scan_batch` for plain texts, each written as a ``.txt``."""
+        return await self.scan_batch([(t.encode("utf-8"), ".txt") for t in texts])
+
 
 def _parse_matches(stdout_text: str) -> list:
     """Parse the JSON response from ``siphon scan-text``.
@@ -175,6 +262,30 @@ def _parse_matches(stdout_text: str) -> list:
             "expected list"
         )
     return parsed
+
+
+def _parse_dir_results(stdout_text: str) -> dict:
+    """Parse ``siphon scan-dir --format json`` into ``{stem: (matches, error)}``.
+
+    The output is a list of per-file objects, each with ``file_path``,
+    ``matches`` and ``error``; the key is the file name without extension.
+    """
+    try:
+        parsed = json.loads(stdout_text or "[]")
+    except json.JSONDecodeError as e:
+        raise SiphonCliError(f"Invalid JSON from siphon: {e}") from e
+    if not isinstance(parsed, list):
+        raise SiphonCliError(
+            f"siphon returned unexpected JSON type {type(parsed).__name__!r}; expected list"
+        )
+    out: dict = {}
+    for obj in parsed:
+        if not isinstance(obj, dict) or not isinstance(obj.get("file_path"), str):
+            continue
+        stem = os.path.splitext(os.path.basename(obj["file_path"]))[0]
+        matches = obj.get("matches")
+        out[stem] = (matches if isinstance(matches, list) else [], obj.get("error"))
+    return out
 
 
 class SiphonHttpClient:
@@ -207,11 +318,34 @@ class SiphonHttpClient:
         base_url: str = "http://localhost:8080",
         api_key: Optional[str] = None,
         timeout: float = 10.0,
+        require_context: bool = False,
+        min_confidence: float = 0.0,
+        categories: Optional[list] = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
         self._timeout = timeout
+        self._require_context = require_context
+        self._min_confidence = float(min_confidence)
+        self._categories = list(categories) if categories else []
         self._persistent_client = None  # lazy-init by _get_client()
+
+    def _options(self) -> dict:
+        """The ``options`` object of a siphon-api ``POST /scan`` body.
+
+        The same three knobs the CLI transport passes as flags. Until
+        v3.41.0 the HTTP transport sent only ``{"text": ...}``, so
+        ``require_context`` / ``min_confidence`` / ``categories`` from
+        ``evadex.yaml`` were silently ignored on ``transport: http``.
+        """
+        opts: dict = {}
+        if self._require_context:
+            opts["require_context"] = True
+        if self._min_confidence > 0.0:
+            opts["min_confidence"] = self._min_confidence
+        if self._categories:
+            opts["categories"] = list(self._categories)
+        return opts
 
     def _headers(self) -> dict:
         h: dict = {"Content-Type": "application/json"}
@@ -259,10 +393,14 @@ class SiphonHttpClient:
         import httpx
 
         client = await self._get_client()
+        body: dict = {"text": text}
+        options = self._options()
+        if options:
+            body["options"] = options
         try:
             resp = await client.post(
                 f"{self._base_url}/scan",
-                json={"text": text},
+                json=body,
                 headers=self._headers(),
             )
         except httpx.TimeoutException:

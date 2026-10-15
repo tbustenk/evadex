@@ -53,6 +53,7 @@ KNOWN_KEYS = {
     "audit_log",
     "require_context",
     "wrap_context",
+    "batch",
     "tier",
     # Siphon-C2 management-plane integration
     "c2_url",
@@ -147,6 +148,9 @@ class EvadexConfig:
     audit_log: Optional[str] = None
     require_context: Optional[bool] = None
     wrap_context: Optional[bool] = None
+    # siphon-cli CLI transport: one `scan-dir` process per batch of texts
+    # instead of one `scan-text` process per text (v3.41.0).
+    batch: Optional[bool] = None
     tier: Optional[str] = None
     # Siphon-C2 management-plane push. URL enables the integration;
     # key authenticates via the same `x-api-key` header Siphon's HTTP API
@@ -368,6 +372,14 @@ def load_config(path: "str | Path") -> EvadexConfig:
                 f"Config 'wrap_context' must be true or false, got: {val!r}"
             )
         cfg.wrap_context = val
+
+    if "batch" in raw:
+        val = raw["batch"]
+        if not isinstance(val, bool):
+            raise click.UsageError(
+                f"Config 'batch' must be true or false, got: {val!r}"
+            )
+        cfg.batch = val
 
     if "tier" in raw:
         val = raw["tier"]

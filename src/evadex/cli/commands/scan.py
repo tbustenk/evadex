@@ -554,6 +554,16 @@ def _print_summary(results, err_console, seed=None):
     help="Explicitly disable context wrapping even when --cmd-style rust is active.",
 )
 @click.option(
+    "--batch",
+    "batch",
+    is_flag=True,
+    default=False,
+    help="siphon-cli CLI transport: scan concurrent submissions (text and file "
+    "strategies alike) with one `siphon scan-dir` process per batch instead of "
+    "one process each. Same verdicts, ~30x fewer scanner start-ups. Also "
+    "`batch: true` in evadex.yaml.",
+)
+@click.option(
     "--c2-url",
     "c2_url",
     default=None,
@@ -669,6 +679,7 @@ def scan(
     require_context,
     wrap_context,
     no_wrap_context,
+    batch,
     c2_url,
     c2_key,
     save_as,
@@ -756,6 +767,8 @@ def scan(
             require_context = cfg.require_context
         if not wrap_context and not no_wrap_context and cfg.wrap_context is not None:
             wrap_context = cfg.wrap_context
+        if _is_default("batch") and cfg.batch is not None:
+            batch = cfg.batch
         if _is_default("tier") and cfg.tier is not None:
             tier = cfg.tier
         if _is_default("c2_url") and cfg.c2_url is not None:
@@ -933,6 +946,8 @@ def scan(
         config["require_context"] = True
     if wrap_context:
         config["wrap_context"] = True
+    if batch:
+        config["batch"] = True
     if min_confidence is not None:
         config["min_confidence"] = float(min_confidence)
     try:
