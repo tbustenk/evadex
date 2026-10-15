@@ -1,35 +1,31 @@
 # evadex — Handoff Notes
 
-Last updated: 2026-07-04
+Last updated: 2026-10-15
 
 Companion to `CLAUDE.md` (architecture/conventions) and `BACKLOG.md` (work
 queue). This is the "resume here after a break" quick-start.
 
 ## Current state
 
-- **Version: 3.34.0** (`pyproject.toml` is the source of truth; `CHANGELOG.md`
+- **Version: 3.41.0** (`pyproject.toml` is the source of truth; `CHANGELOG.md`
   is the user-facing release notes).
-- **Tests — all passing** (verified 2026-07-04):
-  - `python -m pytest tests/unit -q` → **1204 passed**
-  - Integration: **300** (per CHANGELOG 3.34.0 — `1504/1504` total). Run with
-    `pytest tests/integration -v` from a neutral cwd (see gotcha below).
-- **PyPI:** `pip install evadex` (latest published stream; 3.28.2 was the first
-  PyPI push, current tree is 3.34.0).
-- **Branch:** `main`, clean except untracked scratch files (see below).
-- **Working tree:** several untracked root-level scratch scripts
-  (`check_*.py`, `evadex_regressions.py`, `inspect_results.py`) and a `results/`
-  / `test_output/` dir — these are **local analysis scratch, not part of the
-  package** (documented in `CLAUDE.md`). Do not commit them.
+- **Tests — all passing** (verified 2026-10-15, run from a neutral cwd):
+  - `pytest tests/unit -q` → **1364 passed**
+  - `pytest tests/integration -q` → **300 passed**
+  - `ruff check src` → clean (CI runs exactly this; `tests/` is not linted in CI)
+- **PyPI:** `pip install evadex` (3.28.2 was the first push; publish 3.41.0
+  once the PRs below are on `main`).
+- **Scanner under test:** Siphon (`dlpscan-rs`) 2.10.0 / siphon-core 2.10.0.
+  Last full baseline: northam tier, 21,805 submissions, **80.4%** detection,
+  0 errors (`results/rebaseline_northam/northam_2.10.0.json`, local only).
 
-## Open PRs
+## Open PRs (merge in this order; each is stacked on the previous)
 
-| PR | Branch | Summary | Notes |
-|---|---|---|---|
-| #13 | `feat/auto-transport-sse-watch` | feat: auto transport, SSE stream, regression watch — v3.30.0 | **stale** — these features already landed on `main` (v3.30.0+). Close or rebase; do not re-merge. |
-| #12 | `feat/push-results-to-siphon` | feat(bridge): push completed scan results to siphon-api postgres | **stale** — shipped as v3.29.1. Close. |
-
-> Both open PRs predate the direct-to-`main` releases that superseded them.
-> First resume action is to reconcile/close them (see checklist).
+| PR | Branch | Summary |
+|---|---|---|
+| #30 | `feat/seeded-wrap-context-error-accounting` | `scan --seed`, `meta.detection_rate` / `error_rate`, `ci --max-error-rate`, real `ci --max-fp` (it read a key scan never wrote and passed every gate) |
+| #31 | `feat/batched-cli-transport` | `scan --batch`: one `siphon scan-dir` per batch instead of one process per submission (identical verdicts, ~5x faster); HTTP transport forwards `require_context` / `min_confidence` / `categories`; `ci --fp-category` |
+| #32 | `chore/hygiene-docs-3.41` | this file, `BACKLOG.md`, `.gitignore`, generated technique index, legacy-adapter notice, stale counts |
 
 ## To resume work
 
@@ -37,87 +33,57 @@ queue). This is the "resume here after a break" quick-start.
 git checkout main && git pull
 pip install -e ".[dev,bridge,barcodes,data-formats,archives]"
 python -m evadex doctor        # environment / adapter health
-python -m evadex quickstart    # interactive first-run wizard → writes evadex.yaml
+cd ~ && python -m pytest /path/to/evadex/tests/unit -q   # neutral cwd, see gotcha below
 ```
 
 ## Key commands
 
-- **Scan:** `python -m evadex scan --transport http --url http://localhost:8080/api --tier northam --fast`
-- **False positives:** `python -m evadex falsepos --count 50`
-- **Regression watch:** `python -m evadex watch --threshold 2.0`
+- **Scan (CLI, batched):** `python -m evadex scan --tool siphon-cli --exe <siphon> --tier northam --batch --seed 1`
+- **Scan (HTTP):** `python -m evadex scan --transport http --url http://localhost:8080 --tier northam`
+- **Repeat a run exactly:** every scan prints `Seed: N`; pass `--seed N`.
+- **False positives:** `python -m evadex falsepos --count 50 --wrap-context`
+  (the `entropy` category is random high-entropy strings; expect it to be flagged)
+- **CI gate:** `python -m evadex ci --min-detection 78 --max-fp 5 --fp-category credit_card ... --seed N`
+  exit 0 pass · 1 threshold violated · 2 inconclusive (scan failed, too many errors, FP run failed)
 - **Bridge (HTTP API for C2/dashboards):** `python -m evadex bridge --port 8081`
-- **Status:** `python -m evadex status`
-- **Score (0-100 scanner quality):** `python -m evadex score` · `leaderboard` · `coverage` · `explain`
-- **CI gate:** `python -m evadex ci --min-detection 30 --max-fp 20`
-- **Report (HTML w/ trend sparkline):** `python -m evadex report`
+- **Score / leaderboard / coverage / explain / report:** as before
 
 ## Architecture
 
-- `src/evadex/core/` — registry (`load_builtins()` — **edit it to register any
-  new generator/adapter**), async fan-out engine, result dataclasses.
-- `src/evadex/bridge/` — FastAPI HTTP API (`/v1/evadex/run|metrics|generate`),
-  push-results-to-siphon.
-- `src/evadex/adapters/` — scanner adapters (`siphon`, `siphon_cli` w/ CLI+HTTP
-  transport, `dlpscan`, `presidio`, `http_generic`, `netskope`).
-- `src/evadex/payloads/` — tiers + curated fixtures; capital-markets categories.
-- `src/evadex/synthetic/` — checksum-correct synthetic-value generators.
-- `src/evadex/variants/` — one file per evasion technique family.
-- `src/evadex/generate/writers/` — one writer per file format (docx/pdf/xlsx/…).
-- `src/evadex/cli/commands/` — all CLI subcommands.
-- `src/evadex/{profiles,feedback,reporters,lsh}/` — profiles, smart-mode
-  feedback loop, JSON/HTML reporters, LSH near-dup generation.
+See `CLAUDE.md`. Short version: `core/registry.py` (`load_builtins()` — edit it
+to register any new generator/adapter), `core/engine.py` async fan-out,
+`adapters/` (the one that matters is `siphon_cli`, CLI + HTTP + batch),
+`variants/` one file per technique family (17 families, 158 technique names;
+`docs/techniques.md#technique-index` is generated from them), `generate/writers/`
+one per file format, `cli/commands/` 36 subcommands.
 
-Full detail (plus non-obvious gotchas) lives in `CLAUDE.md`.
+## Gotchas that bite on resume (full list in CLAUDE.md)
 
-## Gotchas that bite on resume (see CLAUDE.md for full list)
-
-- **`ScanResult.severity` polarity is inverted**: `PASS` = scanner *caught* the
-  evasion (good); `FAIL` = bypass succeeded (bad). Always read as "did the
-  scanner do its job".
-- **Run tests from a neutral cwd.** The repo-root `evadex.yaml`
-  (`tool: siphon-cli`, `transport: http`, `url:`) is auto-discovered and leaks
-  into CliRunner tests; `cd ~ && pytest /path/to/tests/unit` or use
-  `isolated_filesystem()`. CI is unaffected (no local `evadex.yaml`).
-- **Never `ruff check --fix` `core/registry.py`** without re-reading it — it
-  deletes the 21 `# noqa: F401` side-effect imports and silently breaks the
-  whole plugin registry.
-- **Windows:** `cli/app.py` wraps stdout/stderr in UTF-8 at import (Rich
-  box-drawing crashes on cp1252). Don't remove.
-
-## What was built (this sprint: 3.29.1 → 3.34.0)
-
-- **v3.34.0** — HTML report Detection-Trend sparkline + delta card;
-  capital-markets evasion variants (grouped-spaces CUSIP, ISIN country-prefix
-  noise, Bloomberg suffix).
-- **v3.33.0** — `score` / `leaderboard` / `explain` / `coverage` commands
-  (composite 0-100 scanner quality from audit history + gap analysis).
-- **v3.32.0** — `export --format parquet`, Netskope adapter, capital-markets
-  variants (ISIN/CUSIP/SEDOL/LEI/FIGI/RIC).
-- **v3.31.0** — `evadex ci` quality-gate command, generic HTTP adapter, HTML
-  report risk-rating badge + compliance mapping (PCI DSS / PIPEDA / HIPAA).
-- **v3.30.x** — auto transport selection, SSE stream endpoint, regression
-  `watch` command, `compare --baseline auto`, `techniques --by-category`.
-- **v3.29.x** — HTTP transport for siphon-cli (~12× throughput), bridge
-  push-results-to-siphon, evadex → postgres via siphon-api.
+- **`ScanResult.severity` polarity is inverted**: `PASS` = scanner caught it.
+- **Three rates in scan JSON.** `pass_rate` counts errors as misses (kept for
+  old comparisons); `detection_rate` excludes them; `error_rate` is the share
+  that never got a verdict. `ci` grades `detection_rate`.
+- **Run tests from a neutral cwd.** The repo-root `evadex.yaml` is
+  auto-discovered and leaks into CliRunner tests.
+- **Never `ruff check --fix` `core/registry.py`** without re-reading it.
+- **`transport: http` decodes file strategies to text** before posting; only
+  the CLI transport exercises Siphon's file extractors. Baselines taken over
+  HTTP and over CLI are not the same measurement.
+- **The `siphon` adapter is legacy** (targets a server `siphon serve` no
+  longer launches). `edm` and `entropy` still default to it.
 
 ## Biggest remaining gaps
 
-1. **Morse-code bypass** — ~29% residual evasion (down from ~50%). Remaining
-   failures are context-required IDs (SSN/SIN/AU_TFN/DE_TAX_ID/FR_INSEE) that
-   Siphon's morse alt-path skips by design. Coordinate with Siphon PR #349.
-2. **Regional digits** — Thai / Extended Arabic-Indic / Arabic-Indic now all
-   PASS against Siphon; keep an eye on them in fresh baselines.
-3. **Context-injection variants** — still relatively weak; worth expanding.
-4. **More scanner adapters** — Forcepoint, McAfee (currently siphon/dlpscan/
-   presidio/http_generic/netskope).
-5. **Hosted / SaaS evadex** — no multi-tenant hosted version yet; commercial
-   opportunity.
-
-## Resumption checklist
-
-1. Reconcile/close the two stale open PRs (#12, #13 — already superseded on `main`).
-2. `pip install -e ".[dev]"` and run `pytest tests/unit -q` to confirm green.
-3. Run evadex against the latest Siphon (`scan --transport http … --tier northam`)
-   for a fresh detection baseline.
-4. Tackle context-injection variants + a new scanner adapter, or scope the
-   hosted-SaaS idea.
+1. **Siphon's gate** (`dlpscan-rs/.github/workflows/evadex-quality-gate.yml`)
+   needs `batch: true`, `--seed`, a threshold near the real baseline, `2>&1`
+   before its `tee` (the uploaded report has always been empty), and to become
+   a required check — only an admin on `oxide11/dlpscan-rs` can do the last.
+2. **Morse** 65% bypass, **capital markets** 39%, **unicode whitespace** and
+   **structural** ~35% on the 2.10.0 baseline.
+3. **Per-category deltas are still noisy**: few payloads per category. A seed
+   fixes the sentences but not the sample size.
+4. **Dead weight**: `cache/` is never called by `scan`; `lsh/` has no tests;
+   `adapters/siphon/` is legacy; `bridge/` push contract to siphon-api is
+   unverified against the current `ingest_evadex_run`.
+5. **`HEURISTIC_CATEGORIES` vs `CATEGORY_TYPES` drift** (56 categories typed
+   heuristic but run by default) — see the 3.40.2 changelog note.

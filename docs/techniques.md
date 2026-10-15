@@ -383,3 +383,253 @@ generic DLP text scanner. See
 for the machine-readable table and rationale. These seed weights drive
 `--evasion-mode weighted` on cold-start (no audit history) and are
 blended 70 % empirical / 30 % seed once history is present.
+
+---
+
+## Technique index
+
+Generated from the registry (`evadex list-techniques --verbose` reads the same generators). One row per technique name a generator can emit; the label is the `transform_name` recorded on each variant.
+
+### `unicode_encoding` (10)
+
+| technique | label |
+|---|---|
+| `fullwidth_digits` | ASCII digits replaced with fullwidth equivalents (U+FF10–FF19) |
+| `homoglyph_substitution` | Visually similar Cyrillic/Greek characters substituted |
+| `html_entity_decimal` | HTML decimal entities for every character |
+| `html_entity_hex` | HTML hex entities for every character |
+| `url_percent_encoding_digits` | Only digits percent-encoded |
+| `url_percent_encoding_full` | All characters percent-encoded |
+| `url_percent_encoding_mixed` | Alternating percent-encoding |
+| `zero_width_zwj` | Zero-width ZWJ between every character |
+| `zero_width_zwnj` | Zero-width ZWNJ between every character |
+| `zero_width_zwsp` | Zero-width ZWSP between every character |
+
+### `delimiter` (9)
+
+| technique | label |
+|---|---|
+| `dot_delimiter` | Groups separated by dots |
+| `excessive_delimiter` | Doubled hyphen delimiters |
+| `hyphen_delimiter` | Groups separated by hyphens |
+| `mixed_delimiter` | Alternating space and hyphen delimiters |
+| `newline_delimiter` | Groups separated by newlines |
+| `no_delimiter` | All delimiters removed |
+| `slash_delimiter` | Groups separated by slashes |
+| `space_delimiter` | Groups separated by spaces |
+| `tab_delimiter` | Groups separated by tabs |
+
+### `splitting` (10)
+
+| technique | label |
+|---|---|
+| `css_comment_injection` | CSS comment injected between every character |
+| `fr_ca_prefix_noise` | French Canadian noise text prepended |
+| `fr_ca_suffix_noise` | French Canadian noise text appended |
+| `html_comment_injection` | HTML comment injected between every character |
+| `json_field_split` | Value split across two JSON fields |
+| `mid_line_break` | Line break injected at midpoint |
+| `prefix_noise` | Noise text prepended |
+| `suffix_noise` | Noise text appended |
+| `whitespace_padding` | Space inserted between every character |
+| `xml_tag_injection` | Value wrapped in XML data tag |
+
+### `leetspeak` (3)
+
+| technique | label |
+|---|---|
+| `leet_aggressive` | Aggressive leetspeak substitution |
+| `leet_minimal` | Minimal leetspeak substitution (a→4, e→3, i→1, o→0, s→5) |
+| `leet_moderate` | Moderate leetspeak substitution |
+
+### `regional_digits` (12)
+
+| technique | label |
+|---|---|
+| `regional_arabic_indic` | Digits replaced with Arabic-Indic digits |
+| `regional_bengali` | Digits replaced with Bengali digits |
+| `regional_devanagari` | Digits replaced with Devanagari digits |
+| `regional_extended_arabic_indic` | Digits replaced with Extended Arabic-Indic digits (Urdu/Persian) |
+| `regional_khmer` | Digits replaced with Khmer digits |
+| `regional_mixed_alternating` | Alternating Arabic-Indic and Devanagari digits |
+| `regional_mixed_partial` | First half Thai digits, second half Bengali digits |
+| `regional_mongolian` | Digits replaced with Mongolian digits |
+| `regional_myanmar` | Digits replaced with Myanmar digits |
+| `regional_nko` | Digits replaced with NKo digits |
+| `regional_thai` | Digits replaced with Thai digits |
+| `regional_tibetan` | Digits replaced with Tibetan digits |
+
+### `structural` (13)
+
+| technique | label |
+|---|---|
+| `left_pad_spaces` | 10 spaces prepended |
+| `left_pad_zeros` | 5 zeros prepended |
+| `lowercase` | Entire value lowercased |
+| `mixed_case` | Alternating upper/lower case |
+| `noise_embedded` | Value surrounded by noise characters |
+| `overlapping_prefix` | Noise prefix prepended |
+| `partial_first_half` | First half of value only (tests partial detection) |
+| `partial_last_half` | Last half of value only |
+| `partial_minus_one` | Last character removed |
+| `repeated` | Value repeated twice with space separator |
+| `right_pad_spaces` | 10 spaces appended |
+| `right_pad_zeros` | 5 zeros appended |
+| `uppercase` | Entire value uppercased |
+
+### `encoding` (20)
+
+| technique | label |
+|---|---|
+| `base32_hex_alphabet` | Value base32-encoded with extended hex alphabet (0–9, A–V) |
+| `base32_lowercase` | Value base32-encoded, lowercase alphabet |
+| `base32_no_padding` | Value base32-encoded, padding stripped |
+| `base32_standard` | Value base32-encoded (standard alphabet A–Z, 2–7) |
+| `base64_double` | Value base64-encoded twice |
+| `base64_mime_linebreaks` | Base64 with MIME-style line breaks every 76 characters |
+| `base64_no_padding` | Value base64-encoded, padding stripped |
+| `base64_partial` | First half literal, second half base64-encoded |
+| `base64_standard` | Value base64-encoded (standard alphabet) |
+| `double_url_encoding` | Double percent-encoding (%XX → %25XX) |
+| `double_url_encoding_digits` | Double percent-encoding on digits only |
+| `hex_0x_integer` | Value encoded as a single 0x-prefixed hex integer |
+| `hex_escaped_bytes` | Value as \xNN escape sequences per byte |
+| `hex_lowercase` | Value hex-encoded, lowercase (e.g. 34313131…) |
+| `hex_spaced_bytes` | Value as space-separated hex bytes (hex dump style) |
+| `hex_uppercase` | Value hex-encoded, uppercase |
+| `reversed_full` | Entire value reversed |
+| `reversed_group_order` | 4-character groups reversed in order |
+| `reversed_within_groups` | Digits reversed within each 4-character group |
+| `rot13` | ROT13 applied to all alphabetic characters |
+
+### `encoding_chains` (7)
+
+| technique | label |
+|---|---|
+| `base64_of_base64` | double base64 of value |
+| `base64_of_hex` | base64 of hex encoding of value |
+| `base64_of_rot13` | base64 of ROT13 of value |
+| `base64_of_rot13_of_hex` | base64 of ROT13 of hex of value (triple chain) |
+| `hex_of_base64` | hex of base64 of value |
+| `rot13_of_base64` | ROT13 of base64 of value |
+| `url_of_base64` | URL encoding of base64 of value |
+
+### `context_injection` (20)
+
+| technique | label |
+|---|---|
+| `audit_note` | Value referenced in an audit note |
+| `confidential_header` | Value under a confidential document header |
+| `email_body` | Value embedded inside an email body |
+| `email_header_body` | Value in an email with headers and body |
+| `fr_ca_audit_note` | Value referenced in a French Canadian audit note |
+| `fr_ca_confidential_header` | Value under a French Canadian confidential document header |
+| `fr_ca_email_body` | Value embedded inside a French Canadian email body |
+| `fr_ca_email_header_body` | Value in a French Canadian email with headers and body |
+| `fr_ca_json_record` | Value inside a French Canadian JSON-like transaction record |
+| `fr_ca_log_line` | Value embedded in a French Canadian log line |
+| `fr_ca_multiline_form` | Value in a French Canadian multiline form-style block |
+| `fr_ca_pii_notice` | Value in a French Canadian personal information notice |
+| `fr_ca_sentence_payment_request` | Value in French Canadian payment request sentence |
+| `fr_ca_sentence_reference` | Value in French Canadian confidential reference sentence |
+| `json_record` | Value inside a JSON-like transaction record |
+| `log_line` | Value embedded in a log line |
+| `multiline_form` | Value in a multiline form-style block |
+| `sentence_payment_request` | Value in payment request sentence |
+| `sentence_reference` | Value in confidential reference sentence |
+| `xml_record` | Value inside an XML-like record element |
+
+### `unicode_whitespace` (8)
+
+| technique | label |
+|---|---|
+| `unicode_em_space` | Groups separated by em-space (U+2003) |
+| `unicode_en_space` | Groups separated by en-space (U+2002) |
+| `unicode_figure_space` | Groups separated by figure space (U+2007) — same width as a digit |
+| `unicode_ideographic_space` | Groups separated by ideographic space (U+3000) |
+| `unicode_mixed_spaces` | Alternating non-breaking space and thin space between groups |
+| `unicode_narrow_nbsp` | Groups separated by narrow no-break space (U+202F) |
+| `unicode_nbsp` | Groups separated by non-breaking space (U+00A0) |
+| `unicode_thin_space` | Groups separated by thin space (U+2009) |
+
+### `bidirectional` (6)
+
+| technique | label |
+|---|---|
+| `alm_between_chars` | Arabic letter mark ('\u061c', U+061C) injected between every character |
+| `lro_wrap` | Value wrapped in LTR override ('\u202d'...'\u202c') |
+| `mid_rlo_inject` | RTL override injected at midpoint — second half rendered reversed |
+| `rle_embed` | Value inside RTL embedding ('\u202b'...'\u202c') |
+| `rli_isolate` | Value wrapped in RTL isolate ('\u2067'...'\u2069') — Unicode 6.3+ bidi |
+| `rlo_wrap` | Value wrapped in RTL override ('\u202e'...'\u202c') — display order reversed |
+
+### `soft_hyphen` (6)
+
+| technique | label |
+|---|---|
+| `mixed_shy_wj` | Alternating soft hyphen and word joiner between every character |
+| `shy_2char_boundaries` | Soft hyphen (U+00AD) at every 2-char boundary |
+| `shy_between_every_char` | Soft hyphen (U+00AD) inserted between every character |
+| `shy_group_boundaries` | Soft hyphen (U+00AD) at every 4-char group boundary — invisible in rendering |
+| `wj_between_every_char` | Word joiner (U+2060) inserted between every character |
+| `wj_group_boundaries` | Word joiner (U+2060) at every 4-char group boundary — inhibits line breaks invisibly |
+
+### `morse_code` (4)
+
+| technique | label |
+|---|---|
+| `morse_newline_sep` | Digits encoded as Morse; each symbol on its own line |
+| `morse_no_sep` | Digits encoded as Morse; symbols concatenated with no separator |
+| `morse_slash_sep` | Digits encoded as Morse; symbols separated by forward slashes |
+| `morse_space_sep` | Digits encoded as Morse; symbols separated by spaces |
+
+### `entropy_evasion` (6)
+
+| technique | label |
+|---|---|
+| `entropy_comment` | Insert ";c"; delimiter comment mid-token to break tokenization |
+| `entropy_concat` | Split into "part1" + "part2" concatenated literals |
+| `entropy_encode` | Base64-encode the whole value (double encoding) |
+| `entropy_low_mix` | Append low-entropy padding to dilute per-char entropy |
+| `entropy_space` | Insert spaces every 4 chars to fall below min token length |
+| `entropy_split` | Split high-entropy token across newlines every 15 chars |
+
+### `barcode_evasion` (4)
+
+| technique | label |
+|---|---|
+| `barcode_embed` | Embed barcode inside a larger document image |
+| `barcode_noise` | Overlay salt-and-pepper noise on the rendered barcode |
+| `barcode_rotate` | Rotate the barcode ~15° off-axis |
+| `barcode_split` | Split value across two barcodes on the same image |
+
+### `archive_evasion` (4)
+
+| technique | label |
+|---|---|
+| `archive_deep_nest` | Bury payload 5 levels deep in nested archives |
+| `archive_double_extension` | Rename archive with a misleading double extension |
+| `archive_mixed_formats` | Stack different container formats (ZIP > DOCX > CSV) |
+| `archive_password` | Wrap archive in a password-protected ZIP (weak password) |
+
+### `capital_markets` (16)
+
+| technique | label |
+|---|---|
+| `bloomberg_suffix` | Bloomberg market-sector suffix appended |
+| `country_prefix_noise` | Bracketed ISO country-code prefix prepended |
+| `grouped_spaces_3` | Space every 3 chars (CUSIP print grouping) |
+| `hyphen_at_third` | Hyphen inserted at one-third position |
+| `lowercase_all` | All characters lowercased |
+| `mixed_case_alt` | Alternating case starting from second char |
+| `noisy_prefix_reference` | Generic 'REFERENCE: ' prefix to trigger context match without real context |
+| `noisy_suffix_prospectus` | Trailing parenthetical to shift span offset |
+| `padded_spaces` | Single space on each side |
+| `reversed` | Value reversed character-by-character |
+| `slash_before_check` | Forward-slash inserted before check digit |
+| `space_after_prefix` | Space inserted after 2-char prefix (country code / LOU prefix) |
+| `space_before_check` | Space inserted before check digit |
+| `truncate_check` | Check digit removed |
+| `zwsp_block4` | Zero-width no-break space every 4 chars |
+| `zwsp_mid` | Zero-width space inserted at midpoint |
+

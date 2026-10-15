@@ -15,6 +15,16 @@
 - **`transport: http` silently dropped `require_context`, `min_confidence` and `categories`.** `SiphonHttpClient` posted only `{"text": ...}`; siphon-api accepts those three under `options`. They are now forwarded, so the two transports grade under the same settings.
 - **`evadex ci --max-fp` never measured anything.** It read `meta["false_positive_rate"]` from the scan output, a key `evadex scan` has never written, so it defaulted to 0.0 and passed every gate, including Siphon's. `ci` now runs `evadex falsepos --format json --wrap-context` under the same config and grades `overall_false_positive_rate`. If the measurement cannot be taken the gate exits 2 rather than reporting a pass.
 
+### Docs and hygiene
+
+- `HANDOFF.md` and `BACKLOG.md` rewritten for 3.41.0 (both said 3.34.0 and told you to close PRs #12/#13, which were still open; they are closed now).
+- `docs/techniques.md` gains a generated **Technique index**: all 158 technique names across the 17 families (the prose covered 24). `README.md` said 13 families and 501 categories; it is 17 and 503.
+- `docs/REFERENCE.md`: the `siphon` adapter is marked **legacy** (it targets the server `siphon serve` no longer launches and 404s against current Siphon; `edm` and `entropy` still default to it); repository links corrected to `oxide11/dlpscan-rs`; the capital-markets "not yet detected" summary updated for siphon-core 2.10.0.
+- `docs/github-actions/*.yml` examples switched from `--tool siphon` to `--tool siphon-cli --transport http`; as shipped they would have 404'd.
+- `docs/siphon-findings-2026-04-23.md` moved to `docs/archive/`.
+- `.gitignore` covers `results/`, `test_output/`, `*.jsonl`, `*.csv`, `*.log` and the root scratch scripts.
+- `CLAUDE.md`: cited a test that does not exist, said the push header was `x-api-key` (it is `Authorization: Bearer`), and pointed at ports 8090/8091 (the local instance is 8080).
+
 ### Tests
 
 - `tests/unit/cli/test_ci_command.py` (new; `ci` had no tests): thresholds, the error gate, the errors-excluded rate, the falsepos subprocess and its flags, seed forwarding, and the fallback for pre-3.41.0 scan output.
@@ -872,7 +882,7 @@ BNP Paribas LEI seed corrected from an invalid mod-97 value to `R0MUWSFPU8MPRO8K
 
 ### Added
 
-- **`docs/siphon-findings-2026-04-23.md`** — handoff report for the Siphon developer with six findings surfaced during v3.20.2 testing (Quebec HC shadowed by ISIN, Chile RUN/RUT ungated, MRN keyword leak, SSN context gate never fires, SSN regex has no area-code validation, Quebec HC regex has no structural validation). Each finding includes a minimal reproduction, impact assessment, and suggested fix with file+line refs into `dlpscan-rs/crates/siphon-core`.
+- **`docs/archive/siphon-findings-2026-04-23.md`** (moved to `docs/archive/` in 3.41.0) — handoff report for the Siphon developer with six findings surfaced during v3.20.2 testing (Quebec HC shadowed by ISIN, Chile RUN/RUT ungated, MRN keyword leak, SSN context gate never fires, SSN regex has no area-code validation, Quebec HC regex has no structural validation). Each finding includes a minimal reproduction, impact assessment, and suggested fix with file+line refs into `dlpscan-rs/crates/siphon-core`.
 - **`evadex falsepos --no-strict-category`** — opt-out flag for the new category-relevance filter. Default is strict-on; the flag reverts to the pre-v3.20.3 "any match counts" semantics for ad-hoc probing of what the scanner fires on.
 
 ### Fixed

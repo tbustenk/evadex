@@ -2,7 +2,7 @@
 
 A scanner-agnostic DLP evasion test suite. evadex generates hundreds of obfuscated variants of known-sensitive values and submits them to your DLP scanner to find what slips through — including through file extraction pipelines (DOCX, PDF, XLSX), not just plain-text API calls.
 
-Built and tested with [dlpscan](https://github.com/oxide11/dlpscan); works with any scanner via its adapter interface. Detection rates vary by scanner, configuration, and ruleset — run evadex against your own deployment to see your results.
+Built and tested with [dlpscan](https://github.com/oxide11/dlpscan-rs); works with any scanner via its adapter interface. Detection rates vary by scanner, configuration, and ruleset — run evadex against your own deployment to see your results.
 
 ---
 
@@ -36,7 +36,7 @@ Each variant is tested four ways by default: as plain text, embedded in a DOCX, 
 
 Payloads are classified as **structured** or **heuristic** — see [Structured vs heuristic categories](#structured-vs-heuristic-categories) below.
 
-593 payloads across 501 categories covering **489/557 sub-patterns** (88%) of the dlpscan-rs pattern library, with 421 structured categories confirmed detected by seed scan. See [Coverage](#coverage) for a breakdown by sub-pattern.
+593 payloads across 503 categories covering **489/557 sub-patterns** (88%) of the dlpscan-rs pattern library, with 421 structured categories confirmed detected by seed scan. See [Coverage](#coverage) for a breakdown by sub-pattern.
 
 #### North America
 
@@ -1666,7 +1666,7 @@ See [Siphon-C2 integration](#siphon-c2-integration) below for the push semantics
 
 ### Built-in: `dlpscan-cli`
 
-Invokes the [dlpscan](https://github.com/oxide11/dlpscan) CLI directly as a subprocess. evadex was built and tested with dlpscan as the reference scanner. Requires `dlpscan` to be installed and on `PATH` (or provide `--exe`).
+Invokes the [dlpscan](https://github.com/oxide11/dlpscan-rs) CLI directly as a subprocess. evadex was built and tested with dlpscan as the reference scanner. Requires `dlpscan` to be installed and on `PATH` (or provide `--exe`).
 
 ```bash
 evadex scan --tool dlpscan-cli
@@ -1682,9 +1682,11 @@ Generic HTTP adapter for any DLP tool that exposes a REST API. Sends plain text 
 evadex scan --tool dlpscan --url http://my-dlpscan-server:8080 --api-key my-key
 ```
 
-### Built-in: `siphon`
+### Built-in: `siphon` *(legacy)*
 
-Native adapter for [dlpscan-rs / Siphon](https://github.com/oxide11/dlpscan) via its HTTP API. Use this in production environments where the CLI isn't available — for example, when Siphon runs as a sidecar or dedicated DLP service. Talks to `POST /v1/scan` and parses Siphon's full response (findings, confidence scores, and — when present — BIN brand/country, entropy classification, and validator name).
+> **Legacy.** This adapter targets the HTTP server that used to be embedded in the `siphon` CLI (`POST /v1/scan`, `x-api-key` header, port 8000). `siphon serve` now launches the separate `siphon-api` binary, which has no `/v1/scan` route and authenticates with `Authorization: Bearer`. Against a current Siphon this adapter returns 404. Use **`siphon-cli` with `--transport http`** (below) instead; the `edm` and `entropy` commands still default to `siphon` and are the reason it has not been removed.
+
+Native adapter for [dlpscan-rs / Siphon](https://github.com/oxide11/dlpscan-rs) via its HTTP API. Use this in production environments where the CLI isn't available — for example, when Siphon runs as a sidecar or dedicated DLP service. Talks to `POST /v1/scan` and parses Siphon's full response (findings, confidence scores, and — when present — BIN brand/country, entropy classification, and validator name).
 
 **Start the Siphon API server:**
 
@@ -1758,7 +1760,7 @@ The command submits each high-entropy payload in three contexts — **bare** (va
 
 ### Built-in: `siphon-cli`
 
-Subprocess adapter for the [Polygon Siphon](https://github.com/oxide11/dlpscan) CLI (`siphon.exe` on Windows, `siphon` elsewhere). Mirrors `dlpscan-cli` but targets the Siphon command surface, so air-gapped or CI environments that can't stand up the HTTP server can still be scanned end-to-end.
+Subprocess adapter for the [Polygon Siphon](https://github.com/oxide11/dlpscan-rs) CLI (`siphon.exe` on Windows, `siphon` elsewhere). Mirrors `dlpscan-cli` but targets the Siphon command surface, so air-gapped or CI environments that can't stand up the HTTP server can still be scanned end-to-end.
 
 - **Text scanning**: the variant value is piped via stdin to `siphon scan-text --format json`.
 - **File scanning**: the generated document is written to a mode-0600 temp file, `siphon scan --format json <file>` is invoked, and the temp file is deleted even if the scan fails.
@@ -2365,7 +2367,7 @@ Each row shows coverage at the **sub-pattern level** — e.g. "Credit Card Numbe
 | URLs with Credentials | 2 | **2/2** ✓ | URL with Password, URL with Token — completed this release |
 | PCI Sensitive Data | 1 | **1/1** ✓ | Cardholder Name |
 
-**Summary:** evadex covers **489/557 sub-patterns** (88%) across all 126 dlpscan-rs categories with **593 seed payloads** (501 categories). Of those: 421 structured categories confirmed detected by direct dlpscan-rs seed scan; 68 heuristic categories excluded from scanner verification per design (JWT, API keys, labels). The v3.24.0 capital-markets additions (CUSIP, CINS, SEDOL, ISIN, FIGI, LEI, Ticker, RIC, VALOR, WKN, MT103, MiFID) are not yet detected by dlpscan-rs Siphon — see siphon-findings-2026-04-23.md for the full gap report. Seed-scan verified against dlpscan-rs — see `new_cat_verification.json` for per-category results.
+**Summary:** evadex covers **489/557 sub-patterns** (88%) across all 126 dlpscan-rs categories with **593 seed payloads** (503 categories). Of those: 421 structured categories confirmed detected by direct dlpscan-rs seed scan; 68 heuristic categories excluded from scanner verification per design (JWT, API keys, labels). The v3.24.0 capital-markets additions were not detected by Siphon when first added (see [docs/archive/siphon-findings-2026-04-23.md](archive/siphon-findings-2026-04-23.md) for that gap report); as of siphon-core 2.10.0, `core/relevance.py` maps CUSIP, CINS, SEDOL, ISIN, FIGI, LEI, VALOR, WKN, RIC, Ticker and MT103 to Siphon rules and they are graded as structured categories. `mifid_tx_id` is heuristic: a MiFID TRN has no fixed format, so no scanner can match it by shape. Seed-scan verified against dlpscan-rs — see `new_cat_verification.json` for per-category results.
 
 ---
 

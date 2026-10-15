@@ -72,7 +72,7 @@ jobs:
       - name: Run evadex banking-tier scan
         run: |
           evadex scan \
-            --tool siphon \
+            --tool siphon-cli --transport http \
             --url http://localhost:8080 \
             --api-key ci-test \
             --tier banking \
@@ -85,7 +85,7 @@ jobs:
       - name: Run false-positive check
         run: |
           evadex falsepos \
-            --tool siphon \
+            --tool siphon-cli --transport http \
             --url http://localhost:8080 \
             --api-key ci-test \
             --count 50 \
