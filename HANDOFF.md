@@ -10,7 +10,7 @@ queue). This is the "resume here after a break" quick-start.
 - **Version: 3.41.0** (`pyproject.toml` is the source of truth; `CHANGELOG.md`
   is the user-facing release notes).
 - **Tests — all passing** (verified 2026-10-15, run from a neutral cwd):
-  - `pytest tests/unit -q` → **1364 passed**
+  - `pytest tests/unit -q` → **1369 passed**
   - `pytest tests/integration -q` → **300 passed**
   - `ruff check src` → clean (CI runs exactly this; `tests/` is not linted in CI)
 - **PyPI:** `pip install evadex` (3.28.2 was the first push; publish 3.41.0

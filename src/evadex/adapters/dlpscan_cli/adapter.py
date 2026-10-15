@@ -46,20 +46,21 @@ class DlpscanCliAdapter(BaseAdapter):
     async def submit(self, payload: Payload, variant: Variant) -> ScanResult:
         strategy = variant.strategy
 
+        # Embed the variant value in a realistic keyword sentence so that
+        # dlpscan-rs context requirements are satisfied, for text and file
+        # strategies alike (files carried the bare value before v3.41.0).
+        # The original variant.value is preserved in the result for reporting.
+        text = variant.value
+        if self._wrap_context:
+            text = get_keyword_sentence(
+                sentence_rng(self._seed, payload.category, variant.value),
+                payload.category,
+                text,
+            )
         if strategy == "text":
-            text = variant.value
-            if self._wrap_context:
-                # Embed the variant value in a realistic keyword sentence so that
-                # dlpscan-rs context requirements are satisfied.  The original
-                # variant.value is preserved in the result for reporting.
-                text = get_keyword_sentence(
-                    sentence_rng(self._seed, payload.category, variant.value),
-                    payload.category,
-                    text,
-                )
             matches = await self._scan_text_async(text)
         else:
-            data, _ = FileBuilder.build(variant.value, strategy)
+            data, _ = FileBuilder.build(text, strategy)
             matches = await self._scan_bytes_async(data, strategy)
 
         detected, detected_any = classify_detection(payload.category.value, matches)
