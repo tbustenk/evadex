@@ -5,6 +5,7 @@ from evadex.core.result import Payload, Variant, ScanResult
 from evadex.adapters.base import BaseAdapter
 from evadex.variants.base import BaseVariantGenerator
 from evadex.core.registry import all_generators
+from evadex.core.representable import representable
 
 
 class Engine:
@@ -37,6 +38,14 @@ class Engine:
         # are skipped entirely — used by --resume to avoid re-testing variants
         # from a previous interrupted scan.
         self.skip_keys = skip_keys
+        # v3.41.1: (category, technique, strategy) triples the engine left out
+        # because the strategy's fixture cannot carry the variant's value — a
+        # control character in a DOCX or XLSX, which are XML. Submitting them
+        # produced an *error* per pair (185 DOCX + 185 XLSX on a northam run),
+        # counted against `evadex ci --max-error-rate` as if the scanner had
+        # failed to answer. It never got the question. See
+        # evadex.core.representable.
+        self.skipped_unrepresentable: list[tuple[str, str, str]] = []
 
     def run(self, payloads: list[Payload]) -> list[ScanResult]:
         return asyncio.run(self._run_async_collect(payloads))
@@ -107,6 +116,15 @@ class Engine:
                             ):
                                 continue
                             for strategy in self.strategies:
+                                if not representable(variant.value, strategy):
+                                    self.skipped_unrepresentable.append(
+                                        (
+                                            payload.category.value,
+                                            variant.technique,
+                                            strategy,
+                                        )
+                                    )
+                                    continue
                                 if self.skip_keys is not None:
                                     key = (
                                         payload.value,
@@ -156,6 +174,15 @@ class Engine:
                             ):
                                 continue
                             for strategy in self.strategies:
+                                if not representable(variant.value, strategy):
+                                    self.skipped_unrepresentable.append(
+                                        (
+                                            payload.category.value,
+                                            variant.technique,
+                                            strategy,
+                                        )
+                                    )
+                                    continue
                                 if self.skip_keys is not None:
                                     key = (
                                         payload.value,

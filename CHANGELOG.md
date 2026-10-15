@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.41.1] — 2026-10-15
+
+### Fixed
+
+- **A variant whose value DOCX/XLSX cannot carry is left out of those strategies, not recorded as an error.** DOCX and XLSX are XML containers, and XML 1.0 forbids the C0 control characters other than tab, newline and carriage return. `barcode_evasion`'s `barcode_split` marks its split point with U+001E (an instruction to the barcode renderer that the text path passes through), so on every northam run 185 DOCX and 185 XLSX submissions failed inside python-docx / openpyxl with "All strings must be XML compatible" and were counted as *errors* — the figure `evadex ci --max-error-rate` gates on, as if the scanner had failed to answer. It was never asked, and could not have been: the evasion is not representable in the format. The engine now skips such `(variant, strategy)` pairs (`evadex.core.representable`), the summary prints how many and which techniques, and scan JSON records them under `meta.skipped_unrepresentable` (`count`, `techniques`, `strategies`), outside `total` and every rate. The text and PDF strategies still carry those variants. `FileBuilder.build` raises `UnrepresentableError` naming the character if called with such text directly.
+
+### Tests
+
+- `tests/unit/core/test_representable.py` (new): the predicate, the engine skip in streaming and batch mode (same key set minus the two XML strategies), and the meta block. `tests/unit/adapters/test_file_builder_unrepresentable.py` (new): docx/xlsx raise, pdf and text do not.
+
 ## [3.41.0] — 2026-10-15
 
 ### Added
