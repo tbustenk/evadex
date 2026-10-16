@@ -1291,6 +1291,23 @@ def scan(
     total, passes, fails, errors, pass_rate = _print_summary(
         results, err_console, seed=seed
     )
+    # getattr: tests substitute the Engine with stubs that do not call its
+    # __init__; a missing attribute must not fail the summary.
+    _skipped = getattr(engine, "skipped_unrepresentable", [])
+    if _skipped:
+        # Not errors and not misses: the fixture format cannot carry the
+        # value (a control character in a DOCX/XLSX), so the scanner was
+        # never asked. Say so once, with the techniques, so a run over all
+        # four strategies that comes out with fewer DOCX than text rows is
+        # not read as lost submissions.
+        _techs = sorted({t for _, t, _ in _skipped})
+        _strats = sorted({st for _, _, st in _skipped})
+        err_console.print(
+            f"  [dim]Not submitted:  {len(_skipped)} "
+            f"variant(s) whose value cannot be stored in {'/'.join(_strats)} "
+            f"(XML forbids control characters): {', '.join(_techs)}.[/dim]"
+        )
+        err_console.print()
 
     # v3.21.0: confidence-score distribution for detected matches. Skip the
     # section entirely when the adapter never surfaces a confidence score.
@@ -1310,7 +1327,11 @@ def scan(
     reporter = (
         HtmlReporter()
         if fmt == "html"
-        else JsonReporter(scanner_label=scanner_label, seed=seed)
+        else JsonReporter(
+            scanner_label=scanner_label,
+            seed=seed,
+            skipped_unrepresentable=_skipped,
+        )
     )
     rendered = reporter.render(results)
 

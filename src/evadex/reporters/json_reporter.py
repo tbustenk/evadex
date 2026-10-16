@@ -121,9 +121,17 @@ def _enrich_by_category(
 
 
 class JsonReporter(BaseReporter):
-    def __init__(self, scanner_label: str = "", seed: "int | None" = None):
+    def __init__(
+        self,
+        scanner_label: str = "",
+        seed: "int | None" = None,
+        skipped_unrepresentable: "list[tuple[str, str, str]] | None" = None,
+    ):
         self.scanner_label = scanner_label
         self.seed = seed
+        # (category, technique, strategy) triples the engine never submitted
+        # because the fixture format cannot carry the value (v3.41.1).
+        self.skipped_unrepresentable = list(skipped_unrepresentable or [])
 
     def render(self, results: list[ScanResult]) -> str:
         total = len(results)
@@ -163,6 +171,14 @@ class JsonReporter(BaseReporter):
             "detection_rate": round(passes / scored * 100, 1) if scored else 0.0,
             "error_rate": round(errors / total * 100, 1) if total else 0.0,
             "seed": self.seed,
+            # v3.41.1: variants left out of the run, not errors — the format
+            # could not hold them, so the scanner was never asked. Kept out
+            # of `total` and every rate above.
+            "skipped_unrepresentable": {
+                "count": len(self.skipped_unrepresentable),
+                "techniques": sorted({t for _, t, _ in self.skipped_unrepresentable}),
+                "strategies": sorted({s for _, _, s in self.skipped_unrepresentable}),
+            },
             "summary_by_category": dict(sorted(enriched_by_category.items())),
             "summary_by_generator": dict(sorted(by_generator.items())),
             "summary_by_technique": dict(sorted(enriched_by_technique.items())),

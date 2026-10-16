@@ -1,6 +1,12 @@
 import io
 from typing import Literal
 
+from evadex.core.representable import (
+    UnrepresentableError,
+    describe_unrepresentable,
+    representable,
+)
+
 try:
     from docx import Document
 
@@ -40,7 +46,16 @@ class FileBuilder:
     def build(text: str, fmt: Literal["docx", "pdf", "xlsx"]) -> tuple[bytes, str]:
         """Build an in-memory document containing text. Returns (bytes, mime_type).
         Never writes to disk — uses io.BytesIO only.
+
+        Raises :class:`UnrepresentableError` when ``fmt`` is an XML container
+        (docx, xlsx) and ``text`` holds a character XML 1.0 forbids. The
+        libraries would raise anyway, with a message about "all strings";
+        this one names the character and says the variant has no fixture
+        in that format. The engine normally filters these out before they
+        get here (evadex.core.representable).
         """
+        if not representable(text, fmt):
+            raise UnrepresentableError(describe_unrepresentable(text, fmt))
         if fmt == "docx":
             return FileBuilder._build_docx(text), DOCX_MIME
         elif fmt == "pdf":
