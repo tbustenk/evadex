@@ -26,6 +26,7 @@ from evadex.core.registry import (
     all_generators,
 )
 from evadex.core.engine import Engine
+from evadex.core.representable import why_unrepresentable
 from evadex.core.result import Payload, PayloadCategory, SeverityLevel
 from evadex.payloads.builtins import get_payloads, detect_category, HEURISTIC_CATEGORIES
 from evadex.payloads.tiers import get_tier_categories, VALID_TIERS
@@ -1296,16 +1297,20 @@ def scan(
     _skipped = getattr(engine, "skipped_unrepresentable", [])
     if _skipped:
         # Not errors and not misses: the fixture format cannot carry the
-        # value (a control character in a DOCX/XLSX), so the scanner was
-        # never asked. Say so once, with the techniques, so a run over all
-        # four strategies that comes out with fewer DOCX than text rows is
-        # not read as lost submissions.
+        # value (a control character in a DOCX/XLSX; a script no PDF fixture
+        # font can draw), so the scanner was never asked. Say so once, with
+        # the techniques, so a run over all four strategies that comes out
+        # with fewer DOCX or PDF than text rows is not read as lost
+        # submissions.
         _techs = sorted({t for _, t, _ in _skipped})
         _strats = sorted({st for _, _, st in _skipped})
+        _shown = ", ".join(_techs[:8]) + (
+            f" and {len(_techs) - 8} more" if len(_techs) > 8 else ""
+        )
         err_console.print(
             f"  [dim]Not submitted:  {len(_skipped)} "
             f"variant(s) whose value cannot be stored in {'/'.join(_strats)} "
-            f"(XML forbids control characters): {', '.join(_techs)}.[/dim]"
+            f"({why_unrepresentable(set(_strats))}): {_shown}.[/dim]"
         )
         err_console.print()
 

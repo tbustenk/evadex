@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.42.0] — 2026-10-19
+
+### Fixed
+
+- **The PDF fixture replaced every character outside Latin-1 with `?` before the scanner saw the file.** `FileBuilder._build_pdf` asked fpdf2 for a "DejaVu" font fpdf2 has never shipped, caught the error on every call, and fell back to Helvetica with `text.encode("latin-1", errors="replace")`. On the 2026-10-15 northam re-baseline (siphon-core 2.11.0, seed 20261015) Siphon detected 3,534 variants in text that it missed in PDF; 2,980 of them — every `regional_*` digit script, `fullwidth_digits`, the three `zero_width_*`, `mid_rlo_inject`, `alm_between_chars`, `homoglyph_substitution` — carried a non-Latin-1 character the fixture had already destroyed. Non-Latin-1 variants detected at 89.6% in text and 49.6% in PDF; Latin-1 variants were within 3 points of each other. The 13–15-point "PDF gap" was the fixture, and the pdf floor in Siphon's quality gate (60) was set against it.
+- **The fixture now embeds real fonts, and refuses what no font can draw instead of substituting.** `evadex.adapters.dlpscan.pdf_fonts` finds TrueType fonts on the machine — `EVADEX_PDF_FONTS` (`os.pathsep`-separated `.ttf`/`.otf`/`.ttc` paths) first, then a short per-platform list (DejaVu Sans, Noto, GNU FreeFont on Linux; Arial Unicode on macOS; Arial plus one font per script family on Windows) — reads each font's cmap once with fontTools, and registers the union as what the pdf strategy can carry. Latin-1 text is still drawn with the core Helvetica (about 2 ms a fixture, and byte-for-byte the kind of PDF every earlier baseline measured, so those figures still compare); anything else uses the fewest TrueType fonts that between them draw it (about 40 ms, paid only by the third of variants that need it). fpdf2 does not raise for a glyph a TrueType font lacks — it logs a warning and **drops the character** — so the engine's representability check is what keeps a fullwidth or Khmer digit from being submitted as nothing: a `(variant, pdf)` pair no fixture font can draw is left out of the run and counted under `meta.skipped_unrepresentable`, exactly as 3.41.1 does for control characters in DOCX/XLSX. A tab or a C0 control is never drawable (no glyph; fpdf2 has no tab layout) and is skipped for pdf too — `barcode_split`'s U+001E among them, which 3.41.1 said PDF carried; it carried the raw byte, and the pdf strategy reported the variant as a miss. A newline is a line break (`multi_cell`, where `cell` left it an unrenderable glyph).
+- **`evadex doctor` reports the PDF fixture fonts** — which were found and how many code points they cover — or warns that only Helvetica is available and the pdf strategy carries Latin-1 only, naming `EVADEX_PDF_FONTS`. The scan summary's "Not submitted" line says why per strategy (XML forbids control characters; no PDF fixture font has a glyph for them) and lists at most eight techniques.
+- `deploy/Dockerfile` installs `fonts-dejavu-core` in the runtime image.
+
+### Changed
+
+- `evadex.core.representable` gains `register_pdf_charset(provider)` / `pdf_charset()` (the file builder registers `pdf_fonts.charset` at import; with no provider only the control-character rule applies), `PDF_FORBIDDEN`, and `why_unrepresentable(strategies)`. `FileBuilder.build(text, "pdf")` raises `UnrepresentableError` naming the code point for text the fixture cannot carry.
+- **PDF figures from before 3.42.0 are not comparable with those after** for any technique that leaves Latin-1, in the same way 3.41.0 reset the file-strategy baselines. Expect the pdf detection rate to rise and `meta.total` for a pdf run to fall by however many variants the machine's fonts cannot draw; `meta.skipped_unrepresentable.count` says how many. Siphon's per-strategy gate floor for pdf should be re-derived from a run on this release.
+
+### Tests
+
+- `tests/unit/adapters/test_pdf_fonts.py` (new): candidate order and de-duplication, the Windows font directories, the core-font fallback and its charset, coverage union and `fonts_for` picking the fewest fonts, discovery caching and provider registration, the builder refusing instead of substituting, controls and tabs, and — where a candidate font exists — the TrueType path end to end with Latin-1 text staying on the core font. `tests/unit/core/test_representable.py` rewritten for the pdf rules (unknown fonts, known fonts, line breaks, the engine skipping `(variant, pdf)`, the summary wording). `tests/unit/adapters/test_file_builder_unrepresentable.py`: pdf refuses U+001E too. 1406 unit + 300 integration.
+
 ## [3.41.1] — 2026-10-15
 
 ### Fixed
