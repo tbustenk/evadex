@@ -1,9 +1,11 @@
 import io
 from typing import Literal
 
+from evadex.adapters.dlpscan import pdf_fonts
 from evadex.core.representable import (
     UnrepresentableError,
     describe_unrepresentable,
+    register_pdf_charset,
     representable,
 )
 
@@ -40,6 +42,11 @@ NOISE_SENTENCES = [
     "Authorized personnel only.",
 ]
 
+# The PDF fixture's fonts decide which characters the pdf strategy can carry.
+# Tell the engine, so a variant no font can draw is left out of the run and
+# counted as such, rather than built with the character missing.
+register_pdf_charset(pdf_fonts.charset)
+
 
 class FileBuilder:
     @staticmethod
@@ -48,11 +55,13 @@ class FileBuilder:
         Never writes to disk — uses io.BytesIO only.
 
         Raises :class:`UnrepresentableError` when ``fmt`` is an XML container
-        (docx, xlsx) and ``text`` holds a character XML 1.0 forbids. The
-        libraries would raise anyway, with a message about "all strings";
-        this one names the character and says the variant has no fixture
-        in that format. The engine normally filters these out before they
-        get here (evadex.core.representable).
+        (docx, xlsx) and ``text`` holds a character XML 1.0 forbids, or when
+        ``fmt`` is pdf and no fixture font has a glyph for a character in
+        ``text`` (a control character never does). The libraries would fail
+        anyway — python-docx with a message about "all strings", fpdf2 by
+        dropping the glyph — this names the character and says the variant
+        has no fixture in that format. The engine normally filters these
+        out before they get here (evadex.core.representable).
         """
         if not representable(text, fmt):
             raise UnrepresentableError(describe_unrepresentable(text, fmt))
@@ -80,33 +89,48 @@ class FileBuilder:
 
     @staticmethod
     def _build_pdf(text: str) -> bytes:
+        """Render ``text`` as itself, or not at all.
+
+        Latin-1 text is drawn with fpdf2's core Helvetica, as every fixture
+        before 3.42.0 was: nothing to parse or embed (~2 ms), and the PDF a
+        Latin-1 value produces is the same kind as in every earlier baseline.
+        Anything else is drawn with the TrueType fonts :mod:`pdf_fonts`
+        found — the fewest that between them draw the text (~40 ms, paid
+        only by the third of variants that need it) — and a character none
+        of them can draw was refused by :meth:`build` before this ran. There
+        is deliberately no ``errors="replace"`` here: until 3.42.0 that is
+        what turned every non-Latin-1 character into ``?`` and made the pdf
+        strategy measure the fixture instead of the scanner. ``multi_cell``
+        rather than ``cell`` so a newline inside a value is a line break, as
+        it is in the text strategy, rather than an unrenderable glyph.
+        """
         if not HAS_FPDF:
             raise RuntimeError("fpdf2 is required for PDF generation")
         pdf = FPDF()
         pdf.add_page()
-        # Try DejaVu (bundled with fpdf2 >= 2.7.6) for full Unicode support.
-        # Fall back to Helvetica for ASCII-only content if DejaVu is unavailable.
-        try:
-            pdf.set_font("DejaVu", size=12)
-        except Exception:
-            # DejaVu not available — encode text to latin-1 safe subset
-            pdf.set_font("Helvetica", size=12)
-            text = text.encode("latin-1", errors="replace").decode("latin-1")
+        chosen = (
+            [] if pdf_fonts.core_can_draw(text) else pdf_fonts.fonts().fonts_for(text)
+        )
+        if chosen:
+            for family, path in chosen:
+                kwargs = (
+                    {"collection_font_number": 0}
+                    if path.suffix.lower() == ".ttc"
+                    else {}
+                )
+                pdf.add_font(family, fname=str(path), **kwargs)
+            pdf.set_font(chosen[0][0], size=12)
+            if len(chosen) > 1:
+                pdf.set_fallback_fonts(
+                    [family for family, _ in chosen[1:]], exact_match=False
+                )
+        else:
+            pdf.set_font(pdf_fonts.CORE_FONT, size=12)
 
         for sentence in NOISE_SENTENCES[:2]:
-            try:
-                pdf.cell(0, 10, sentence, new_x="LMARGIN", new_y="NEXT")
-            except Exception:
-                safe = sentence.encode("latin-1", errors="replace").decode("latin-1")
-                pdf.cell(0, 10, safe, new_x="LMARGIN", new_y="NEXT")
-
-        try:
-            pdf.cell(0, 10, text, new_x="LMARGIN", new_y="NEXT")
-        except Exception:
-            safe = text.encode("latin-1", errors="replace").decode("latin-1")
-            pdf.cell(0, 10, safe, new_x="LMARGIN", new_y="NEXT")
-
-        pdf.cell(0, 10, NOISE_SENTENCES[2], new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(0, 10, sentence, new_x="LMARGIN", new_y="NEXT")
+        pdf.multi_cell(0, 10, text, new_x="LMARGIN", new_y="NEXT")
+        pdf.multi_cell(0, 10, NOISE_SENTENCES[2], new_x="LMARGIN", new_y="NEXT")
 
         buf = io.BytesIO()
         pdf.output(buf)

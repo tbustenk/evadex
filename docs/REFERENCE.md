@@ -1102,7 +1102,7 @@ evadex list-techniques [--generator NAME] [--verbose]
 
 ### `evadex doctor` *(v3.20.0)*
 
-Read-only environment health check. Reports whether optional extras (barcodes, archives, data-formats, bridge) are installed, whether siphon is on the PATH, whether the bridge is up, and whether the audit log and profiles directories are writable.
+Read-only environment health check. Reports whether optional extras (barcodes, archives, data-formats, bridge) are installed, whether siphon is on the PATH, whether the bridge is up, whether the audit log and profiles directories are writable, and *(v3.42.0)* which TrueType fonts the PDF fixture will embed — with only Helvetica available the pdf strategy carries Latin-1 and skips every other variant, and the check says so; set `EVADEX_PDF_FONTS` (`os.pathsep`-separated `.ttf`/`.otf`/`.ttc` paths) to a Unicode font such as DejaVu Sans or Arial to widen it.
 
 ```
 evadex doctor [--json]

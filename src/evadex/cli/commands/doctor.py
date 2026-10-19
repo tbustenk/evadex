@@ -95,6 +95,33 @@ def _check_siphon() -> _Check:
     )
 
 
+def _check_pdf_fonts() -> _Check:
+    """Which fonts the PDF fixture will embed, and so which scripts the pdf
+    strategy can carry. Helvetica alone is a pass with a warning: every
+    variant outside Latin-1 is then skipped for pdf, not mis-measured."""
+    try:
+        from evadex.adapters.dlpscan import pdf_fonts
+    except ImportError as exc:  # pragma: no cover — the module is part of the package
+        return _Check(False, f"PDF fixture fonts: {exc}")
+    try:
+        found = pdf_fonts.fonts()
+    except Exception as exc:  # noqa: BLE001 — a doctor check reports, never raises
+        return _Check(False, f"PDF fixture fonts could not be read: {exc}")
+    if found.embedded:
+        return _Check(
+            True,
+            f"PDF fixture fonts: {', '.join(found.names)} "
+            f"({len(found.charset):,} code points)",
+        )
+    return _Check(
+        True,
+        f"PDF fixture font: {pdf_fonts.CORE_FONT} only (Latin-1) — variants in other "
+        f"scripts are skipped for the pdf strategy; set {pdf_fonts.ENV_VAR} to a "
+        f"Unicode .ttf (DejaVuSans, Arial) to carry them",
+        warn=True,
+    )
+
+
 def _check_extra(pkg: str, label: str, purpose: str) -> _Check:
     """Check that a single optional extra's flagship package is importable."""
     try:
@@ -312,6 +339,7 @@ def _run_checks() -> list[_Check]:
             "7z archive generation unavailable — `pip install evadex\\[archives]`",
         )
     )
+    results.append(_check_pdf_fonts())
 
     results.extend(_check_bridge())
     results.append(_check_audit_log())

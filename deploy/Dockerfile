@@ -24,8 +24,12 @@ RUN pip install --no-cache-dir --prefix=/install ".[bridge,barcodes,data-formats
 # ── Stage 2: Runtime ───────────────────────────────────────────
 FROM python:3.11-slim AS runtime
 
+# fonts-dejavu-core: the PDF fixture embeds a real font so the pdf strategy
+# can carry more than Latin-1 (evadex.adapters.dlpscan.pdf_fonts). Without
+# it every non-Latin-1 variant is skipped for pdf — honest, but it leaves
+# the regional-digit and zero-width techniques unmeasured on that path.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates curl && \
+    apt-get install -y --no-install-recommends ca-certificates curl fonts-dejavu-core && \
     rm -rf /var/lib/apt/lists/*
 
 # Non-root user + stable uid 1000 so the k8s manifest's
