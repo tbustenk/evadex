@@ -1,6 +1,6 @@
 # evadex Backlog
 
-Last updated: 2026-10-15
+Last updated: 2026-10-27
 
 ## Ready to build
 
@@ -13,7 +13,9 @@ Last updated: 2026-10-15
 - [ ] **`scan --min-detection-rate` should grade `detection_rate`** (errors excluded) with its own error gate, matching `ci`. Left on `pass_rate` in 3.41.0 so existing profiles keep their meaning; change with a major note.
 
 ### Siphon gate (lives in `dlpscan-rs`)
-- [ ] `batch: true`, `--seed`, `--concurrency 64`, `--fp-category` (all but `entropy`), `2>&1 | tee`, timeout 180 → 60 min, threshold raised toward the measured baseline. Then make it a **required check** (needs an `oxide11/dlpscan-rs` admin; `tbustenk` has push only).
+- [x] `batch: true`, `--seed`, `--concurrency 64`, `--fp-category` (all but `entropy`), `2>&1 | tee`, timeout 60 min, one job per strategy on its own floor (dlpscan-rs #514, #518, #531, #533; 2026-10-16/19)
+- [x] Run or skip on every PR, so the check can be required (dlpscan-rs #544)
+- [ ] Make it a **required check** — needs an `oxide11/dlpscan-rs` admin (`tbustenk` has push only); dlpscan-rs #515 has the exact setting.
 
 ### Dead weight and legacy
 - [ ] **Remove `adapters/siphon/`** once `edm` and `entropy` are moved to siphon-api's endpoints. It targets `POST /v1/scan` + `x-api-key` on port 8000, the server `siphon serve` no longer launches; returns 404 against a current Siphon; zero tests. `docs/github-actions/*.yml` were switched to `siphon-cli --transport http` in 3.41.0.
@@ -36,6 +38,8 @@ Last updated: 2026-10-15
 - Forcepoint / McAfee adapters, hosted SaaS evadex — parked until the measurement items above are done; a number nobody can reproduce is not worth more adapters.
 
 ## Recently completed
+- [x] v3.42.0 — the PDF fixture embeds the TrueType fonts it finds on the host and leaves out of a pdf run any variant no font can draw (`meta.skipped_unrepresentable`); Siphon's pdf gate went from 63% to 75% on the same scanner (PR #35)
+- [x] v3.41.1 — DOCX/XLSX runs leave out the one variant per category whose value XML cannot carry instead of recording 185 errors per strategy (PR #34); file-strategy fixtures carry the keyword sentence (PR #33)
 - [x] v3.41.0 — seed, error accounting, real FP gate, batched CLI transport, HTTP option forwarding, `ci --fp-category`, hygiene + doc drift (PRs #30, #31, #32)
 - [x] v3.40.x — ticker templates and seeds, MiFID → heuristic, WKN/RIC mapped to siphon-core 2.10.0 rules
 - [x] Closed stale PRs #12 / #13 (features had shipped directly to main)

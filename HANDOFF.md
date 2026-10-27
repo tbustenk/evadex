@@ -1,31 +1,33 @@
 # evadex — Handoff Notes
 
-Last updated: 2026-10-15
+Last updated: 2026-10-27
 
 Companion to `CLAUDE.md` (architecture/conventions) and `BACKLOG.md` (work
 queue). This is the "resume here after a break" quick-start.
 
 ## Current state
 
-- **Version: 3.41.0** (`pyproject.toml` is the source of truth; `CHANGELOG.md`
-  is the user-facing release notes).
-- **Tests — all passing** (verified 2026-10-15, run from a neutral cwd):
-  - `pytest tests/unit -q` → **1369 passed**
+- **Version: 3.42.0** (`pyproject.toml` is the source of truth; `CHANGELOG.md`
+  is the user-facing release notes). 3.41.1 skips the variants DOCX/XLSX
+  cannot carry instead of recording errors; 3.42.0 embeds real fonts in the
+  PDF fixture and leaves out what no font can draw.
+- **Tests — all passing** (verified 2026-10-27, run from a neutral cwd):
+  - `pytest tests/unit -q` → **1406 passed**
   - `pytest tests/integration -q` → **300 passed**
   - `ruff check src` → clean (CI runs exactly this; `tests/` is not linted in CI)
-- **PyPI:** `pip install evadex` (3.28.2 was the first push; publish 3.41.0
-  once the PRs below are on `main`).
-- **Scanner under test:** Siphon (`dlpscan-rs`) 2.10.0 / siphon-core 2.10.0.
-  Last full baseline: northam tier, 21,805 submissions, **80.4%** detection,
-  0 errors (`results/rebaseline_northam/northam_2.10.0.json`, local only).
+- **PyPI:** `pip install evadex` (3.28.2 was the first push; 3.42.0 is not
+  published yet).
+- **Scanner under test:** Siphon (`dlpscan-rs`) siphon-cli 2.9.0 /
+  siphon-core 2.12.0 on `main` as of 2026-10-27. Last full baseline: northam
+  tier, 21,805 submissions, **80.4%** detection, 0 errors, on siphon-core
+  2.10.0 (`results/rebaseline_northam/northam_2.10.0.json`, local only).
+  Siphon's gate measures the same tier on every detection-bearing PR:
+  text 78.8% · docx 76.8% · xlsx 75.4% · pdf 75.2% (2026-10-19, seed
+  20261015, evadex 3.42.0).
 
-## Open PRs (merge in this order; each is stacked on the previous)
+## Open PRs
 
-| PR | Branch | Summary |
-|---|---|---|
-| #30 | `feat/seeded-wrap-context-error-accounting` | `scan --seed`, `meta.detection_rate` / `error_rate`, `ci --max-error-rate`, real `ci --max-fp` (it read a key scan never wrote and passed every gate) |
-| #31 | `feat/batched-cli-transport` | `scan --batch`: one `siphon scan-dir` per batch instead of one process per submission (identical verdicts, ~5x faster); HTTP transport forwards `require_context` / `min_confidence` / `categories`; `ci --fp-category` |
-| #32 | `chore/hygiene-docs-3.41` | this file, `BACKLOG.md`, `.gitignore`, generated technique index, legacy-adapter notice, stale counts |
+None. #30–#35 are on `main` (3.41.0 → 3.42.0).
 
 ## To resume work
 
@@ -75,9 +77,12 @@ one per file format, `cli/commands/` 36 subcommands.
 ## Biggest remaining gaps
 
 1. **Siphon's gate** (`dlpscan-rs/.github/workflows/evadex-quality-gate.yml`)
-   needs `batch: true`, `--seed`, a threshold near the real baseline, `2>&1`
-   before its `tee` (the uploaded report has always been empty), and to become
-   a required check — only an admin on `oxide11/dlpscan-rs` can do the last.
+   has `batch: true`, `--seed 20261015`, `--concurrency 64`,
+   `--max-error-rate 2`, one job per strategy with its own floor (text 75 /
+   docx 73 / pdf 71 / xlsx 72), `--fp-category` on the text job and `2>&1 |
+   tee` since 2026-10-16/19. dlpscan-rs #544 makes it run (or skip) on every
+   PR so it can be a required check; flipping that needs an admin on
+   `oxide11/dlpscan-rs` (dlpscan-rs #515).
 2. **Morse** 65% bypass, **capital markets** 39%, **unicode whitespace** and
    **structural** ~35% on the 2.10.0 baseline.
 3. **Per-category deltas are still noisy**: few payloads per category. A seed
